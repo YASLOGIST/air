@@ -1,0 +1,269 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Archivo", "IBM Plex Sans", system-ui, sans-serif;
+  --font-display: "Archivo", "IBM Plex Sans", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-ruqaa: "Aref Ruqaa", "IBM Plex Sans Arabic", serif;
+  --font-ar-tech: "IBM Plex Sans Arabic", system-ui, sans-serif;
+
+  --color-steel: #9BB0BC;
+  --color-strato: #0A0F16;
+  --color-strato-card: #0F1722;
+  --color-altitude-blue: #0284c7;
+  --color-aero-cyan: #38bdf8;
+  --color-pharma-teal: #14b8a6;
+  --color-hud-green: #34d399;
+  --color-warning-amber: #f59e0b;
+}
+
+:root {
+  --z-background: -1;
+  --z-base: 0;
+  --z-content: 10;
+  --z-hud: 40;
+  --z-nav: 9000;
+  --z-modal: 10000;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 180ms;
+  --dur-base: 320ms;
+  --dur-slow: 700ms;
+}
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --c-bg: #070C14;
+  --c-deep: #0B1320;
+  --c-card: rgba(15, 23, 36, 0.75);
+  --c-card-solid: #0F1724;
+  --c-subcard: rgba(0, 0, 0, 0.45);
+  --c-border: rgba(155, 176, 188, 0.16);
+  --c-border-hover: rgba(56, 189, 248, 0.4);
+  --c-text: #FFFFFF;
+  --c-heading: #FFFFFF;
+  --c-muted: #9BB0BC;
+  --c-accent: #38bdf8;
+  --c-accent-secondary: #0284c7;
+  --c-pharma: #14b8a6;
+  
+  --glass-bg: rgba(13, 21, 34, 0.72);
+  --glass-brd: rgba(155, 176, 188, 0.18);
+  --glass-inset: rgba(255, 255, 255, 0.05);
+  --glass-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.7);
+  
+  --hud-bg: #060B12;
+  --hud-glow: rgba(56, 189, 248, 0.25);
+  --hud-green-glow: rgba(52, 211, 153, 0.3);
+  --radar-sweep-color: rgba(56, 189, 248, 0.15);
+  --grid-line: rgba(155, 176, 188, 0.07);
+  --hero-veil: linear-gradient(180deg, rgba(7, 12, 20, 0.75) 0%, rgba(10, 18, 30, 0.88) 60%, #070C14 100%);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --c-bg: #F8FAFC;
+  --c-deep: #F1F5F9;
+  --c-card: rgba(255, 255, 255, 0.92);
+  --c-card-solid: #FFFFFF;
+  --c-subcard: rgba(241, 245, 249, 0.95);
+  --c-border: rgba(148, 163, 184, 0.28);
+  --c-border-hover: rgba(2, 132, 199, 0.5);
+  --c-text: #0F172A;
+  --c-heading: #090E17;
+  --c-muted: #475569;
+  --c-accent: #0284c7;
+  --c-accent-secondary: #0369a1;
+  --c-pharma: #0d9488;
+  
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-brd: rgba(148, 163, 184, 0.3);
+  --glass-inset: rgba(255, 255, 255, 0.95);
+  --glass-shadow: 0 16px 40px -10px rgba(15, 23, 42, 0.08);
+  
+  --hud-bg: #060B12; /* Avionics screen stays dark in both themes by design */
+  --hud-glow: rgba(2, 132, 199, 0.2);
+  --hud-green-glow: rgba(13, 148, 136, 0.25);
+  --radar-sweep-color: rgba(2, 132, 199, 0.12);
+  --grid-line: rgba(100, 116, 139, 0.1);
+  --hero-veil: linear-gradient(180deg, rgba(248, 250, 252, 0.82) 0%, rgba(241, 245, 249, 0.92) 60%, #F8FAFC 100%);
+}
+
+*,
+*::before,
+*::after {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+body {
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Typography Hierarchy */
+.h1-hero {
+  font-family: var(--font-serif);
+  font-stretch: 76%;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  color: var(--c-heading);
+}
+
+.h2-display {
+  font-family: var(--font-serif);
+  font-stretch: 76%;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  color: var(--c-heading);
+}
+
+.text-title {
+  color: var(--c-heading);
+}
+
+.text-body {
+  color: var(--c-text);
+}
+
+.text-muted {
+  color: var(--c-muted);
+}
+
+/* Numbers and telemetry */
+.font-mono,
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.telemetry-unit {
+  direction: ltr !important;
+  unicode-bidi: isolate;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+/* Arabic typography harmony */
+[lang="ar"] body,
+[lang="ar"] .font-display,
+[lang="ar"] .font-sans,
+[lang="ar"] p,
+[lang="ar"] span,
+[lang="ar"] button,
+[lang="ar"] a,
+[lang="ar"] input {
+  font-family: var(--font-ar-tech);
+}
+
+[lang="ar"] .h1-hero,
+[lang="ar"] .h2-display,
+[lang="ar"] h1,
+[lang="ar"] h2,
+[lang="ar"] h3,
+[lang="ar"] .font-ruqaa {
+  font-family: var(--font-ruqaa);
+  font-stretch: normal;
+  font-weight: 700;
+  letter-spacing: 0 !important;
+  line-height: 1.45;
+}
+
+/* Prevent letter-spacing in Arabic cursive joins */
+[lang="ar"] [class*="tracking-"] {
+  letter-spacing: 0 !important;
+}
+
+/* Card & Screen Styling */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-brd);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-inset);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-subcard {
+  background: var(--c-subcard);
+  border: 1px solid var(--c-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-panel-hover {
+  transition: all var(--dur-base) var(--ease-out-expo);
+}
+
+.glass-panel-hover:hover {
+  border-color: var(--c-border-hover);
+  transform: translateY(-2px);
+}
+
+/* Avionics Screen Well (Cockpit HUD) */
+.avionics-well {
+  background-color: var(--hud-bg);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.8), inset 0 0 40px rgba(6, 182, 212, 0.12);
+}
+
+/* Radar Animations */
+@keyframes radarSweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pingPulse {
+  0% { transform: scale(0.85); opacity: 0.9; }
+  50% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(0.85); opacity: 0; }
+}
+
+@keyframes hudBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@keyframes altitudeFlight {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(0.5deg); }
+}
+
+.animate-radar-sweep {
+  animation: radarSweep 8s linear infinite;
+}
+
+.animate-ping-pulse {
+  animation: pingPulse 2.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.animate-hud-blink {
+  animation: hudBlink 2s ease-in-out infinite;
+}
+
+.animate-flight-float {
+  animation: altitudeFlight 6s ease-in-out infinite;
+}
+
+/* Accessible focus ring */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}

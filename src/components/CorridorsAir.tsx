@@ -1,0 +1,248 @@
+import React, { useState } from 'react';
+import { useLang } from '../lib/i18n';
+import type { AirCorridor } from '../types/air-freight';
+import { ModelBadge } from './ModelBadge';
+import {
+  PlaneTakeoff,
+  Globe2,
+  Calendar,
+  Package,
+  Sparkles
+} from 'lucide-react';
+
+const AIR_CORRIDORS: AirCorridor[] = [
+  {
+    id: 'corridor-fra-cai',
+    code: 'FRA ⇄ CAI',
+    fromIata: 'FRA',
+    fromCityEn: 'Frankfurt, Germany',
+    fromCityAr: 'فرانكفورت، ألمانيا',
+    toIata: 'CAI',
+    toCityEn: 'Cairo, Egypt',
+    toCityAr: 'القاهرة، مصر',
+    distanceKm: 2910,
+    flightTimeEn: '4h 15m Block Time',
+    flightTimeAr: '4 ساعات و15 دقيقة',
+    weeklyFrequencies: 18,
+    primaryCargoEn: 'German biopharma, oncology drugs, MRI medical systems, automotive engineering parts.',
+    primaryCargoAr: 'الأدوية البيولوجية الألمانية، علاجات الأورام، أنظمة الرنين المغناطيسي، قطع غيار المحركات.',
+    strategicSignificanceEn: 'The primary humanitarian & industrial healthcare lifeline connecting Central European production directly to Egyptian healthcare distribution.',
+    strategicSignificanceAr: 'الشريان الدوائي والصناعي الرئيسي الرابط بين مراكز الإنتاج الطبية في وسط أوروبا ومنظومة الرعاية الصحية المصرية.',
+    carrierEn: 'Lufthansa Cargo / EgyptAir Cargo Alliance',
+    carrierAr: 'تحالف لوفتهانزا للشحن / مصر للطيران للشحن الجوي',
+  },
+  {
+    id: 'corridor-dxb-cai',
+    code: 'DXB ⇄ CAI',
+    fromIata: 'DXB',
+    fromCityEn: 'Dubai, UAE',
+    fromCityAr: 'دبي، الإمارات',
+    toIata: 'CAI',
+    toCityEn: 'Cairo, Egypt',
+    toCityAr: 'القاهرة، مصر',
+    distanceKm: 2420,
+    flightTimeEn: '3h 35m Block Time',
+    flightTimeAr: '3 ساعات و35 دقيقة',
+    weeklyFrequencies: 28,
+    primaryCargoEn: 'Cross-border e-commerce, express documents, courier consolidations, re-exported luxury goods.',
+    primaryCargoAr: 'التجارة الإلكترونية الإقليمية، البريد السريع، الطرود المجمعة، الإلكترونيات والسلع المعاد تصديرها.',
+    strategicSignificanceEn: 'Regional high-frequency fulfillment corridor supporting same-day and next-day consumer goods velocity across the MENA trade axis.',
+    strategicSignificanceAr: 'محور التجارة والتوزيع السريع الإقليمي الداعم لسرعة تدفق بضائع التجارة الإلكترونية والتسليم في اليوم التالي.',
+    carrierEn: 'Emirates SkyCargo / EgyptAir / Flydubai Cargo',
+    carrierAr: 'الإمارات للشحن الجوي / مصر للطيران / فلاي دبي للشحن',
+  },
+  {
+    id: 'corridor-ams-cai',
+    code: 'AMS ⇄ CAI',
+    fromIata: 'AMS',
+    fromCityEn: 'Amsterdam (Schiphol), Netherlands',
+    fromCityAr: 'أمستردام (شيفول)، هولندا',
+    toIata: 'CAI',
+    toCityEn: 'Cairo, Egypt',
+    toCityAr: 'القاهرة، مصر',
+    distanceKm: 3280,
+    flightTimeEn: '4h 40m Block Time',
+    flightTimeAr: '4 ساعات و40 دقيقة',
+    weeklyFrequencies: 14,
+    primaryCargoEn: 'Fresh Egyptian horticultural exports (strawberries, green beans, flowers) northbound; diagnostic reagents southbound.',
+    primaryCargoAr: 'الصادرات الزراعية المصرية الطازجة (الفراولة، الزهور، الخضروات) شمالاً؛ والكواشف المخبرية جنوباً.',
+    strategicSignificanceEn: 'Crucial cool-chain agricultural export corridor connecting Nile Delta growers directly to the European flower and fresh produce auctions.',
+    strategicSignificanceAr: 'ممر التصدير الزراعي فائق الأهمية الرابط لمزارع الدلتا مع بورصات الزهور والأغذية الطازجة الأوروبية.',
+    carrierEn: 'Air France KLM Cargo / EgyptAir Cargo',
+    carrierAr: 'إير فرانس كيه إل إم للشحن / مصر للطيران للشحن',
+  },
+  {
+    id: 'corridor-pvg-cai',
+    code: 'PVG ⇄ CAI',
+    fromIata: 'PVG',
+    fromCityEn: 'Shanghai (Pudong), China',
+    fromCityAr: 'شنغهاي (بودونغ)، الصين',
+    toIata: 'CAI',
+    toCityEn: 'Cairo, Egypt',
+    toCityAr: 'القاهرة، مصر',
+    distanceKm: 8350,
+    flightTimeEn: '10h 20m Long-Haul',
+    flightTimeAr: '10 ساعات و20 دقيقة (شحن بعيد المدى)',
+    weeklyFrequencies: 12,
+    primaryCargoEn: 'Advanced microelectronics, smartphone components, solar panel inverters, high-value optical components.',
+    primaryCargoAr: 'المكونات الإلكترونية الدقيقة، قطع الهواتف الذكية، محولات الطاقة الشمسية، الألياف الضوئية المتقدمة.',
+    strategicSignificanceEn: 'Industrial high-tech supply line feeding electronics manufacturing, telecommunications infrastructure, and renewable energy plants in Egypt.',
+    strategicSignificanceAr: 'خط الإمداد التقني الصناعي الذي يغذي مصانع الإلكترونيات والبنية التحتية للاتصالات والطاقة المتجددة بمصر.',
+    carrierEn: 'China Cargo Airlines / EgyptAir Long-Range Cargo',
+    carrierAr: 'الخطوط الصينية للشحن / مصر للطيران للشحن بعيد المدى',
+  },
+];
+
+export const CorridorsAir: React.FC = () => {
+  const { dict, isRtl } = useLang();
+  const [selectedCorridor, setSelectedCorridor] = useState<AirCorridor>(AIR_CORRIDORS[0]);
+
+  return (
+    <section id="corridors" className="relative py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 border-b border-[var(--glass-brd)] pb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-medium tracking-wider bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 uppercase">
+              {dict.corridors.sectionBadge}
+            </span>
+            <ModelBadge />
+          </div>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-title h2-display">
+            {dict.corridors.title}
+          </h2>
+          <p className="mt-2 text-sm sm:text-base text-muted max-w-2xl">
+            {dict.corridors.subtitle}
+          </p>
+        </div>
+
+        {/* Status indicator */}
+        <div className="self-start md:self-auto flex items-center gap-2 px-3.5 py-2 rounded-xl glass-subcard text-xs font-mono text-muted">
+          <Globe2 className="w-4 h-4 text-cyan-500" />
+          <span dir="ltr">SCHEDULED AIRWAY NETWORK</span>
+        </div>
+      </div>
+
+      {/* Corridors Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left 5 Cols: Interactive Route Cards */}
+        <div className="lg:col-span-5 space-y-3">
+          {AIR_CORRIDORS.map((corridor) => {
+            const isSelected = selectedCorridor.id === corridor.id;
+
+            return (
+              <div
+                key={corridor.id}
+                onClick={() => setSelectedCorridor(corridor)}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all duration-200 glass-panel-hover ${
+                  isSelected
+                    ? 'bg-gradient-to-r from-cyan-500/15 via-[var(--glass-bg)] to-[var(--glass-bg)] border-cyan-500 shadow-md'
+                    : 'glass-panel'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <PlaneTakeoff className={`w-4 h-4 ${isSelected ? 'text-cyan-500' : 'text-muted'}`} />
+                    <span className="font-mono font-bold text-base text-title" dir="ltr">
+                      {corridor.code}
+                    </span>
+                  </div>
+                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 border border-cyan-500/20 font-semibold" dir="ltr">
+                    {corridor.weeklyFrequencies} {isRtl ? 'رحلة/أسبوعياً' : 'weekly'}
+                  </span>
+                </div>
+
+                <div className="text-xs text-muted flex items-center justify-between font-mono">
+                  <span>{isRtl ? corridor.fromCityAr : corridor.fromCityEn}</span>
+                  <span className="text-cyan-500" dir="ltr">➔</span>
+                  <span>{isRtl ? corridor.toCityAr : corridor.toCityEn}</span>
+                </div>
+
+                <div className="mt-2 pt-2 border-t border-[var(--glass-brd)] flex items-center justify-between text-[11px] font-mono text-muted">
+                  <span dir="ltr">{corridor.distanceKm.toLocaleString()} KM</span>
+                  <span>{isRtl ? corridor.flightTimeAr : corridor.flightTimeEn}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Right 7 Cols: Detailed Route Intelligence Panel */}
+        <div className="lg:col-span-7 glass-panel rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--glass-brd)] pb-4 gap-3">
+            <div>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl sm:text-3xl font-black font-mono text-title" dir="ltr">
+                  {selectedCorridor.code}
+                </span>
+                <span className="text-xs font-mono px-2.5 py-1 rounded bg-sky-500/15 text-sky-600 dark:text-sky-300 font-bold" dir="ltr">
+                  {selectedCorridor.fromIata} ➔ {selectedCorridor.toIata}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-muted mt-1">
+                {isRtl ? selectedCorridor.fromCityAr : selectedCorridor.fromCityEn} ➔ {isRtl ? selectedCorridor.toCityAr : selectedCorridor.toCityEn}
+              </p>
+            </div>
+
+            <div className="self-start sm:self-auto px-3 py-1.5 rounded-xl glass-subcard text-xs font-mono text-cyan-600 dark:text-cyan-300 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-cyan-500" />
+              <span dir="ltr">{selectedCorridor.weeklyFrequencies} {dict.corridors.weeklyFlights}</span>
+            </div>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 font-mono">
+            <div className="p-3.5 rounded-xl glass-subcard">
+              <span className="block text-[10px] text-muted uppercase">
+                {dict.corridors.distance}
+              </span>
+              <span className="text-lg font-bold text-title tabular block mt-0.5" dir="ltr">
+                {selectedCorridor.distanceKm.toLocaleString()} <span className="text-xs text-muted font-normal">KM</span>
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl glass-subcard">
+              <span className="block text-[10px] text-muted uppercase">
+                {dict.corridors.flightDuration}
+              </span>
+              <span className="text-sm font-bold text-cyan-600 dark:text-cyan-300 block mt-0.5">
+                {isRtl ? selectedCorridor.flightTimeAr : selectedCorridor.flightTimeEn}
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl glass-subcard col-span-2 sm:col-span-1">
+              <span className="block text-[10px] text-muted uppercase">
+                {isRtl ? 'المشغل والتحالف' : 'Operating Fleet Alliance'}
+              </span>
+              <span className="text-xs font-bold text-title truncate block mt-0.5">
+                {isRtl ? selectedCorridor.carrierAr : selectedCorridor.carrierEn}
+              </span>
+            </div>
+          </div>
+
+          {/* Strategic Significance */}
+          <div className="p-4 rounded-xl glass-subcard space-y-1.5">
+            <span className="block text-xs font-mono font-bold text-cyan-600 dark:text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-500" />
+              <span>{dict.corridors.corridorRole}:</span>
+            </span>
+            <p className="text-sm text-muted leading-relaxed font-sans">
+              {isRtl ? selectedCorridor.strategicSignificanceAr : selectedCorridor.strategicSignificanceEn}
+            </p>
+          </div>
+
+          {/* Primary Flow Commodities */}
+          <div className="p-4 rounded-xl glass-subcard space-y-1.5">
+            <span className="block text-xs font-mono font-bold text-title uppercase tracking-wider flex items-center gap-1.5">
+              <Package className="w-3.5 h-3.5 text-cyan-500" />
+              <span>{dict.corridors.primaryCommodities}:</span>
+            </span>
+            <p className="text-xs sm:text-sm text-muted leading-relaxed font-sans">
+              {isRtl ? selectedCorridor.primaryCargoAr : selectedCorridor.primaryCargoEn}
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
