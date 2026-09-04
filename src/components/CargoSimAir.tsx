@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useLang } from '../lib/i18n';
 import { calculateAirFreight } from '../lib/air-math';
+import { DEFAULT_CORRIDOR_ID, findCorridor } from '../lib/corridors';
 import { ModelBadge } from './ModelBadge';
 import {
   Calculator,
@@ -13,6 +14,9 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
+/* Each preset names a corridor rather than repeating its distance. The corridor
+   supplies both the flown distance and the sea lane it competes with, so the
+   two can no longer drift apart the way duplicated literals did. */
 interface PresetCargo {
   nameEn: string;
   nameAr: string;
@@ -20,7 +24,7 @@ interface PresetCargo {
   widthCm: number;
   heightCm: number;
   grossWeightKg: number;
-  distanceKm: number;
+  corridorId: string;
 }
 
 const PRESETS: PresetCargo[] = [
@@ -31,7 +35,7 @@ const PRESETS: PresetCargo[] = [
     widthCm: 50,
     heightCm: 45,
     grossWeightKg: 35,
-    distanceKm: 2910,
+    corridorId: 'corridor-fra-cai',
   },
   {
     nameEn: 'Automotive Engine Parts (Dense)',
@@ -40,7 +44,7 @@ const PRESETS: PresetCargo[] = [
     widthCm: 60,
     heightCm: 50,
     grossWeightKg: 120,
-    distanceKm: 2910,
+    corridorId: 'corridor-fra-cai',
   },
   {
     nameEn: 'E-Commerce Textiles (Voluminous)',
@@ -49,7 +53,7 @@ const PRESETS: PresetCargo[] = [
     widthCm: 90,
     heightCm: 80,
     grossWeightKg: 40,
-    distanceKm: 2420,
+    corridorId: 'corridor-dxb-cai',
   },
   {
     nameEn: 'Avionics & Microchips (Critical)',
@@ -58,7 +62,7 @@ const PRESETS: PresetCargo[] = [
     widthCm: 40,
     heightCm: 30,
     grossWeightKg: 18,
-    distanceKm: 8350,
+    corridorId: 'corridor-pvg-cai',
   },
 ];
 
@@ -70,7 +74,15 @@ export const CargoSimAir: React.FC = () => {
   const [widthCm, setWidthCm] = useState<number>(60);
   const [heightCm, setHeightCm] = useState<number>(50);
   const [grossWeightKg, setGrossWeightKg] = useState<number>(45);
-  const [distanceKm, setDistanceKm] = useState<number>(2910);
+
+  /* The active corridor, or null once the distance is dragged off a scheduled
+     lane. Sea comparison depends on a real routing, so freehand distances get
+     no ocean figures rather than invented ones. */
+  const [corridorId, setCorridorId] = useState<string | null>(DEFAULT_CORRIDOR_ID);
+  const corridor = findCorridor(corridorId);
+  const [distanceKm, setDistanceKm] = useState<number>(
+    findCorridor(DEFAULT_CORRIDOR_ID)?.distanceKm ?? 2910,
+  );
 
   // Derived calculations using IATA standard math engine
   const calc = useMemo(() => {
@@ -80,15 +92,23 @@ export const CargoSimAir: React.FC = () => {
       heightCm,
       grossWeightKg,
       distanceKm,
+      seaLane: corridor?.seaLane ?? null,
     });
-  }, [lengthCm, widthCm, heightCm, grossWeightKg, distanceKm]);
+  }, [lengthCm, widthCm, heightCm, grossWeightKg, distanceKm, corridor]);
 
   const applyPreset = (preset: PresetCargo) => {
     setLengthCm(preset.lengthCm);
     setWidthCm(preset.widthCm);
     setHeightCm(preset.heightCm);
     setGrossWeightKg(preset.grossWeightKg);
-    setDistanceKm(preset.distanceKm);
+    setCorridorId(preset.corridorId);
+    setDistanceKm(findCorridor(preset.corridorId)?.distanceKm ?? distanceKm);
+  };
+
+  // Dragging the distance slider leaves the scheduled network.
+  const handleDistanceChange = (km: number) => {
+    setDistanceKm(km);
+    setCorridorId(null);
   };
 
   const isGrossBilled = calc.billingBasis === 'GROSS_WEIGHT';
@@ -167,6 +187,7 @@ export const CargoSimAir: React.FC = () => {
               step="5"
               value={lengthCm}
               onChange={(e) => setLengthCm(Number(e.target.value))}
+              aria-label={dict.simulator.length}
               className="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
             />
           </div>
@@ -184,6 +205,7 @@ export const CargoSimAir: React.FC = () => {
               step="5"
               value={widthCm}
               onChange={(e) => setWidthCm(Number(e.target.value))}
+              aria-label={dict.simulator.width}
               className="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
             />
           </div>
@@ -201,6 +223,7 @@ export const CargoSimAir: React.FC = () => {
               step="5"
               value={heightCm}
               onChange={(e) => setHeightCm(Number(e.target.value))}
+              aria-label={dict.simulator.height}
               className="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
             />
           </div>
@@ -221,6 +244,7 @@ export const CargoSimAir: React.FC = () => {
               step="5"
               value={grossWeightKg}
               onChange={(e) => setGrossWeightKg(Number(e.target.value))}
+              aria-label={dict.simulator.grossWeight}
               className="w-full accent-amber-500 cursor-pointer h-2 bg-slate-200 dark:bg-slate-800 rounded-lg"
             />
           </div>
@@ -240,9 +264,17 @@ export const CargoSimAir: React.FC = () => {
               max="12000"
               step="100"
               value={distanceKm}
-              onChange={(e) => setDistanceKm(Number(e.target.value))}
+              onChange={(e) => handleDistanceChange(Number(e.target.value))}
+              aria-label={dict.simulator.distance}
               className="w-full accent-sky-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
             />
+            <span className="block text-[11px] font-mono text-muted pt-0.5">
+              {corridor
+                ? `${corridor.code} · ${isRtl ? 'ممر مجدول' : 'scheduled corridor'}`
+                : isRtl
+                  ? 'مسافة حرة — خارج الشبكة المجدولة'
+                  : 'Freehand distance — outside the scheduled network'}
+            </span>
           </div>
         </div>
 
@@ -320,38 +352,60 @@ export const CargoSimAir: React.FC = () => {
             </h4>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
-              {/* Air Column */}
+              {/* Air Column — airport-to-airport block time, not door-to-door */}
               <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
                 <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-600 dark:text-cyan-300 mb-1 font-semibold">
                   <Plane className="w-3.5 h-3.5" />
-                  <span>YASLOGIST AIR</span>
+                  <span>{dict.simulator.transitAir}</span>
                 </div>
                 <div className="text-xl font-bold font-mono text-title tabular" dir="ltr">
-                  {calc.flightTransitHours} <span className="text-xs text-cyan-600 dark:text-cyan-300 font-normal">HRS</span>
+                  {calc.airportBlockHours} <span className="text-xs text-cyan-600 dark:text-cyan-300 font-normal">HRS</span>
                 </div>
                 <span className="block text-[11px] font-mono text-muted mt-1" dir="ltr">
-                  CO2: {calc.estimatedCo2Tonnes} Tonnes
+                  {distanceKm.toLocaleString()} km · CO₂ {calc.estimatedCo2Tonnes} t
                 </span>
               </div>
 
-              {/* Ocean Column */}
+              {/* Ocean Column — present only when a real sea lane is in play */}
               <div className="p-3.5 rounded-xl glass-subcard">
                 <div className="flex items-center gap-1.5 text-xs font-mono text-muted mb-1 font-semibold">
                   <Ship className="w-3.5 h-3.5" />
-                  <span>MARITIME FREIGHT</span>
+                  <span>{dict.simulator.transitOcean}</span>
                 </div>
-                <div className="text-xl font-bold font-mono text-title tabular" dir="ltr">
-                  {calc.oceanTransitDays} <span className="text-xs text-muted font-normal">DAYS</span>
-                </div>
-                <span className="block text-[11px] font-mono text-emerald-600 dark:text-emerald-400 mt-1" dir="ltr">
-                  CO2: {calc.oceanAlternativeCo2Tonnes} Tonnes
-                </span>
+                {calc.oceanComparison ? (
+                  <>
+                    <div className="text-xl font-bold font-mono text-title tabular" dir="ltr">
+                      {calc.oceanComparison.portToPortDaysMin}–{calc.oceanComparison.portToPortDaysMax}{' '}
+                      <span className="text-xs text-muted font-normal">DAYS</span>
+                    </div>
+                    <span className="block text-[11px] font-mono text-emerald-600 dark:text-emerald-400 mt-1" dir="ltr">
+                      {calc.oceanComparison.seaDistanceKm.toLocaleString()} km · CO₂ {calc.oceanComparison.co2Tonnes} t
+                    </span>
+                    <span className="block text-[11px] font-mono text-muted mt-0.5">
+                      {isRtl
+                        ? `${calc.oceanComparison.originPortAr} ← ${calc.oceanComparison.destPortAr}`
+                        : `${calc.oceanComparison.originPortEn} → ${calc.oceanComparison.destPortEn}`}
+                    </span>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-muted leading-relaxed mt-1">
+                    {isRtl
+                      ? 'اختر أحد الممرات المجدولة لعرض المقارنة البحرية. زمن الإبحار يعتمد على مسار ملاحي حقيقي ولا يمكن اشتقاقه من مسافة الطيران.'
+                      : 'Select a scheduled corridor to compare. Sailing time depends on a real sea routing and cannot be derived from flight distance.'}
+                  </p>
+                )}
               </div>
             </div>
 
             <p className="text-xs text-muted leading-relaxed">
               {dict.simulator.tradeoffDesc}
             </p>
+
+            {calc.oceanComparison?.[isRtl ? 'routingCaveatAr' : 'routingCaveatEn'] && (
+              <p className="text-[11px] text-muted leading-relaxed mt-2 pt-2 border-t border-[var(--glass-brd)]">
+                {calc.oceanComparison[isRtl ? 'routingCaveatAr' : 'routingCaveatEn']}
+              </p>
+            )}
           </div>
         </div>
       </div>

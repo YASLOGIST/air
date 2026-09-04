@@ -24,7 +24,13 @@ export const HeroAir: React.FC = () => {
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <img
           src="/assets/hero-air.jpg"
-          alt="YASLOGIST Air Cargo Fleet"
+          alt=""
+          aria-hidden="true"
+          width={1920}
+          height={1434}
+          loading="eager"
+          fetchPriority="high"
+          decoding="async"
           className="w-full h-full object-cover object-center opacity-30 dark:opacity-20 scale-105 transition-transform duration-1000"
         />
         {/* Layered Stratosphere Gradient Veil to ensure 100% typography contrast in both themes */}
@@ -119,7 +125,7 @@ export const HeroAir: React.FC = () => {
                 <Gauge className="w-4 h-4 text-sky-500 shrink-0" />
                 <span dir="ltr" className="telemetry-unit">FL380 · 38,000 FT</span>
               </div>
-              <span className="block text-[10px] font-mono text-emerald-500 mt-0.5">AIRWAY L612 ACTIVE</span>
+              <span className="block text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">AIRWAY L612 ACTIVE</span>
             </div>
 
             {/* Sector 4: Ground Speed */}
@@ -137,14 +143,14 @@ export const HeroAir: React.FC = () => {
 
             {/* Sector 5: Pharma Sensor */}
             <div className="pt-2 sm:pt-0 sm:px-3">
-              <span className="block text-[10px] font-mono uppercase text-teal-500 tracking-wider">
+              <span className="block text-[10px] font-mono uppercase text-teal-600 dark:text-teal-400 tracking-wider">
                 {dict.hero.telemetryBar.temp}
               </span>
-              <div className="flex items-center gap-1.5 mt-1 font-mono font-bold text-sm text-teal-500">
+              <div className="flex items-center gap-1.5 mt-1 font-mono font-bold text-sm text-teal-600 dark:text-teal-300">
                 <ThermometerSnowflake className="w-4 h-4 text-teal-500 shrink-0" />
                 <span dir="ltr" className="telemetry-unit">+4.2°C</span>
               </div>
-              <span className="block text-[10px] font-mono text-teal-500 mt-0.5">RKN ULD · STABLE</span>
+              <span className="block text-[10px] font-mono text-teal-600 dark:text-teal-400 mt-0.5">RKN ULD · STABLE</span>
             </div>
 
             {/* Sector 6: CAI Touchdown & Dispatch Status */}
@@ -156,7 +162,7 @@ export const HeroAir: React.FC = () => {
                 <Clock className="w-4 h-4 text-cyan-500 shrink-0" />
                 <span dir="ltr" className="telemetry-unit">14:45 UTC</span>
               </div>
-              <span className="block text-[10px] font-mono text-emerald-500 flex items-center gap-1 mt-0.5">
+              <span className="block text-[10px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
                 <CheckCircle2 className="w-3 h-3" />
                 <span>{dict.hero.telemetryBar.statusValue}</span>
               </span>

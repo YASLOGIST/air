@@ -122,9 +122,10 @@ export const NavbarAir: React.FC<NavbarAirProps> = ({ onOpenAwbModal }) => {
 
             {/* Language Switcher */}
             <button
+              type="button"
               onClick={toggleLang}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-mono font-semibold text-title glass-subcard hover:border-cyan-400 transition-all"
-              title={dict.nav.toggleLang}
+              aria-label={dict.nav.toggleLang}
             >
               <Globe className="w-3.5 h-3.5 text-cyan-500" />
               <span>{lang === 'en' ? 'عربي' : 'EN'}</span>
@@ -132,10 +133,10 @@ export const NavbarAir: React.FC<NavbarAirProps> = ({ onOpenAwbModal }) => {
 
             {/* Theme Switcher */}
             <button
+              type="button"
               onClick={toggleTheme}
               className="p-2 rounded-xl text-title glass-subcard hover:border-cyan-400 transition-all"
-              title={dict.nav.toggleTheme}
-              aria-label="Toggle Theme"
+              aria-label={dict.nav.toggleTheme}
             >
               {theme === 'dark' ? (
                 <Sun className="w-4 h-4 text-amber-300" />
@@ -146,11 +147,17 @@ export const NavbarAir: React.FC<NavbarAirProps> = ({ onOpenAwbModal }) => {
 
             {/* Mobile Hamburger Toggle */}
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="lg:hidden p-2 rounded-xl text-title glass-subcard"
-              aria-label="Open Menu"
+              aria-expanded={mobileMenuOpen}
+              aria-label={
+                mobileMenuOpen
+                  ? (isRtl ? 'إغلاق القائمة' : 'Close menu')
+                  : (isRtl ? 'فتح القائمة' : 'Open menu')
+              }
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
             </button>
           </div>
         </div>

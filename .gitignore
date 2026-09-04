@@ -1,0 +1,24 @@
+# Dependencies — reinstalled from package-lock.json, never committed.
+node_modules/
+
+# macOS metadata
+.DS_Store
+
+# Local env
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+
+# Full-resolution source images.
+# Kept out of public/ so they are never shipped in the build, and out of git so
+# the repo does not carry ~6 MB of masters. Back these up outside the repo, or
+# delete this line if you want them versioned.
+assets-src/
+
+# NOTE: dist/ is deliberately NOT ignored — it is currently tracked, which is
+# valid if you deploy the built output straight from this repo. If you build on
+# a host instead, add `dist/` here and run: git rm -r --cached dist

@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html{color-scheme:light dark}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>AIR Claim Disposition Sheet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --paper:#F1F4F3; --surface:#FFFFFF; --sunk:#E7ECEA;
+    --ink:#16211F; --ink-2:#33443F; --muted:#5C6E6A; --faint:#8496921a;
+    --rule:#C7D2CF; --rule-soft:#DDE5E3;
+    --nogo:#A81E2D; --goif:#8F6205; --adv:#37647A; --clear:#2C6B4E;
+    --nogo-wash:#A81E2D14; --goif-wash:#8F620514; --adv-wash:#37647A14; --clear-wash:#2C6B4E14;
+    --shadow:0 1px 2px #16211f0d, 0 8px 24px -16px #16211f26;
+    --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+    --body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#0E1514; --surface:#161F1D; --sunk:#111A18;
+      --ink:#E9EFEC; --ink-2:#C2CFCB; --muted:#8B9C97; --faint:#8496921f;
+      --rule:#2C3A37; --rule-soft:#222E2C;
+      --nogo:#F0808C; --goif:#E0AC4A; --adv:#7FB6CC; --clear:#6FC095;
+      --nogo-wash:#F0808c1c; --goif-wash:#e0ac4a1c; --adv-wash:#7fb6cc1c; --clear-wash:#6fc0951c;
+      --shadow:0 1px 2px #0006, 0 10px 28px -18px #000a;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E1514; --surface:#161F1D; --sunk:#111A18;
+    --ink:#E9EFEC; --ink-2:#C2CFCB; --muted:#8B9C97; --faint:#8496921f;
+    --rule:#2C3A37; --rule-soft:#222E2C;
+    --nogo:#F0808C; --goif:#E0AC4A; --adv:#7FB6CC; --clear:#6FC095;
+    --nogo-wash:#F0808c1c; --goif-wash:#e0ac4a1c; --adv-wash:#7fb6cc1c; --clear-wash:#6fc0951c;
+    --shadow:0 1px 2px #0006, 0 10px 28px -18px #000a;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:var(--body); font-size:15px; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sheet{max-width:60rem;margin:0 auto;padding:clamp(1.25rem,3vw,2.75rem) clamp(1rem,3vw,2rem) 4rem}
+
+  /* ── masthead ─────────────────────────────── */
+  .mast{border-top:3px solid var(--ink);padding-top:.9rem;margin-bottom:1.75rem}
+  .mast-row{display:flex;flex-wrap:wrap;gap:.75rem 1.5rem;align-items:baseline;justify-content:space-between}
+  h1{
+    font-family:var(--display);font-weight:700;
+    font-size:clamp(1.9rem,5.5vw,2.9rem);line-height:.98;letter-spacing:-.01em;
+    margin:0;text-transform:uppercase;text-wrap:balance;
+  }
+  .mast-meta{font-family:var(--mono);font-size:.7rem;color:var(--muted);text-align:right;line-height:1.7}
+  .mast-meta b{color:var(--ink-2);font-weight:600}
+  .standfirst{
+    margin:1rem 0 0;max-width:60ch;color:var(--ink-2);font-size:1.02rem;
+  }
+
+  /* ── verdict strip ────────────────────────── */
+  .verdict{
+    margin:1.75rem 0 2.5rem;background:var(--surface);border:1px solid var(--rule);
+    border-radius:3px;box-shadow:var(--shadow);overflow:hidden;
+  }
+  .verdict-head{
+    display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;justify-content:space-between;
+    padding:.85rem 1.1rem;border-bottom:1px solid var(--rule-soft);background:var(--sunk);
+  }
+  .verdict-head h2{
+    font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;
+    font-size:.92rem;font-weight:600;margin:0;color:var(--ink-2);
+  }
+  .stamp{
+    font-family:var(--mono);font-size:.72rem;font-weight:600;letter-spacing:.08em;
+    padding:.22rem .6rem;border-radius:2px;text-transform:uppercase;
+    color:var(--nogo);background:var(--nogo-wash);border:1px solid currentColor;
+  }
+  .tally{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:1px;background:var(--rule-soft)}
+  .tally div{background:var(--surface);padding:.9rem 1.1rem}
+  .tally .n{font-family:var(--display);font-size:2.1rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .tally .k{font-family:var(--mono);font-size:.66rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:.3rem}
+  .tally .d{font-size:.82rem;color:var(--ink-2);margin-top:.35rem;line-height:1.4}
+  .t-nogo .n{color:var(--nogo)} .t-goif .n{color:var(--goif)}
+  .t-adv .n{color:var(--adv)} .t-clear .n{color:var(--clear)}
+
+  /* ── sections ─────────────────────────────── */
+  section{margin-top:3rem}
+  .sec-head{display:flex;align-items:baseline;gap:.75rem;border-bottom:2px solid var(--ink);padding-bottom:.4rem;margin-bottom:.35rem}
+  .sec-head h2{
+    font-family:var(--display);text-transform:uppercase;font-size:1.5rem;font-weight:700;
+    letter-spacing:.01em;margin:0;line-height:1.1;
+  }
+  .sec-head .cnt{font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-left:auto;white-space:nowrap}
+  .sec-note{color:var(--muted);font-size:.88rem;margin:.55rem 0 1.4rem;max-width:62ch}
+
+  /* ── finding ledger ───────────────────────── */
+  .finding{
+    display:grid;grid-template-columns:8.5rem 1fr;gap:0 1.4rem;
+    padding:1.3rem 0;border-bottom:1px solid var(--rule-soft);
+  }
+  .finding:last-child{border-bottom:0}
+  .gutter{border-left:3px solid var(--rule);padding-left:.85rem}
+  .f-nogo .gutter{border-left-color:var(--nogo)}
+  .f-goif .gutter{border-left-color:var(--goif)}
+  .f-adv  .gutter{border-left-color:var(--adv)}
+  .fid{font-family:var(--mono);font-size:.78rem;font-weight:600;letter-spacing:.04em;color:var(--ink)}
+  .disp{
+    display:inline-block;margin-top:.4rem;font-family:var(--mono);font-size:.62rem;font-weight:600;
+    letter-spacing:.09em;text-transform:uppercase;padding:.15rem .42rem;border-radius:2px;
+  }
+  .f-nogo .disp{color:var(--nogo);background:var(--nogo-wash)}
+  .f-goif .disp{color:var(--goif);background:var(--goif-wash)}
+  .f-adv  .disp{color:var(--adv);background:var(--adv-wash)}
+  .tag{display:block;margin-top:.45rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.05em;color:var(--muted);text-transform:uppercase}
+
+  .body h3{
+    font-family:var(--body);font-size:1.02rem;font-weight:600;margin:0 0 .4rem;
+    line-height:1.35;text-wrap:balance;
+  }
+  .body p{margin:0 0 .55rem;color:var(--ink-2);max-width:64ch}
+  .body p:last-child{margin-bottom:0}
+  .loc{
+    font-family:var(--mono);font-size:.76rem;color:var(--muted);
+    margin:0 0 .55rem;word-break:break-word;
+  }
+  .loc b{color:var(--ink-2);font-weight:500}
+  code{
+    font-family:var(--mono);font-size:.84em;background:var(--faint);
+    padding:.08em .32em;border-radius:2px;color:var(--ink);
+  }
+  .fix{
+    margin-top:.6rem;padding:.6rem .8rem;background:var(--sunk);
+    border-left:2px solid var(--rule);border-radius:0 2px 2px 0;font-size:.88rem;color:var(--ink-2);
+  }
+  .fix b{
+    font-family:var(--mono);font-size:.64rem;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted);display:block;margin-bottom:.2rem;font-weight:600;
+  }
+
+  /* ── proof block ──────────────────────────── */
+  .proof{
+    font-family:var(--mono);font-size:.78rem;line-height:1.75;
+    background:var(--sunk);border:1px solid var(--rule-soft);border-radius:3px;
+    padding:.75rem .9rem;margin:.6rem 0;overflow-x:auto;color:var(--ink-2);
+  }
+  .proof .hit{color:var(--nogo);font-weight:600}
+  .proof .ok{color:var(--clear);font-weight:600}
+
+  /* ── tables ───────────────────────────────── */
+  .tw{overflow-x:auto;border:1px solid var(--rule);border-radius:3px;background:var(--surface);box-shadow:var(--shadow)}
+  table{border-collapse:collapse;width:100%;min-width:36rem;font-size:.85rem}
+  thead th{
+    font-family:var(--mono);font-size:.64rem;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted);text-align:left;padding:.65rem .85rem;background:var(--sunk);
+    border-bottom:1px solid var(--rule);font-weight:600;white-space:nowrap;
+  }
+  tbody td{padding:.6rem .85rem;border-bottom:1px solid var(--rule-soft);vertical-align:top;color:var(--ink-2)}
+  tbody tr:last-child td{border-bottom:0}
+  td.file{font-family:var(--mono);font-size:.78rem;color:var(--ink);white-space:nowrap}
+  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .ref{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+  .fail{color:var(--nogo);font-weight:600}
+  .pass{color:var(--clear);font-weight:600}
+
+  /* ── clear list ───────────────────────────── */
+  .clear-list{list-style:none;padding:0;margin:0;display:grid;gap:.5rem}
+  .clear-list li{
+    display:grid;grid-template-columns:1.4rem 1fr;gap:.6rem;align-items:start;
+    font-size:.92rem;color:var(--ink-2);
+  }
+  .clear-list .mk{color:var(--clear);font-family:var(--mono);font-weight:600;font-size:.9rem;line-height:1.55}
+
+  footer{
+    margin-top:3.5rem;padding-top:1rem;border-top:1px solid var(--rule);
+    font-family:var(--mono);font-size:.7rem;color:var(--muted);line-height:1.8;
+  }
+
+  @media (max-width:38rem){
+    .finding{grid-template-columns:1fr;gap:.75rem}
+    .gutter{border-left:0;border-top:3px solid var(--rule);padding-left:0;padding-top:.5rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+    .f-nogo .gutter{border-top-color:var(--nogo);border-left-color:transparent}
+    .f-goif .gutter{border-top-color:var(--goif);border-left-color:transparent}
+    .f-adv  .gutter{border-top-color:var(--adv);border-left-color:transparent}
+    .disp,.tag{margin-top:0}
+    .mast-meta{text-align:left}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  a{color:inherit}
+  :focus-visible{outline:2px solid var(--adv);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header class="mast">
+    <div class="mast-row">
+      <h1>Claim Disposition<br>Sheet — AIR</h1>
+      <div class="mast-meta">
+        REPO <b>yaslogist-air v1.0.0</b><br>
+        SCOPE <b>src/ · 23 files · 3,825 LOC</b><br>
+        DATE <b>2026-09-04</b><br>
+        STATUS <b>pre-deployment</b>
+      </div>
+    </div>
+    <p class="standfirst">
+      Every claim in <code>src/</code> checked against what the code actually does and what
+      Cairo Cargo Village actually is. Findings are dispositioned the way an aircraft defect is:
+      what blocks dispatch, what can fly with a restriction, what goes in the log.
+    </p>
+  </header>
+
+  <div class="verdict">
+    <div class="verdict-head">
+      <h2>Dispatch assessment</h2>
+      <span class="stamp">3 no-go items open</span>
+    </div>
+    <div class="tally">
+      <div class="t-nogo">
+        <div class="n">3</div>
+        <div class="k">No-go</div>
+        <div class="d">Self-contradicting or verifiably false. Fix before any deploy.</div>
+      </div>
+      <div class="t-goif">
+        <div class="n">7</div>
+        <div class="k">Go if</div>
+        <div class="d">Defensible only after rewording or a methodology fix.</div>
+      </div>
+      <div class="t-adv">
+        <div class="n">6</div>
+        <div class="k">Advisory</div>
+        <div class="d">Attribution, precision and polish. Log and schedule.</div>
+      </div>
+      <div class="t-clear">
+        <div class="n">0</div>
+        <div class="k">Sci-fi claims</div>
+        <div class="d">The four categories the brief targeted are not in this repo.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ REPO HEALTH ══ -->
+  <section>
+    <div class="sec-head"><h2>Repo health</h2><span class="cnt">gate 1 of 3 · lint not configured</span></div>
+    <p class="sec-note">
+      Typecheck is clean. Lint could not run — and that gap is itself a finding, because
+      it means nothing has ever enforced the unused-variable, exhaustive-deps or a11y rules
+      this audit found violations of.
+    </p>
+    <div class="proof">
+$ npx tsc --noEmit           <span class="ok">→ exit 0, no diagnostics</span>
+$ npx eslint .               <span class="hit">→ no config, eslint absent from devDependencies</span>
+$ ls tsconfig*               <span class="hit">→ tsconfig.json only — tsconfig.app.json does not exist</span>
+    </div>
+    <p class="sec-note" style="margin-bottom:0">
+      The brief's <code>tsconfig.app.json</code> path is from a different surface. Here
+      <code>npm run typecheck</code> maps to plain <code>tsc --noEmit</code> and passes.
+      Add <code>eslint</code>, <code>typescript-eslint</code>, <code>eslint-plugin-react-hooks</code>
+      and <code>eslint-plugin-jsx-a11y</code> before the remediation pass so the rewrite lands against a real gate.
+    </p>
+  </section>
+
+  <!-- ══ NO-GO ══ -->
+  <section>
+    <div class="sec-head"><h2>No-go</h2><span class="cnt">3 items · block deploy</span></div>
+    <p class="sec-note">Each of these is falsifiable by a visitor in under a minute.</p>
+
+    <div class="finding f-nogo">
+      <div class="gutter">
+        <div class="fid">AIR-01</div>
+        <span class="disp">No-go</span>
+        <span class="tag">Credibility</span>
+      </div>
+      <div class="body">
+        <h3>The AWB validator rejects the site's own showcase waybill</h3>
+        <p class="loc"><b>lib/air-math.ts</b>:64 · <b>components/AwbModalAir.tsx</b>:13–15, 82 · <b>lib/i18n.tsx</b>:270, 495 · <b>components/FlightRadarHUD.tsx</b>:256</p>
+        <p>
+          The validator implements the IATA mod-7 check correctly. The showcase number does not satisfy it.
+        </p>
+        <div class="proof">
+AWB <b>077-94821034</b>
+  serial      9482103
+  9482103 mod 7 = <span class="hit">1</span>
+  check digit printed = <span class="hit">4</span>     <span class="hit">→ validateIataAwb() returns false</span>
+        </div>
+        <p>
+          The modal hides this on open — <code>useState(true)</code> for both <code>hasChecked</code>
+          and <code>isValid</code> paints "Valid IATA e-AWB Format (Mod-7 Verified)" before any check runs.
+          Press <em>Check</em> on the untouched prefilled value and it flips to "Invalid Checksum
+          (Mod-7 Failure)". The platform calls its own flagship consignment fake.
+        </p>
+        <div class="fix"><b>Remediation</b>
+          Change the literal to <code>077-94821031</code> in all five locations, and initialise
+          <code>hasChecked</code> to <code>false</code> so the panel proves the result instead of asserting it.
+        </div>
+      </div>
+    </div>
+
+    <div class="finding f-nogo">
+      <div class="gutter">
+        <div class="fid">AIR-02</div>
+        <span class="disp">No-go</span>
+        <span class="tag">Legal · security</span>
+      </div>
+      <div class="body">
+        <h3>The security tab claims a Content Security Policy that does not exist</h3>
+        <p class="loc"><b>components/LegalModalAir.tsx</b>:161</p>
+        <p>
+          "Static asset delivery operates behind modern TLS encryption with strict Content Security
+          Policies (CSP)." There is no CSP meta tag in <code>index.html</code>, no CSP in
+          <code>public/</code>, and no header configuration anywhere in the repo. A false control
+          assertion inside a document headed "Regulatory Compliance" is the worst place to carry one.
+        </p>
+        <div class="fix"><b>Remediation</b>
+          Ship the CSP (a <code>&lt;meta http-equiv="Content-Security-Policy"&gt;</code> permitting
+          <code>fonts.googleapis.com</code> and <code>fonts.gstatic.com</code> covers this page's real needs),
+          or delete the clause. Do not deploy with it unbacked.
+        </div>
+      </div>
+    </div>
+
+    <div class="finding f-nogo">
+      <div class="gutter">
+        <div class="fid">AIR-03</div>
+        <span class="disp">No-go</span>
+        <span class="tag">Cold chain</span>
+      </div>
+      <div class="body">
+        <h3>Sensor accuracy is stated two different ways for the same container</h3>
+        <p class="loc"><b>lib/i18n.tsx</b>:273, 498 <span class="ref">(±0.2°C)</span> vs. :346, 391, 571, 616 <span class="ref">(±0.5°C)</span> · <b>components/ULDSelector.tsx</b>:67–68 <span class="ref">(±0.5°C)</span></p>
+        <p>
+          The radar caption advertises "RKN-Active-Envirotainer (±0.2°C Precision)" while the Stats
+          benchmark, the Cargo Village step and the ULD spec sheet all say ±0.5°C — for the same RKN unit.
+          A pharma client reads the tighter number as the SLA. Envirotainer's published RKN e1 tolerance is ±0.5°C.
+        </p>
+        <div class="fix"><b>Remediation</b>
+          Delete ±0.2°C from both language keys. One tolerance, sourced, everywhere.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ GO IF ══ -->
+  <section>
+    <div class="sec-head"><h2>Go if</h2><span class="cnt">7 items · reword or re-derive</span></div>
+    <p class="sec-note">Not false so much as unearned. Each needs the claim narrowed to what the code and CAI actually support.</p>
+
+    <div class="finding f-goif">
+      <div class="gutter"><div class="fid">AIR-04</div><span class="disp">Go if</span><span class="tag">Data binding</span></div>
+      <div class="body">
+        <h3>"Target Window" renders values that are not times</h3>
+        <p class="loc"><b>components/CargoVillageFlow.tsx</b>:189 · metadata at :28, 34, 44, 52</p>
+        <p>
+          The detail panel binds <code>activeContent.metric</code> under the label "Target Window",
+          but only step 1's metric is a duration. Steps 2–4 print "Continuous ±0.5°C Logging",
+          "Instantaneous Digital Release" and "Immediate dispatch to highway" into a time field.
+          The real times — <code>T+15</code>, <code>T+40</code>, <code>PRE-TOUCHDOWN</code>,
+          <code>&lt; 180 MIN TOTAL</code> — sit in <code>FLOW_STEPS_META[].timeTarget</code> and only appear in the small ribbon.
+        </p>
+        <div class="fix"><b>Remediation</b> Bind <code>currentMeta.timeTarget</code> to "Target Window"; move the prose metric to its own labelled row.</div>
+      </div>
+    </div>
+
+    <div class="finding f-goif">
+      <div class="gutter"><div class="fid">AIR-05</div><span class="disp">Go if</span><span class="tag">Customs · Nafeza</span></div>
+      <div class="body">
+        <h3>"Instantaneous Digital Release" misdescribes how ACID works</h3>
+        <p class="loc"><b>lib/i18n.tsx</b>:352–353 <span class="ref">(EN)</span>, 577–578 <span class="ref">(AR)</span></p>
+        <p>
+          Nafeza ACID is a <em>pre-arrival</em> regime: the ACID must be lodged and matched before
+          the shipment sails or flies, and release still depends on inspection channel and duty
+          settlement. "Instant cryptographic match" and "Instantaneous Digital Release" describe
+          something Egyptian Customs does not offer — and the strength of the real mechanism is
+          exactly that the work happens <em>early</em>, not that it happens instantly.
+        </p>
+        <div class="fix"><b>Remediation</b> "Pre-arrival release — ACID lodged and matched before ETA, duty pre-settled, no document hold on landing."</div>
+      </div>
+    </div>
+
+    <div class="finding f-goif">
+      <div class="gutter"><div class="fid">AIR-06</div><span class="disp">Go if</span><span class="tag">Identifier format</span></div>
+      <div class="body">
+        <h3>The ACID number is not shaped like an ACID number</h3>
+        <p class="loc"><b>lib/i18n.tsx</b>:271, 496 · <b>components/FlightRadarHUD.tsx</b>:263 · <b>components/AwbModalAir.tsx</b>:118</p>
+        <p>
+          <code>2026-CAI-994108</code> is a plausible-looking invention. A real Egyptian ACID is a
+          19-digit numeric string with no separators and no IATA station code. Anyone who has filed
+          one will spot it immediately — and the AWB beside it is presented as genuine, so the pairing
+          reads as a claim, not a mock-up.
+        </p>
+        <div class="fix"><b>Remediation</b> Use a correctly-shaped 19-digit synthetic value, and mark it a sample in the adjacent label.</div>
+      </div>
+    </div>
+
+    <div class="finding f-goif">
+      <div class="gutter"><div class="fid">AIR-07</div><span class="disp">Go if</span><span class="tag">Model integrity</span></div>
+      <div class="body">
+        <h3>Ocean transit is computed from the air great-circle distance</h3>
+        <p class="loc"><b>lib/air-math.ts</b>:38 · surfaced at <b>components/CargoSimAir.tsx</b>:344</p>
+        <p>
+          <code>oceanTransitDays = distanceKm / 550 + 8</code> takes the flight distance and sails it.
+          For the FRA ⇄ CAI preset that produces 13.3 days for a 2,910 km overland air path —
+          and Frankfurt is not a seaport. The air-versus-sea card is the simulator's headline
+          comparison, so this is the number most likely to be quoted back.
+        </p>
+        <div class="fix"><b>Remediation</b> Add a <code>seaDistanceKm</code> and origin seaport per corridor (Hamburg/Rotterdam → Alexandria for the European lanes), or relabel the card as an indicative order-of-magnitude comparison.</div>
+      </div>
+    </div>
+
+    <div class="finding f-goif">
+      <div class="gutter"><div class="fid">AIR-08</div><span class="disp">Go if</span><span class="tag">Model integrity</span></div>
+      <div class="body">
+        <h3>"Air Transit Time (Doors)" is airport-to-airport block time</h3>
+        <p class="loc"><b>lib/air-math.ts</b>:37 · label at <b>lib/i18n.tsx</b>:307, 532</p>
+        <p>
+          <code>distanceKm / 780 + 2.5</code> yields 6.2 hours for FRA ⇄ CAI and is labelled
+          door-to-door. Door-to-door air freight runs in days. It also contradicts the hero
+          directly above it, which sells the platform on resolving a <em>48-hour</em> Cargo Village
+          bottleneck (<b>i18n.tsx</b>:243) — a bottleneck this figure implies does not exist.
+        </p>
+        <div class="fix"><b>Remediation</b> Rename to "Airport-to-Airport Block Time", or add pickup, export handling, ground dwell and delivery legs so the label is honest.</div>
+      </div>
+    </div>
+
+    <div class="finding f-goif">
+      <div class="gutter"><div class="fid">AIR-09</div><span class="disp">Go if</span><span class="tag">WCAG 1.4.3 AA</span></div>
+      <div class="body">
+        <h3>Status text fails contrast in the light theme</h3>
+        <p class="loc"><b>components/HeroAir.tsx</b>:122, 140, 147, 159 · <b>components/FlightRadarHUD.tsx</b>:226, 261 · 82 bare <code>text-*-500</code> utilities across components/</p>
+        <p>Measured against the light ground <code>#F8FAFC</code>:</p>
+        <div class="tw" style="margin:.6rem 0">
+          <table>
+            <thead><tr><th>Utility</th><th>Hex</th><th>Ratio</th><th>AA normal</th><th>Used on</th></tr></thead>
+            <tbody>
+              <tr><td class="file">text-cyan-500</td><td class="file">#06b6d4</td><td class="num">2.32:1</td><td class="fail">Fail</td><td>Labels, icons</td></tr>
+              <tr><td class="file">text-teal-500</td><td class="file">#14b8a6</td><td class="num">2.38:1</td><td class="fail">Fail</td><td>"RKN ULD · STABLE"</td></tr>
+              <tr><td class="file">text-emerald-500</td><td class="file">#10b981</td><td class="num">2.42:1</td><td class="fail">Fail</td><td>"AIRWAY L612 ACTIVE"</td></tr>
+              <tr><td class="file">text-sky-500</td><td class="file">#0ea5e9</td><td class="num">2.65:1</td><td class="fail">Fail</td><td>Accent runs</td></tr>
+              <tr><td class="file">--c-muted</td><td class="file">#475569</td><td class="num">7.24:1</td><td class="pass">Pass</td><td>Body copy</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The token layer is sound — <code>--c-muted</code> passes comfortably in both themes.
+          The failures are all bare Tailwind <code>-500</code> utilities that skipped the
+          <code>text-cyan-600 dark:text-cyan-300</code> pairing used correctly elsewhere in the
+          same files. Several are 10px, so they need the full 4.5:1.
+        </p>
+        <div class="fix"><b>Remediation</b> Sweep bare <code>text-{cyan,teal,emerald,sky}-500</code> on text nodes to the <code>-600 dark:-300</code> pattern already established in the codebase.</div>
+      </div>
+    </div>
+
+    <div class="finding f-goif">
+      <div class="gutter"><div class="fid">AIR-10</div><span class="disp">Go if</span><span class="tag">WCAG 2.1.1 A</span></div>
+      <div class="body">
+        <h3>The corridor and ULD selectors cannot be operated by keyboard</h3>
+        <p class="loc"><b>components/CorridorsAir.tsx</b>:134–141 · <b>components/ULDSelector.tsx</b>:166–173</p>
+        <p>
+          Both selection lists are <code>&lt;div onClick&gt;</code> — not focusable, no key handler,
+          no <code>role</code>, no selected state exposed. A keyboard or screen-reader user cannot
+          reach any corridor but FRA ⇄ CAI or any ULD but the RKN. Every other interactive element
+          in the codebase is already a real <code>&lt;button&gt;</code>, so this is an outlier, not a pattern.
+        </p>
+        <div class="fix"><b>Remediation</b> Convert both to <code>&lt;button type="button"&gt;</code> and add <code>aria-pressed</code> for the selected card.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ADVISORY ══ -->
+  <section>
+    <div class="sec-head"><h2>Advisory</h2><span class="cnt">6 items · log and schedule</span></div>
+
+    <div class="finding f-adv">
+      <div class="gutter"><div class="fid">AIR-11</div><span class="disp">Advisory</span><span class="tag">Attribution</span></div>
+      <div class="body">
+        <h3>The CO₂ coefficient is cited to the wrong IATA document</h3>
+        <p class="loc"><b>lib/air-math.ts</b>:3, 29 · <b>components/LegalModalAir.tsx</b>:133 · <b>lib/i18n.tsx</b>:302, 527</p>
+        <p>
+          ~502 g CO₂/tonne-km is a defensible long-haul freighter figure, but IATA RP 1678 is the
+          <em>passenger</em> CO₂ methodology. Air-cargo emission factors belong to the GLEC Framework
+          and EN 16258. The number is fine; the citation invites a correction from anyone who checks it.
+        </p>
+        <div class="fix"><b>Remediation</b> Cite GLEC Framework v3 / EN 16258 and state the assumed load factor and aircraft class.</div>
+      </div>
+    </div>
+
+    <div class="finding f-adv">
+      <div class="gutter"><div class="fid">AIR-12</div><span class="disp">Advisory</span><span class="tag">Unearned adjective</span></div>
+      <div class="body">
+        <h3>"Verified" GLEC trade-offs</h3>
+        <p class="loc"><b>lib/i18n.tsx</b>:282</p>
+        <p>Nothing in the repo has been verified by anyone. The subtitle promising "verified GLEC carbon trade-offs" claims third-party assurance that does not exist.</p>
+        <div class="fix"><b>Remediation</b> Drop "verified"; "modelled on the GLEC Framework" is accurate and sells just as well.</div>
+      </div>
+    </div>
+
+    <div class="finding f-adv">
+      <div class="gutter"><div class="fid">AIR-13</div><span class="disp">Advisory</span><span class="tag">Telemetry realism</span></div>
+      <div class="body">
+        <h3>Mach is hardcoded against a jittering ground speed</h3>
+        <p class="loc"><b>components/FlightRadarHUD.tsx</b>:213</p>
+        <p>
+          <code>MACH 0.81 (GS: {speed × 1.852} KM/H)</code> prints a constant Mach while
+          <code>speed</code> resamples every 2.5 s, and nests a ground-speed conversion inside a Mach
+          parenthetical. The conversion itself is right — 485 kt → 898 km/h matches
+          <b>HeroAir.tsx</b>:131–134 exactly. Only the Mach pairing is inert.
+        </p>
+        <div class="fix"><b>Remediation</b> Derive Mach from speed and altitude, or drop it and show ground speed alone.</div>
+      </div>
+    </div>
+
+    <div class="finding f-adv">
+      <div class="gutter"><div class="fid">AIR-14</div><span class="disp">Advisory</span><span class="tag">Spec sheet</span></div>
+      <div class="body">
+        <h3>PMC imperial dimensions are transposed</h3>
+        <p class="loc"><b>components/ULDSelector.tsx</b>:53–54</p>
+        <div class="proof">
+'318 × 244 × 163–244 cm  (<span class="hit">96 × 125 in</span>)'
+  318 cm = 125.20 in
+  244 cm =  96.06 in      <span class="hit">→ imperial pair is reversed</span>
+        </div>
+        <p>The metric figures are correct and match the real P6P pallet; only the parenthetical is swapped.</p>
+        <div class="fix"><b>Remediation</b> Read <code>(125 × 96 in)</code>. Same fix in the Arabic string.</div>
+      </div>
+    </div>
+
+    <div class="finding f-adv">
+      <div class="gutter"><div class="fid">AIR-15</div><span class="disp">Advisory</span><span class="tag">Superlative</span></div>
+      <div class="body">
+        <h3>"Largest active temperature-controlled air cargo container worldwide"</h3>
+        <p class="loc"><b>components/ULDSelector.tsx</b>:93–94 · also RAP range "+0°C" at :88</p>
+        <p>
+          An unsourced worldwide superlative about a third party's product (Envirotainer's RAP e2),
+          asserted by a platform that does not operate it. The temperature range is also written
+          <code>+0°C</code>, which is not how a setpoint is written, and does not match Envirotainer's published band.
+        </p>
+        <div class="fix"><b>Remediation</b> "Among the largest active cold-chain ULDs in service", and correct the band to the manufacturer's published figures.</div>
+      </div>
+    </div>
+
+    <div class="finding f-adv">
+      <div class="gutter"><div class="fid">AIR-16</div><span class="disp">Advisory</span><span class="tag">Absolutes</span></div>
+      <div class="body">
+        <h3>Three "zero" guarantees from a platform with no operating history</h3>
+        <p class="loc"><b>components/CargoVillageFlow.tsx</b>:250–251 · <b>lib/i18n.tsx</b>:344, 407, 632</p>
+        <p>
+          "ensuring zero dock waiting time", "Zero Heat-Excursion Transfer", "Zero Excursion".
+          These are the only absolute guarantees left in the copy, and they sit next to a
+          well-judged <code>ModelBadge</code> that says the opposite. Softening them costs nothing
+          and removes the one thing a counterparty could hold you to.
+        </p>
+        <div class="fix"><b>Remediation</b> "designed to eliminate dock waiting", "excursion-free on the modelled run". Keep the target; drop the guarantee.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ACCESSIBILITY BACKLOG ══ -->
+  <section>
+    <div class="sec-head"><h2>Accessibility backlog</h2><span class="cnt">structural · beyond AIR-09/10</span></div>
+    <p class="sec-note">Confirmed absent across all 23 files in <code>src/</code>. None blocks launch on its own; together they are the shape of the a11y work.</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Gap</th><th>Evidence</th><th>Criterion</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr><td>No <code>role="dialog"</code> / <code>aria-modal</code> / focus trap / focus restore</td><td class="file">0 matches</td><td class="file">2.4.3 A</td><td>LegalModalAir, AwbModalAir</td></tr>
+          <tr><td>AwbModalAir has no Escape handler <span class="ref">(LegalModalAir:24–25 does)</span></td><td class="file">asymmetric</td><td class="file">2.1.2 A</td><td>AwbModalAir</td></tr>
+          <tr><td>No <code>htmlFor</code> / <code>aria-label</code> on any slider</td><td class="file">0 matches, 5 sliders</td><td class="file">1.3.1 · 4.1.2 A</td><td>CargoSimAir:163–245</td></tr>
+          <tr><td>No <code>aria-live</code> on auto-updating telemetry</td><td class="file">0 matches</td><td class="file">4.1.3 AA</td><td>FlightRadarHUD:193–243</td></tr>
+          <tr><td>No <code>prefers-reduced-motion</code> block</td><td class="file">0 matches</td><td class="file">2.3.3 AAA</td><td>index.css — radar sweep, ping, spin</td></tr>
+          <tr><td>Simulation disclaimer delivered via <code>title=</code> only</td><td class="file">ModelBadge:17</td><td class="file">1.3.1 A</td><td>Every section header</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sec-note" style="margin-top:1rem;margin-bottom:0">
+      The <code>ModelBadge</code> one matters more than its severity suggests: it carries the
+      "simulated for demonstration" disclaimer that makes the rest of the site defensible, and
+      <code>title=</code> reaches neither touch users nor most screen readers. Render it as visible
+      text or move it into an <code>aria-describedby</code> target.
+    </p>
+  </section>
+
+  <!-- ══ NOT FOUND ══ -->
+  <section>
+    <div class="sec-head"><h2>Searched for, not present</h2><span class="cnt">brief items 2a &amp; 2b</span></div>
+    <p class="sec-note">
+      Reported so the remediation plan isn't scoped for work that doesn't exist. The brief appears
+      to carry findings from a sibling surface — it also names Capabilities and Disruption sections,
+      and <code>tsconfig.app.json</code>, none of which exist here. <code>App.tsx</code> mounts
+      eight sections: Hero, FlightRadarHUD, CargoSim, ULDSelector, CargoVillageFlow, Corridors, Stats, Handshake.
+    </p>
+    <ul class="clear-list">
+      <li><span class="mk">✓</span><span><b>No science-fiction claims.</b> A regex sweep for zero-gravity, anti-gravity, quantum, 6G, sub-hour delivery, hyperloop, teleport, maglev, drone swarm, supersonic, hypersonic and 100% loss-free returned two hits: the hero's "AT TRANSONIC SPEED" (<b>i18n.tsx</b>:241, a jet cruises at Mach 0.81 — transonic is accurate) and AIR-05's "Instantaneous", already dispositioned.</span></li>
+      <li><span class="mk">✓</span><span><b>No 100% or loss-free guarantees.</b> Every <code>100%</code> match is a CSS keyframe or gradient stop. The only absolutes are the three "zero" phrasings in AIR-16.</span></li>
+      <li><span class="mk">✓</span><span><b>The four corridors are real lanes.</b> <code>AIR_CORRIDORS</code> (<b>CorridorsAir.tsx</b>:13–94) uses FRA, DXB, AMS and PVG with distances of 2,910 / 2,420 / 3,280 / 8,350 km — all within a few percent of true great-circle to CAI — and block times implying 675–808 km/h, which is right for the type. Carriers named (Lufthansa Cargo, Emirates SkyCargo, AF-KLM, China Cargo, EgyptAir) all genuinely serve CAI.</span></li>
+      <li><span class="mk">✓</span><span><b>No mock air hubs.</b> Every station is a real airport, HECA/CAI is Cairo's correct ICAO/IATA pair, runway 05L/23R exists, and AWB prefix 077 is genuinely EgyptAir's.</span></li>
+      <li><span class="mk">✓</span><span><b>Volumetric maths is correct.</b> <code>calculateAirFreight</code> implements the IATA 1:6000 divisor and higher-of-gross-or-volumetric chargeable weight exactly as TACT specifies. The ULD tare, max-gross and volume figures for AKE, PMC and RKN all match published specifications.</span></li>
+      <li><span class="mk">✓</span><span><b>The disclaimer layer already exists.</b> <code>ModelBadge</code> is mounted on all eight sections and the non-carrier notice (<b>i18n.tsx</b>:417–418) is explicit that this is a digital twin, not a carrier or broker. That posture is the right one — the findings above are places the copy drifts out from behind it.</span></li>
+    </ul>
+  </section>
+
+  <!-- ══ FILE INDEX ══ -->
+  <section>
+    <div class="sec-head"><h2>File index</h2><span class="cnt">7 of 23 files · remediation order</span></div>
+    <p class="sec-note">Work top-down: <b>i18n.tsx</b> carries both language trees, so fixing it first collapses the surface area of everything below.</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>File</th><th class="num">Items</th><th>Findings</th><th>Nature</th></tr></thead>
+        <tbody>
+          <tr><td class="file">lib/i18n.tsx</td><td class="num">7</td><td class="file">03 05 06 08 11 12 16</td><td>Both EN and AR trees — every string fix lands twice</td></tr>
+          <tr><td class="file">components/ULDSelector.tsx</td><td class="num">4</td><td class="file">03 10 14 15</td><td>Spec accuracy, superlative, keyboard access</td></tr>
+          <tr><td class="file">components/AwbModalAir.tsx</td><td class="num">3</td><td class="file">01 06 <span class="ref">a11y</span></td><td>False-valid initial state, AWB and ACID literals</td></tr>
+          <tr><td class="file">components/FlightRadarHUD.tsx</td><td class="num">4</td><td class="file">01 06 09 13</td><td>AWB/ACID literals, contrast, inert Mach</td></tr>
+          <tr><td class="file">lib/air-math.ts</td><td class="num">3</td><td class="file">01 07 08</td><td>Ocean-from-air distance, door-to-door mislabel, RP 1678</td></tr>
+          <tr><td class="file">components/CargoVillageFlow.tsx</td><td class="num">2</td><td class="file">04 16</td><td>Wrong field bound to "Target Window", zero-wait absolute</td></tr>
+          <tr><td class="file">components/LegalModalAir.tsx</td><td class="num">3</td><td class="file">02 11 <span class="ref">a11y</span></td><td>Unbacked CSP claim, CO₂ attribution</td></tr>
+          <tr><td class="file">components/HeroAir.tsx</td><td class="num">1</td><td class="file">09</td><td>Contrast only — telemetry figures verified correct</td></tr>
+          <tr><td class="file">components/CorridorsAir.tsx</td><td class="num">1</td><td class="file">10</td><td>Keyboard access only — route data verified authentic</td></tr>
+          <tr><td class="file">components/CargoSimAir.tsx</td><td class="num">1</td><td class="file"><span class="ref">a11y</span></td><td>Slider labels — presets and maths verified correct</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    YASLOGIST AIR · copy &amp; claim audit · baseline established 2026-09-04<br>
+    Scope: src/ only. Line references verified against working tree at audit time.<br>
+    Nothing in this repo is deployed; no live-traffic risk attaches to any finding.
+  </footer>
+
+</div>
+
+</body>
+</html>

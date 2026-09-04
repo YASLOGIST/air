@@ -9,12 +9,50 @@ export type Theme = 'dark' | 'light';
 export type BillingBasis = 'GROSS_WEIGHT' | 'VOLUMETRIC_WEIGHT';
 export type FreightDensityClass = 'DENSE_HEAVY' | 'VOLUMINOUS_LIGHT';
 
+/**
+ * A real sea routing that serves the same trade as an air corridor.
+ *
+ * Sea transit cannot be derived from flight distance: the great-circle path an
+ * aircraft flies is not a path a vessel can take, and several corridor origins
+ * (Frankfurt, Dubai) are not seaports at all. Each lane therefore carries its
+ * own distance and its own published schedule range.
+ */
+export interface SeaLaneBenchmark {
+  originPortEn: string;
+  originPortAr: string;
+  destPortEn: string;
+  destPortAr: string;
+  /** Sailing distance over the actual routing, not great-circle. */
+  seaDistanceKm: number;
+  /** Port-to-port range from published liner schedules, including transhipment. */
+  portToPortDaysMin: number;
+  portToPortDaysMax: number;
+  /** Set where the lane's timing depends on a routing choice (e.g. Suez vs Cape). */
+  routingCaveatEn?: string;
+  routingCaveatAr?: string;
+}
+
 export interface AirCalculationInput {
   lengthCm: number;
   widthCm: number;
   heightCm: number;
   grossWeightKg: number;
   distanceKm: number;
+  /** Omitted when the distance is set freehand and no corridor is selected. */
+  seaLane?: SeaLaneBenchmark | null;
+}
+
+export interface OceanComparison {
+  originPortEn: string;
+  originPortAr: string;
+  destPortEn: string;
+  destPortAr: string;
+  seaDistanceKm: number;
+  portToPortDaysMin: number;
+  portToPortDaysMax: number;
+  co2Tonnes: number;
+  routingCaveatEn?: string;
+  routingCaveatAr?: string;
 }
 
 export interface AirCalculationOutput {
@@ -25,9 +63,10 @@ export interface AirCalculationOutput {
   freightClass: FreightDensityClass;
   ratioActualToVolume: number;
   estimatedCo2Tonnes: number;
-  oceanAlternativeCo2Tonnes: number;
-  flightTransitHours: number;
-  oceanTransitDays: number;
+  /** Airport-to-airport block time. Excludes pickup, handling and delivery. */
+  airportBlockHours: number;
+  /** null when no sea lane was supplied, so no comparison is shown rather than invented. */
+  oceanComparison: OceanComparison | null;
 }
 
 export interface ULDContainer {
@@ -71,6 +110,8 @@ export interface AirCorridor {
   strategicSignificanceAr: string;
   carrierEn: string;
   carrierAr: string;
+  /** The sea routing this air corridor competes with, for modal comparison. */
+  seaLane: SeaLaneBenchmark;
 }
 
 export interface CargoVillageStep {

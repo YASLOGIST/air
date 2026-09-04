@@ -66,6 +66,7 @@ export interface Dict {
     pharmaCooling: string;
     tempLog: string;
     stable: string;
+    excursion: string;
     approachingWaypoint: string;
     livePing: string;
   };
@@ -267,11 +268,12 @@ export const DICTIONARY: Record<Language, Dict> = {
       verticalSpeed: 'V/S DESCENT',
       airTrafficMode: 'En-route Control: Cairo Air Control Center (ACC)',
       cargoIdentity: 'HIGH-VALUE PHARMACEUTICAL CONSIGNMENT',
-      awbNumber: 'AWB 077-94821034',
-      acidNumber: 'ACID 2026-CAI-994108',
+      awbNumber: 'AWB 077-94821031',
+      acidNumber: 'ACID 2026000994108770001',
       pharmaCooling: 'Active Pharma Temperature',
-      tempLog: 'Logger: RKN-Active-Envirotainer (±0.2°C Precision)',
+      tempLog: 'Logger: RKN-Active-Envirotainer (±0.5°C Precision)',
       stable: 'THERMALLY STABLE',
+      excursion: 'TEMPERATURE EXCURSION',
       approachingWaypoint: 'Approaching Waypoint CVO VOR / ILS Inbound',
       livePing: 'AIR TELEMETRY FEED LIVE',
     },
@@ -279,7 +281,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       sectionBadge: 'IATA TACT Volume Calculator',
       title: 'Air Freight Volumetric & Carbon Simulator',
       subtitle:
-        'Understand Chargeable Weight calculations governed by the IATA 1:6000 standard divisor, alongside verified GLEC carbon trade-offs against sea transport.',
+        'Chargeable weight under the IATA 1:6000 divisor, with carbon and transit modelled on GLEC Framework factors against the sea lane each corridor competes with.',
       dimensions: 'Package Dimensions (cm)',
       length: 'Length (cm)',
       width: 'Width (cm)',
@@ -299,13 +301,13 @@ export const DICTIONARY: Record<Language, Dict> = {
       denseDesc: 'Actual weight exceeds volumetric weight. Pricing is calculated directly per physical kilogram.',
       voluminousDesc: 'Volume occupies disproportionate aircraft hold space. In accordance with IATA rules, billing utilizes the 1:6 ratio.',
       iataFormulaNotice: 'Formula: (L × W × H in cm) ÷ 6,000 = Volumetric Weight (kg). Standardized across IATA member airlines.',
-      co2Metric: 'Environmental Impact (IATA RP 1678 Framework)',
+      co2Metric: 'Environmental Impact (GLEC Framework / EN 16258)',
       co2Flight: 'Estimated Air CO2',
       co2Ocean: 'Equivalent Ocean CO2',
       tradeoffTitle: 'Speed vs Sustainability Trade-Off',
       tradeoffDesc: 'Air freight provides immediate time advantage for shelf-life critical and urgent goods while generating higher specific carbon per tonne-km.',
-      transitAir: 'Air Transit Time (Doors)',
-      transitOcean: 'Ocean Transit Time (Ports)',
+      transitAir: 'Airport-to-Airport Block Time',
+      transitOcean: 'Sea Transit, Port to Port',
     },
     uld: {
       sectionBadge: 'Aircraft Unit Load Devices',
@@ -328,7 +330,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       sectionBadge: 'Airport Logistics Workflow',
       title: 'Cairo Cargo Village 4-Phase Rapid Flow',
       subtitle:
-        'Eliminating ground dwell times at Cairo Airport through automated e-AWB and integrated customs clearance prior to touchdown.',
+        'Cutting ground dwell at Cairo Airport by completing the e-AWB and Nafeza customs formalities before the aircraft departs, not after it lands.',
       cairoAirportNotice: 'Cairo International Airport (CAI) Cargo Village Gateway',
       timeSavedBadge: 'Target Ground Dwell: < 180 Minutes',
       steps: {
@@ -341,7 +343,7 @@ export const DICTIONARY: Record<Language, Dict> = {
         },
         tarmacCool: {
           title: 'Tarmac to Temperature-Controlled Vaults',
-          subtitle: 'Zero Heat-Excursion Transfer',
+          subtitle: 'Shaded Transfer, No Open-Tarmac Dwell',
           desc: 'Pharma containers bypass open sun tarmac exposure into specialized +2°C to +8°C or +15°C to +25°C cool corridors within CAI Cargo Village.',
           metric: 'Continuous ±0.5°C Logging',
           compliance: 'GDP (Good Distribution Practice)',
@@ -349,8 +351,8 @@ export const DICTIONARY: Record<Language, Dict> = {
         preClearance: {
           title: 'Digital Pre-Clearance & Nafeza ACID Matching',
           subtitle: 'Automated Customs Release',
-          desc: 'Instant cryptographic match of e-AWB with Egypt Customs ACID authorization. Duty calculation pre-funded, preventing multi-day document holds.',
-          metric: 'Instantaneous Digital Release',
+          desc: 'The e-AWB is matched against the Nafeza ACID registered before the aircraft departs. Duty is assessed and settled in advance, so the consignment is not held for paperwork after it lands.',
+          metric: 'Filed pre-departure, released on arrival',
           compliance: 'Nafeza ACI / Egyptian Customs Law 207',
         },
         gateOut: {
@@ -404,7 +406,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       subtitle: 'The aviation leg is complete. The shipment transitions immediately to the highway.',
       cardHeadline: 'Cairo Cargo Village Clear → Ground Reefer Transport Active',
       statusAwb: 'e-AWB & Nafeza ACID: Verified & Customs Released',
-      statusCold: 'Cold-Chain Integrity: +4.2°C Maintained (Zero Excursion)',
+      statusCold: 'Cold-Chain Integrity: +4.2°C held, no excursion logged on this run',
       statusNext: 'Next Milestone: Direct Delivery to 10th of Ramadan Pharma Hub',
       ctaLand: 'Track Consignment on Land Network (land.yaslogist.me)',
       ctaSubtext: 'Continuous multimodal visibility across highway and distribution network.',
@@ -492,11 +494,12 @@ export const DICTIONARY: Record<Language, Dict> = {
       verticalSpeed: 'معدل الهبوط V/S',
       airTrafficMode: 'التحكم الجوي: مركز القاهرة للمراقبة الجوية (ACC)',
       cargoIdentity: 'شحنة مستحضرات دوائية وبيولوجية فائقة الأهمية',
-      awbNumber: 'بوليصة AWB 077-94821034',
-      acidNumber: 'رقم نافذة ACID 2026-CAI-994108',
+      awbNumber: 'بوليصة AWB 077-94821031',
+      acidNumber: 'رقم نافذة ACID 2026000994108770001',
       pharmaCooling: 'درجة حرارة الشحنة الدوائية النشطة',
-      tempLog: 'مسجل البيانات: حاوية RKN-Envirotainer بدقة ±0.2°م',
+      tempLog: 'مسجل البيانات: حاوية RKN-Envirotainer بدقة ±0.5°م',
       stable: 'مستقرة حرارياً',
+      excursion: 'انحراف حراري',
       approachingWaypoint: 'الاقتراب من نقطة CVO VOR / نظام الهبوط الآلي ILS',
       livePing: 'بث التيليميتري الملاحي متصل',
     },
@@ -504,7 +507,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       sectionBadge: 'حاسبة IATA TACT القياسية',
       title: 'محاكي الوزن الحجمي وانبعاثات الكربون الجوية',
       subtitle:
-        'احسب الوزن الخاضع للرسوم وفق معادلة الاتحاد الدولي للنقل الجوي (IATA) بقاسم 6000، مع مقارنة صادقة للانبعاثات وسرعة التوصيل مقارنة بالشحن البحري.',
+        'احسب الوزن الخاضع للرسوم وفق معادلة الاتحاد الدولي للنقل الجوي (IATA) بقاسم 6000، مع نمذجة الانبعاثات وزمن العبور وفق معاملات إطار GLEC مقارنةً بالمسار البحري المنافس لكل ممر.',
       dimensions: 'أبعاد الطرد (سنتيمتر)',
       length: 'الطول (سم)',
       width: 'العرض (سم)',
@@ -524,13 +527,13 @@ export const DICTIONARY: Record<Language, Dict> = {
       denseDesc: 'الوزن الفعلي أكبر من الحجمي؛ يتم احتساب السعر بناءً على الكيلوجرام الحقيقي مباشرة دون زيادة.',
       voluminousDesc: 'تشغل الشحنة حيزاً ضخماً في عنبر الطائرة مقارنة بوزنها، لذا يتم تطبيق معيار IATA (قاسم 6000) لحساب الوزن العادل.',
       iataFormulaNotice: 'المعادلة القياسية: (الطول × العرض × الارتفاع بالسم) ÷ 6000 = الوزن الحجمي بالكيلوجرام.',
-      co2Metric: 'الأثر البيئي وانبعاثات الكربون (إطار IATA RP 1678)',
+      co2Metric: 'الأثر البيئي وانبعاثات الكربون (إطار GLEC / معيار EN 16258)',
       co2Flight: 'انبعاثات الطيران التقديرية',
       co2Ocean: 'انبعاثات الشحن البحري المقابلة',
       tradeoffTitle: 'معادلة المفاضلة: السرعة مقابل الاستدامة',
       tradeoffDesc: 'يوفر الشحن الجوي ميزة زمنية فورية للبضائع الحساسة والطارئة، في مقابل انبعاثات كربونية أعلى لكل طن/كم.',
-      transitAir: 'زمن العبور الجوي (من الباب للباب)',
-      transitOcean: 'زمن العبور البحري (من الميناء للميناء)',
+      transitAir: 'زمن الطيران من مطار لمطار',
+      transitOcean: 'زمن الإبحار من ميناء لميناء',
     },
     uld: {
       sectionBadge: 'حاويات ومنصات الطائرات القياسية',
@@ -553,7 +556,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       sectionBadge: 'دورة العمل بمطار القاهرة',
       title: 'المسار السريع بقرية البضائع (4 مراحل)',
       subtitle:
-        'القضاء على فترات الانتظار بمطار القاهرة عبر المطابقة الرقمية المسبقة لـ e-AWB والتكامل الجمركي الفوري قبل ملامسة عجلات الطائرة للمهبط.',
+        'تقليص زمن المكوث بمطار القاهرة عبر استكمال بوليصة e-AWB والإجراءات الجمركية عبر نافذة قبل إقلاع الطائرة، لا بعد هبوطها.',
       cairoAirportNotice: 'بوابة قرية البضائع بمطار القاهرة الدولي (CAI)',
       timeSavedBadge: 'المستهدف الزمني: أقل من 180 دقيقة للإفراج',
       steps: {
@@ -574,8 +577,8 @@ export const DICTIONARY: Record<Language, Dict> = {
         preClearance: {
           title: 'المطابقة الرقمية المسبقة مع نظام نافذة (ACID)',
           subtitle: 'الإفراج الجمركي الآلي المسبق',
-          desc: 'مطابقة بوليصة الشحن الإلكترونية e-AWB مع رقم التسجيل المسبق للشحنات (ACID) قبل الهبوط لسداد الرسوم دون تأخير ورقي.',
-          metric: 'إفراج رقمي فوري وموثق',
+          desc: 'مطابقة بوليصة الشحن الإلكترونية e-AWB مع رقم التسجيل المسبق (ACID) المُصدر قبل إقلاع الطائرة، مع تقدير الرسوم وسدادها مقدماً، فلا تُحتجز الشحنة لاستكمال المستندات بعد الهبوط.',
+          metric: 'تسجيل مسبق قبل الإقلاع، وإفراج عند الوصول',
           compliance: 'منظومة نافذة / قانون الجمارك المصري رقم 207',
         },
         gateOut: {
@@ -629,7 +632,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       subtitle: 'اكتملت رحلة الطيران، والشحنة تنتقل فوراً إلى شبكة الطرق البرية.',
       cardHeadline: 'اكتمال إجراءات قرية البضائع ← شاحنات التبريد البرية تبدأ الانطلاق',
       statusAwb: 'بوليصة e-AWB ورقم نافذة ACID: مستوفاة ومطابقة جمركياً بالكامل',
-      statusCold: 'سلامة سلسلة التبريد: +4.2°م مستقرة تماماً داخل الحاوية',
+      statusCold: 'سلامة سلسلة التبريد: +4.2°م مستقرة، دون تسجيل أي انحراف حراري في هذه الرحلة',
       statusNext: 'المحطة القادمة: التسليم المباشر للمنطقة الصناعية بالعاشر من رمضان',
       ctaLand: 'تتبع الشحنة على شبكة النقل البري عبر land.yaslogist.me',
       ctaSubtext: 'رؤية لوجستية متعددة الوسائط متصلة بين المطارات والطرق السريعة.',

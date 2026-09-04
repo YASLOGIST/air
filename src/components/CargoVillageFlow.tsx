@@ -7,6 +7,7 @@ import {
   FileCheck2,
   Truck,
   Clock,
+  Gauge,
   ShieldCheck,
   Building2
 } from 'lucide-react';
@@ -177,7 +178,10 @@ export const CargoVillageFlow: React.FC = () => {
               {activeContent.desc}
             </p>
 
-            {/* Operational Metrics Checklist */}
+            {/* Operational Metrics Checklist.
+                "Target Window" takes currentMeta.timeTarget — the only field
+                that actually holds a time. activeContent.metric is prose
+                describing the phase and now has its own labelled row. */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <div className="p-3 rounded-xl glass-subcard flex items-center gap-3">
                 <Clock className="w-5 h-5 text-cyan-500 shrink-0" />
@@ -186,7 +190,7 @@ export const CargoVillageFlow: React.FC = () => {
                     {isRtl ? 'المستهدف الزمني' : 'Target Window'}
                   </span>
                   <span className="font-mono font-bold text-sm text-title" dir="ltr">
-                    {activeContent.metric}
+                    {currentMeta.timeTarget}
                   </span>
                 </div>
               </div>
@@ -202,6 +206,18 @@ export const CargoVillageFlow: React.FC = () => {
                   </span>
                 </div>
               </div>
+
+              <div className="p-3 rounded-xl glass-subcard flex items-center gap-3 sm:col-span-2">
+                <Gauge className="w-5 h-5 text-sky-500 shrink-0" />
+                <div>
+                  <span className="block text-[10px] font-mono text-muted uppercase">
+                    {isRtl ? 'مخرجات المرحلة' : 'Phase Output'}
+                  </span>
+                  <span className="font-mono font-bold text-sm text-title">
+                    {activeContent.metric}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -212,6 +228,10 @@ export const CargoVillageFlow: React.FC = () => {
               <img
                 src="/assets/cargo-village.jpg"
                 alt="Cairo International Airport Cargo Village Logistics Gate"
+                width={1200}
+                height={896}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover object-center"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
@@ -247,8 +267,8 @@ export const CargoVillageFlow: React.FC = () => {
 
               <div className="pt-2 border-t border-[var(--glass-brd)] text-[11px] text-muted leading-relaxed font-sans">
                 {isRtl
-                  ? 'يتم إرسال إشعار تحرك فوري لشاحنات النقل البري قبل 60 دقيقة من هبوط الطائرة لضمان الاصطفاف التام عند بوابة الإفراج.'
-                  : 'Automated dispatch signals are transmitted to the refrigerated land fleet 60 minutes prior to touchdown, ensuring zero dock waiting time.'}
+                  ? 'يتم إرسال إشعار تحرك للشاحنات المبردة قبل 60 دقيقة من الهبوط، بهدف تقليص انتظار الشاحنات عند بوابة الإفراج إلى أدنى حد.'
+                  : 'Dispatch signals reach the refrigerated land fleet 60 minutes before touchdown, so trucks are positioned at the release gate rather than queuing for it.'}
               </div>
             </div>
           </div>

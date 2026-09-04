@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 export const FlightRadarHUD: React.FC = () => {
-  const { dict } = useLang();
+  const { dict, isRtl } = useLang();
 
   // Simulated live telemetry state
   const [altitude, setAltitude] = useState<number>(38000);
@@ -38,6 +38,10 @@ export const FlightRadarHUD: React.FC = () => {
     return () => clearInterval(interval);
   }, [isLiveActive]);
 
+  /* Coarse state derived from the sampled temperature. Announced instead of the
+     raw value so the status region fires on a band breach, not on every tick. */
+  const coldChainStable = temp >= 2 && temp <= 8;
+
   return (
     <section id="radar" className="relative py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* Header with ModelBadge */}
@@ -60,20 +64,33 @@ export const FlightRadarHUD: React.FC = () => {
         {/* Live status pill */}
         <div className="flex items-center gap-3 self-start md:self-auto">
           <button
+            type="button"
             onClick={() => setIsLiveActive(!isLiveActive)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md font-mono text-xs border transition-all ${
+            aria-pressed={isLiveActive}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md font-mono text-xs border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--c-bg)] ${
               isLiveActive
-                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.12)]'
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.12)]'
                 : 'glass-subcard text-muted'
             }`}
-            title="Toggle Live Stream Simulation"
           >
-            <span className={`w-2 h-2 rounded-full ${isLiveActive ? 'bg-emerald-400 animate-ping-pulse' : 'bg-slate-500'}`} />
+            <span className={`w-2 h-2 rounded-full ${isLiveActive ? 'bg-emerald-400 animate-ping-pulse' : 'bg-slate-500'}`} aria-hidden="true" />
             <span>{dict.radar.livePing}</span>
-            <RefreshCw className={`w-3 h-3 ${isLiveActive ? 'animate-spin' : ''}`} style={{ animationDuration: '6s' }} />
+            <RefreshCw className={`w-3 h-3 ${isLiveActive ? 'animate-spin' : ''}`} style={{ animationDuration: '6s' }} aria-hidden="true" />
           </button>
         </div>
       </div>
+
+      {/* Screen-reader status.
+          The readouts below re-sample every 2.5 s. Marking those as a live
+          region would announce four numbers every few seconds and make the
+          page unusable with a screen reader, so they stay silent and this
+          region carries the coarse state instead — it changes only when the
+          feed is toggled or the consignment leaves its temperature band. */}
+      <p className="sr-only" role="status">
+        {isLiveActive
+          ? `${dict.radar.livePing}. ${dict.radar.pharmaCooling}: ${coldChainStable ? dict.radar.stable : dict.radar.excursion}.`
+          : `${dict.radar.livePing} — ${isRtl ? 'متوقف' : 'paused'}.`}
+      </p>
 
       {/* Main HUD Display Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -185,7 +202,11 @@ export const FlightRadarHUD: React.FC = () => {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div
+              className="grid grid-cols-2 gap-3 mb-4"
+              role="group"
+              aria-label={dict.brand.modelBadgeDesc}
+            >
               <div className="p-3 rounded-xl glass-subcard">
                 <span className="block text-[10px] font-mono text-muted uppercase">
                   {dict.hero.telemetryBar.altitude}
@@ -210,7 +231,7 @@ export const FlightRadarHUD: React.FC = () => {
                   </span>
                 </span>
                 <span className="block text-[10px] text-muted font-mono mt-0.5">
-                  MACH 0.81 (GS: {Math.round(speed * 1.852)} KM/H)
+                  GS {Math.round(speed * 1.852)} KM/H
                 </span>
               </div>
 
@@ -223,7 +244,7 @@ export const FlightRadarHUD: React.FC = () => {
                     {heading}° <span className="text-xs text-muted font-normal">MAG</span>
                   </span>
                 </span>
-                <span className="block text-[10px] text-emerald-500 font-mono mt-0.5">
+                <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
                   RNAV 1 / ILS 05L INBOUND
                 </span>
               </div>
@@ -253,14 +274,14 @@ export const FlightRadarHUD: React.FC = () => {
               <div className="flex justify-between items-center text-muted">
                 <span>{dict.radar.awbNumber.split(':')[0]}:</span>
                 <span className="text-cyan-500 font-semibold glass-subcard px-1.5 py-0.5 rounded" dir="ltr">
-                  077-94821034
+                  077-94821031
                 </span>
               </div>
               <div className="flex justify-between items-center text-muted">
                 <span>NAFEZA ACID PRE-CLEAR:</span>
-                <span className="text-emerald-500 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1" dir="ltr">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1" dir="ltr">
                   <FileCheck className="w-3 h-3" />
-                  2026-CAI-994108
+                  2026000994108770001
                 </span>
               </div>
             </div>

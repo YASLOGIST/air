@@ -99,6 +99,13 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* The UA stylesheet's `display:none` for [hidden] loses to any class that sets
+   display. ModelBadge toggles its disclosure panel with the hidden attribute,
+   so pin it rather than depend on utility ordering. */
+[hidden] {
+  display: none !important;
+}
+
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 5rem;
@@ -257,6 +264,28 @@ body {
 
 .animate-flight-float {
   animation: altitudeFlight 6s ease-in-out infinite;
+}
+
+/* WCAG 2.3.3 — the radar sweep, ping pulse, HUD blink and float all run
+   infinitely. Honour a stated preference for reduced motion: hold each at a
+   settled frame rather than removing the element, so nothing disappears. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-radar-sweep,
+  .animate-ping-pulse,
+  .animate-hud-blink,
+  .animate-flight-float {
+    animation: none !important;
+    opacity: 1;
+  }
 }
 
 /* Accessible focus ring */

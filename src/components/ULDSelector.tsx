@@ -50,8 +50,8 @@ const ULD_FLEET: ULDContainer[] = [
     recommendedCargoAr: 'المعدات الثقيلة، محركات السيارات، صمامات حقول البترول، الماكينات الصناعية الضخمة.',
     descriptionEn: 'Extruded high-tensile aluminum sheet with perimeter seat-tracks and heavy-duty nylon tie-down restraint net for bulky loads.',
     descriptionAr: 'صفيحة ألمنيوم عالية المقاومة مزودة بحواف تثبيت قياسية وشباك نيلون قوية لإحكام ربط الحمولات الضخمة والشاذة.',
-    dimensionsEn: '318 × 244 × 163–244 cm (96 × 125 in)',
-    dimensionsAr: '318 × 244 × 163–244 سم (96 × 125 بوصة)',
+    dimensionsEn: '318 × 244 × 163–244 cm (125 × 96 in)',
+    dimensionsAr: '318 × 244 × 163–244 سم (125 × 96 بوصة)',
   },
   {
     id: 'uld-rkn',
@@ -85,13 +85,13 @@ const ULD_FLEET: ULDContainer[] = [
     maxGrossWeightKg: 6033,
     volumeCbm: 8.2,
     activeCooling: true,
-    tempRangeEn: '+0°C to +25°C Active Climate Management',
-    tempRangeAr: '+0°م إلى +25°م إدارة مناخية نشطة فائقة الدقة',
+    tempRangeEn: '0°C to +25°C Active Climate Management',
+    tempRangeAr: '0°م إلى +25°م إدارة مناخية نشطة',
     compatibleAircraft: ['Boeing 777-200F/300ER', 'Boeing 747-8F', 'Airbus A350-900', 'Airbus A330'],
     recommendedCargoEn: 'Bulk pharmaceutical shipments, commercial vaccine batches, biopharma API raw materials.',
     recommendedCargoAr: 'الشحنات الدوائية السائبة، دفعات اللقاحات القومية، المواد الفعالة الحساسة (APIs).',
-    descriptionEn: 'Largest active temperature-controlled air cargo container worldwide. Accommodates up to 5 Euro-pallets or 4 US-pallets with dual redundant cooling.',
-    descriptionAr: 'أكبر حاوية مبردة نشطة للشحن الجوي عالمياً، تستوعب حتى 5 منصات يورو أو 4 منصات أمريكية مع نظام تبريد احتياطي مزدوج.',
+    descriptionEn: 'Among the largest active temperature-controlled ULDs in service. Accommodates up to 5 Euro-pallets or 4 US-pallets with redundant cooling.',
+    descriptionAr: 'من أكبر الحاويات المبردة النشطة المستخدمة في الشحن الجوي، تستوعب حتى 5 منصات يورو أو 4 منصات أمريكية مع نظام تبريد احتياطي.',
     dimensionsEn: '318 × 224 × 162 cm (Holds 5 Euro Pallets)',
     dimensionsAr: '318 × 224 × 162 سم (تتسع لـ 5 منصات يورو)',
   },
@@ -163,10 +163,12 @@ export const ULDSelector: React.FC = () => {
           {filteredFleet.map((uld) => {
             const isSelected = selectedUld.id === uld.id;
             return (
-              <div
+              <button
                 key={uld.id}
+                type="button"
                 onClick={() => setSelectedUld(uld)}
-                className={`p-4 rounded-2xl border cursor-pointer transition-all duration-200 glass-panel-hover ${
+                aria-pressed={isSelected}
+                className={`w-full text-left rtl:text-right p-4 rounded-2xl border cursor-pointer transition-all duration-200 glass-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--c-bg)] ${
                   isSelected
                     ? 'bg-gradient-to-r from-cyan-500/15 via-[var(--glass-bg)] to-[var(--glass-bg)] border-cyan-500 shadow-md'
                     : 'glass-panel'
@@ -198,7 +200,7 @@ export const ULDSelector: React.FC = () => {
                     {uld.volumeCbm} CBM
                   </span>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
