@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { NavbarAir } from './components/NavbarAir';
 import { HeroAir } from './components/HeroAir';
 import { FlightRadarHUD } from './components/FlightRadarHUD';
@@ -68,6 +69,9 @@ export const App: React.FC = () => {
         isOpen={awbModalOpen}
         onClose={() => setAwbModalOpen(false)}
       />
+
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 };
