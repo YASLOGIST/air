@@ -22,3 +22,12 @@ assets-src/
 # NOTE: dist/ is deliberately NOT ignored — it is currently tracked, which is
 # valid if you deploy the built output straight from this repo. If you build on
 # a host instead, add `dist/` here and run: git rm -r --cached dist
+
+# Master video footage & archives
+_archive_nextjs_backend/
+{main}*/
+*.mp4
+!public/assets/*.mp4
+!dist/assets/*.mp4
+.vercel/
+

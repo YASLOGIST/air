@@ -296,3 +296,56 @@ select:focus-visible {
   outline: 2px solid var(--c-accent);
   outline-offset: 2px;
 }
+
+/* Digital Twin Badge & Aeronautical Typographic Helpers */
+.twin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(6, 11, 18, 0.75);
+  color: #7dd3fc;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.32rem 0.65rem;
+  border-radius: 999px;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #0284c7;
+  font-weight: 700;
+}
+
+[data-theme="dark"] .kicker {
+  color: #38bdf8;
+}
+
+[lang="ar"] .kicker {
+  letter-spacing: 0.06em;
+}
+
+.display {
+  font-family: var(--font-serif);
+  letter-spacing: -0.025em;
+  color: var(--c-heading);
+}
+
+[lang="ar"] .display {
+  font-family: var(--font-ruqaa);
+  letter-spacing: 0 !important;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+

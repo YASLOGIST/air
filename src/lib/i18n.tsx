@@ -205,6 +205,49 @@ export interface Dict {
     privacyLink: string;
     securityLink: string;
   };
+  cinematic: {
+    phase01Kicker: string;
+    phase01Title: string;
+    phase01Body: string;
+    hudFlight: string;
+    hudRoute: string;
+    hudFl: string;
+    hudTemp: string;
+    phase02Kicker: string;
+    phase02Title: string;
+    phase02Body: string;
+    hudRunway: string;
+    phase03Kicker: string;
+    phase03Title: string;
+    phase03Body: string;
+    hudDwell: string;
+    scrubHint: string;
+  };
+  mission: {
+    kicker: string;
+    title: string;
+    items: string[];
+  };
+  stance: {
+    headline: string;
+    body: string;
+  };
+  tracker: {
+    kicker: string;
+    title: string;
+    subtitle: string;
+    placeholder: string;
+    search: string;
+    samples: string;
+    notFound: string;
+    commodity: string;
+    uld: string;
+    acid: string;
+    eawb: string;
+    chargeable: string;
+    dwell: string;
+    eta: string;
+  };
 }
 
 export const DICTIONARY: Record<Language, Dict> = {
@@ -433,6 +476,53 @@ export const DICTIONARY: Record<Language, Dict> = {
       privacyLink: 'Privacy Policy',
       securityLink: 'Security Protocols',
     },
+    cinematic: {
+      phase01Kicker: 'Phase 01 · Stratosphere Cruise',
+      phase01Title: 'Stratosphere Airbridge & Transistor Velocity',
+      phase01Body: 'Wide-body freighter cruising at FL380 on the Frankfurt/Dubai-to-Cairo airbridge with active cold-chain logging and pre-lodged ACID filings.',
+      hudFlight: 'MS-552',
+      hudRoute: 'FRA → CAI',
+      hudFl: 'FL380',
+      hudTemp: '+4.2°C',
+      phase02Kicker: 'Phase 02 · Runway 05L Final Approach',
+      phase02Title: 'Runway 05L Descent & Touchdown Precision',
+      phase02Body: 'Glide slope capture into Cairo International Airport (CAI). Customs clearance commences before wheels contact tarmac.',
+      hudRunway: '05L',
+      phase03Kicker: 'Phase 03 · Cairo Cargo Village Rapid Ramp',
+      phase03Title: 'Direct Reefer Gate-Out & Multi-Modal Transfer',
+      phase03Body: 'Direct apron transfer to refrigerated trucks with active dwell clocks to eliminate tarmac delay.',
+      hudDwell: '< 15 MIN',
+      scrubHint: 'SCROLL TO SCRUB ARRIVAL / مرر الشاشة للتحكم بمسار الهبوط',
+    },
+    mission: {
+      kicker: 'Engineered Operating Stance',
+      title: 'Mission Architecture for Time-Critical Air Freight',
+      items: [
+        'Digital Pre-Clearance: Harmonizing IATA ONE Record with Egyptian Nafeza ACID before takeoff.',
+        'Active Cold-Chain Custody: Unbroken 2–8°C thermal telemetry from aircraft belly to pharmaceutical distribution.',
+        'Air-to-Land Multi-Modal Handshake: Transferring palletized cargo to heavy transport in under 15 minutes.'
+      ],
+    },
+    stance: {
+      headline: 'Architects of Cargo Velocity, Not Passive Capacity Resellers',
+      body: 'YASLOGIST operates as an orchestrator of guaranteed transit windows. By locking strategic main-deck and lower-deck allocations across Tier-1 carriers and integrating customs pre-clearance, we convert air freight from an unpredictable tariff line into an auditable, clockwork supply pipeline.',
+    },
+    tracker: {
+      kicker: 'Consignment Radar',
+      title: 'Real-Time e-AWB Tracking & Customs Audit',
+      subtitle: 'Inspect live consignment status, temperature excursions, and ACID registration numbers across active corridors.',
+      placeholder: 'Enter Master AWB (e.g. 077-88442115)...',
+      search: 'Inspect Consignment',
+      samples: 'Active Live Samples:',
+      notFound: 'No active shipment found matching this AWB number. Verify prefix and checksum.',
+      commodity: 'Commodity',
+      uld: 'Assigned ULD',
+      acid: 'Nafeza ACID',
+      eawb: 'e-AWB Status',
+      chargeable: 'Chargeable Weight',
+      dwell: 'Tarmac Dwell',
+      eta: 'Estimated Arrival',
+    },
   },
   ar: {
     brand: {
@@ -658,6 +748,53 @@ export const DICTIONARY: Record<Language, Dict> = {
       termsLink: 'الشروط والأحكام',
       privacyLink: 'سياسة الخصوصية',
       securityLink: 'بروتوكولات الأمان',
+    },
+    cinematic: {
+      phase01Kicker: 'المرحلة 01 · تحليق الستراتوسفير',
+      phase01Title: 'جسر جوي عريض البدن عبر الستراتوسفير',
+      phase01Body: 'طائرات الشحن عريضة البدن على ارتفاع 38,000 قدم تربط فرانكفورت ودبي بالقاهرة مع تسجيل متواصل لسلاسل التبريد وإيداع مسبق لبيانات الشحن.',
+      hudFlight: 'MS-552',
+      hudRoute: 'FRA → CAI',
+      hudFl: 'FL380',
+      hudTemp: '+4.2°C',
+      phase02Kicker: 'المرحلة 02 · الاقتراب النهائي من مهبط 05L',
+      phase02Title: 'محاذاة الهبوط والاقتراب النهائي على مهبط 05L',
+      phase02Body: 'التقاط مسار الانحدار نحو مطار القاهرة الدولي مع إتمام بوالص الشحن الإلكترونية e-AWB مسبقاً، ليبدأ التخليص الجمركي قبل لمس المدرج.',
+      hudRunway: '05L',
+      phase03Kicker: 'المرحلة 03 · قرية البضائع بمطار القاهرة',
+      phase03Title: 'تسليم فوري للمبردات وانتقال مباشر للنقل البري',
+      phase03Body: 'تسليم فوري من ساحة المطار لأسطول الشاحنات المبردة مع مؤقتات مكوث إلكترونية تضمن الخروج في أقل من 15 دقيقة.',
+      hudDwell: '< 15 دقيقة',
+      scrubHint: 'مرر الشاشة للتحكم بمسار الهبوط والاقتراب',
+    },
+    mission: {
+      kicker: 'الركائز التشغيلية الجوية',
+      title: 'هندسة المهام للشحنات الحرجة وفائقة السرعة',
+      items: [
+        'المطابقة الرقمية المسبقة: مواءمة معايير IATA ONE Record مع منظومة نافذة وACID المصرية قبل الإقلاع.',
+        'حراسة سلاسل التبريد النشطة: رصد حراري غير منقطع لنطاق 2–8°م من بطن الطائرة وحتى مستودعات التوزيع الدوائي.',
+        'التسليم متعدد الوسائط الفوري: نقل الحاويات والمنصات لأسطول النقل البري في أقل من 15 دقيقة.'
+      ],
+    },
+    stance: {
+      headline: 'مهندسو سرعة الشحن الجوي، لا مجرد مسوقي سعة عابرين',
+      body: 'تعمل ياسلوجست كمنسق مؤسسي لنوافذ الشحن المحجوزة مسبقاً. من خلال ضمان المساحات على متن كبرى خطوط الطيران والدمج الرقمي مع التخليص الجمركي المسبق، نحوّل الشحن الجوي من بند تكلفة غير متوقع إلى خط إمداد دقيق وقابل للتدقيق بالدقيقة.',
+    },
+    tracker: {
+      kicker: 'رادار تتبع الشحنات الجوية',
+      title: 'تتبع بوالص الشحن الجوي الإلكترونية والتدقيق الجمركي',
+      subtitle: 'استعلم لحظياً عن حالة الشحنات وسجلات درجات الحرارة وأرقام ACID لمنظومة نافذة عبر الممرات الجوية.',
+      placeholder: 'أدخل رقم بوليصة الشحن (مثال: 077-88442115)...',
+      search: 'فحص الشحنة',
+      samples: 'شحنات تجريبية نشطة:',
+      notFound: 'لم يتم العثور على شحنة تطابق هذا الرقم. يرجى التحقق من الرقم وكود شركة الطيران.',
+      commodity: 'طبيعة البضاعة',
+      uld: 'حاوية التحميل (ULD)',
+      acid: 'رقم قيد نافذة (ACID)',
+      eawb: 'حالة البوليصة الإلكترونية',
+      chargeable: 'الوزن الخاضع للرسوم',
+      dwell: 'زمن المكوث على الساحة',
+      eta: 'موعد الوصول المتوقع',
     },
   },
 };
