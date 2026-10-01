@@ -1,7 +1,9 @@
+/// <reference types="vitest/config" />
 import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
+
 
 /* ── Content Security Policy ───────────────────────────────────────────────
    index.html carries one inline <script>: the theme/direction bootstrap that
@@ -20,7 +22,7 @@ import { defineConfig, type Plugin } from "vite";
    visible immediately, and reported in the console as a CSP violation.
 ────────────────────────────────────────────────────────────────────────── */
 const THEME_BOOTSTRAP_SHA256 =
-  "'sha256-eXcV3fjX5UCoJszKnlUt/RSpESYpgIzLBAPj+X727Xc='";
+  "'sha256-sm7lV1VVyIdShiJkLkce5PsOWe3A/705rKqqRF4FE8Y='";
 
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
@@ -69,9 +71,24 @@ function contentSecurityPolicy(): Plugin {
 export default defineConfig({
   base: "./",
   plugins: [react(), tailwindcss(), contentSecurityPolicy()],
+  preview: {
+    host: true,
+    // The sandboxed preview proxy serves the build under *.e2b.app; without
+    // this allowlist Vite rejects those Host headers with a 403.
+    allowedHosts: [".e2b.app"],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
     },
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    // Component tests deliberately run with prefers-reduced-motion: reduce so
+    // the animation-free render paths (the ones a11y users get) are the paths
+    // under test. The motion math is covered by pure unit tests instead.
+    css: false,
+    restoreMocks: true,
   },
 });

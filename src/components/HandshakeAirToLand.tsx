@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLang } from '../lib/i18n';
 import { ModelBadge } from './ModelBadge';
+import { Reveal } from './Reveal';
 import {
   Truck,
   PlaneLanding,
@@ -45,6 +46,7 @@ export const HandshakeAirToLand: React.FC = () => {
       </div>
 
       {/* Main Wide Handshake Card */}
+      <Reveal>
       <div className="glass-panel rounded-3xl p-6 sm:p-10 border border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 via-[var(--glass-bg)] to-[var(--glass-bg)] shadow-xl relative overflow-hidden">
         {/* Top Glow Line */}
         <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
@@ -138,6 +140,7 @@ export const HandshakeAirToLand: React.FC = () => {
           </div>
         </div>
       </div>
+      </Reveal>
     </section>
   );
 };

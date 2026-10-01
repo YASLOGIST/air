@@ -6,12 +6,14 @@ import {
   Phone,
   Mail,
   MapPin,
-  ExternalLink
+  ExternalLink,
+  Send
 } from 'lucide-react';
 import { SUITE_URLS } from '../lib/suite';
 
 interface FooterAirProps {
   onOpenLegal: (tab: 'TERMS' | 'PRIVACY' | 'SECURITY') => void;
+  onOpenQuoteModal: () => void;
 }
 
 const SOCIAL_CHANNELS = [
@@ -47,7 +49,7 @@ const SOCIAL_CHANNELS = [
   },
 ] as const;
 
-export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
+export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal, onOpenQuoteModal }) => {
   const { dict, isRtl } = useLang();
   const { theme } = useTheme();
 
@@ -84,8 +86,12 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
             <div className="pt-3 flex items-center gap-3.5">
               <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-cyan-500/40 shrink-0 shadow-md">
                 <img
-                  src="/assets/founder.jpg"
+                  src="/assets/founder.webp"
                   alt="Ahmed Yasser Ali"
+                  width={192}
+                  height={288}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover object-top"
                 />
               </div>
@@ -152,6 +158,16 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
                 <span>{dict.footer.address}</span>
               </div>
             </div>
+
+            {/* Primary conversion action */}
+            <button
+              type="button"
+              onClick={onOpenQuoteModal}
+              className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-400 px-4 py-3 text-xs font-bold text-slate-950 shadow-[0_0_20px_rgba(56,189,248,0.25)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Send className="w-4 h-4" aria-hidden="true" />
+              <span>{dict.quote.navCta}</span>
+            </button>
           </div>
 
           {/* Connected Network Portals (3 Cols) */}

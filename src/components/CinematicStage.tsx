@@ -1,47 +1,72 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DigitalTwinBadge } from './DigitalTwinBadge';
 import { useLang } from '../lib/i18n';
+import { clamp01, layerOpacity, stepProgress } from '../lib/scroll-progress';
 import { Play, Pause } from 'lucide-react';
 
 const LERP = 0.14;
 
-function clamp01(n: number) {
-  return Math.max(0, Math.min(1, n));
-}
+/* The runway feed only becomes visible around progress 0.28. Requesting it
+   at 0.12 gives the decoder a head start without charging visitors who never
+   scroll past the opening stratosphere frame. */
+const VIDEO_REQUEST_PROGRESS = 0.12;
 
-function layerOpacity(progress: number, start: number, end: number) {
-  const fade = 0.1;
-  if (progress < start - fade) return 0;
-  if (progress < start) return (progress - (start - fade)) / fade;
-  if (progress <= end) return 1;
-  if (progress < end + fade) return 1 - (progress - end) / fade;
-  return 0;
+/* ── Network Information API (not in TS DOM lib yet) ───────────────────── */
+interface NetworkInformationLike {
+  saveData?: boolean;
+}
+function prefersSavedData(): boolean {
+  const conn = (navigator as Navigator & { connection?: NetworkInformationLike }).connection;
+  return conn?.saveData === true;
 }
 
 export const CinematicStage: React.FC = () => {
   const { dict } = useLang();
   const trackRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [progress, setProgress] = useState(0);
+  /* Reduced-motion is read once at first render so the settled mid-descent
+     frame is the initial state — no effect-time setState, no flash of the
+     cruise frame for users who asked for calm. */
+  const [reducedMotion] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
+  const [progress, setProgress] = useState(() => (reducedMotion ? 0.5 : 0));
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  /* False until the descent actually approaches the runway layer (or the
+     visitor is on a metered connection / reduced-motion, in which case the
+     2.4 MB feed is never fetched at all). The phase-2 backdrop is a plain
+     dark gradient until then. */
+  const [videoReady, setVideoReady] = useState(false);
+  const videoRequestedRef = useRef(false);
   const targetRef = useRef(0);
   const currentRef = useRef(0);
   const lastScrollTime = useRef(0);
   const scrollStopTimeout = useRef<number | null>(null);
 
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const track = trackRef.current;
-    if (!track) return;
+    if (!track || reducedMotion) {
+      /* Reduced motion: hold the mid-descent frame — every layer is composed
+         and legible — with no video, no rAF loop, no scroll listeners. */
+      return;
+    }
+
+    const requestVideo = () => {
+      if (videoRequestedRef.current) return;
+      videoRequestedRef.current = true;
+      if (!prefersSavedData()) setVideoReady(true);
+    };
 
     const measure = () => {
       const rect = track.getBoundingClientRect();
       const total = Math.max(1, track.offsetHeight - window.innerHeight);
-      targetRef.current = clamp01(-rect.top / total);
+      const target = clamp01(-rect.top / total);
+      targetRef.current = target;
+      if (target >= VIDEO_REQUEST_PROGRESS) requestVideo();
 
       // Handle video playback while scrolling
       const video = videoRef.current;
-      if (video && !reduced) {
+      if (video) {
         lastScrollTime.current = Date.now();
         if (video.paused) {
           video.play().then(() => {
@@ -65,38 +90,45 @@ export const CinematicStage: React.FC = () => {
       }
     };
 
-    if (reduced) {
-      targetRef.current = 0.5;
-      currentRef.current = 0.5;
-      setProgress(0.5);
-      return;
-    }
-
+    /* The rAF loop now stops itself once the smoothed progress lands on the
+       scroll target, and is re-kicked by the next scroll/resize event. The
+       previous implementation kept requesting frames forever, waking the main
+       thread 60×/s even with the page parked anywhere on screen. */
     let raf = 0;
+    let running = false;
     const tick = () => {
-      const target = targetRef.current;
-      let current = currentRef.current;
-      current += (target - current) * LERP;
-      if (Math.abs(target - current) < 0.00045) current = target;
-      currentRef.current = current;
-      setProgress(current);
+      const { next, settled } = stepProgress(currentRef.current, targetRef.current, LERP);
+      currentRef.current = next;
+      setProgress(next);
+      if (settled) {
+        running = false;
+        return;
+      }
       raf = requestAnimationFrame(tick);
+    };
+    const kick = () => {
+      if (!running) {
+        running = true;
+        raf = requestAnimationFrame(tick);
+      }
     };
 
     measure();
     window.addEventListener('scroll', measure, { passive: true });
     window.addEventListener('resize', measure);
-    raf = requestAnimationFrame(tick);
+    kick();
 
     return () => {
       cancelAnimationFrame(raf);
+      running = false;
       window.removeEventListener('scroll', measure);
       window.removeEventListener('resize', measure);
       if (scrollStopTimeout.current) {
         window.clearTimeout(scrollStopTimeout.current);
       }
     };
-  }, []);
+    // reducedMotion is fixed at first render; listed for exhaustive-deps truth.
+  }, [reducedMotion]);
 
   const phases = useMemo(
     () => [
@@ -168,34 +200,42 @@ export const CinematicStage: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-[#070c14] via-transparent to-black/60" />
         </div>
 
-        {/* Layer 2: Final Approach Runway Drone Video Background */}
+        {/* Layer 2: Final Approach Runway Drone Video Background.
+            The 2.4 MB source is only attached once the descent approaches the
+            runway phase; before that (and permanently under reduced motion or
+            a save-data connection) this is just the dark gradient below. */}
         <div
           className="absolute inset-0 transition-opacity duration-150 overflow-hidden"
           style={{ opacity: p2Opacity }}
         >
-          <video
-            ref={videoRef}
-            src="/assets/runway-scrub.mp4"
-            muted
-            playsInline
-            loop
-            preload="auto"
-            className="w-full h-full object-cover scale-105 filter brightness-90 contrast-110"
-          />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_90%_at_50%_75%,#0e1a28_0%,#060b12_75%)]" />
+          {videoReady && (
+            <video
+              ref={videoRef}
+              src="/assets/runway-scrub.mp4"
+              muted
+              playsInline
+              loop
+              preload="auto"
+              className="w-full h-full object-cover scale-105 filter brightness-90 contrast-110"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-b from-[#070c14]/70 via-[#070c14]/30 to-[#070c14]/85" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(7,12,20,0.7)_100%)]" />
 
           {/* Video Scroll Playback Status Indicator */}
-          <div className="absolute bottom-6 right-6 z-20 flex items-center gap-2 rounded-full border border-sky-400/30 bg-black/60 px-3 py-1.5 backdrop-blur-md">
-            {isVideoPlaying ? (
-              <Play className="h-3 w-3 text-sky-400 fill-sky-400 animate-pulse" />
-            ) : (
-              <Pause className="h-3 w-3 text-slate-400" />
-            )}
-            <span className="font-mono text-[10px] tracking-widest text-sky-300 uppercase">
-              {isVideoPlaying ? 'SCROLL ACTIVE · RUNWAY FEED' : 'SCROLL TO PLAY · RUNWAY 05L'}
-            </span>
-          </div>
+          {videoReady && (
+            <div className="absolute bottom-6 right-6 z-20 flex items-center gap-2 rounded-full border border-sky-400/30 bg-black/60 px-3 py-1.5 backdrop-blur-md">
+              {isVideoPlaying ? (
+                <Play className="h-3 w-3 text-sky-400 fill-sky-400 animate-pulse" />
+              ) : (
+                <Pause className="h-3 w-3 text-slate-400" />
+              )}
+              <span className="font-mono text-[10px] tracking-widest text-sky-300 uppercase">
+                {isVideoPlaying ? 'SCROLL ACTIVE · RUNWAY FEED' : 'SCROLL TO PLAY · RUNWAY 05L'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Layer 3: Cairo Cargo Village Apron & Reefer Docks */}
@@ -204,8 +244,12 @@ export const CinematicStage: React.FC = () => {
           style={{ opacity: p3Opacity }}
         >
           <img
-            src="/assets/cargo-village.jpg"
+            src="/assets/cargo-village.webp"
             alt="Cairo Airport Cargo Village Apron"
+            width={1200}
+            height={896}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover scale-105 filter brightness-80 contrast-105"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-[#070c14]/80 via-[#070c14]/40 to-[#070c14]/90" />
@@ -221,6 +265,7 @@ export const CinematicStage: React.FC = () => {
             width: 140,
             transform: `translate(-50%, -50%) rotate(${aircraftRotate}deg) scale(${aircraftScale})`,
             filter: 'drop-shadow(0 10px 24px rgba(56,189,248,0.5)) drop-shadow(0 0 12px rgba(2,132,199,0.4))',
+            willChange: 'transform',
           }}
           viewBox="0 0 120 40"
           aria-hidden="true"

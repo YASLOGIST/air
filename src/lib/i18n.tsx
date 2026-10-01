@@ -13,7 +13,6 @@ export interface Dict {
     modelBadgeDesc: string;
   };
   nav: {
-    hero: string;
     radar: string;
     simulator: string;
     uld: string;
@@ -31,23 +30,12 @@ export interface Dict {
       air: string;
     };
   };
-  hero: {
-    badge: string;
-    titlePrimary: string;
-    titleAccent: string;
-    subtitle: string;
-    ctaSim: string;
-    ctaRadar: string;
-    telemetryBar: {
-      flight: string;
-      route: string;
-      altitude: string;
-      speed: string;
-      temp: string;
-      eta: string;
-      status: string;
-      statusValue: string;
-    };
+  /* HUD gauge labels shared by the flight radar telemetry cards. Previously
+     the `hero.*` block of the retired HeroAir component; only these two
+     labels survived its removal, so they moved to where they are used. */
+  telemetry: {
+    altitude: string;
+    speed: string;
   };
   radar: {
     sectionBadge: string;
@@ -248,6 +236,28 @@ export interface Dict {
     dwell: string;
     eta: string;
   };
+  quote: {
+    navCta: string;
+    modalKicker: string;
+    modalTitle: string;
+    modalSubtitle: string;
+    origin: string;
+    originPlaceholder: string;
+    destination: string;
+    destinationPlaceholder: string;
+    weight: string;
+    commodity: string;
+    commodityPlaceholder: string;
+    urgency: string;
+    urgencyStandard: string;
+    urgencyCritical: string;
+    urgencyAog: string;
+    emailCta: string;
+    callCta: string;
+    whatsappCta: string;
+    emailSubject: string;
+    privacyNote: string;
+  };
 }
 
 export const DICTIONARY: Record<Language, Dict> = {
@@ -261,7 +271,6 @@ export const DICTIONARY: Record<Language, Dict> = {
       modelBadgeDesc: 'Telemetry and operations simulated for demonstration purposes under IATA and Egyptian Customs frameworks.',
     },
     nav: {
-      hero: 'Overview',
       radar: 'Flight Telemetry',
       simulator: 'Volumetric Engine',
       uld: 'ULD Fleet',
@@ -279,24 +288,9 @@ export const DICTIONARY: Record<Language, Dict> = {
         air: 'Air Freight',
       },
     },
-    hero: {
-      badge: 'Aero-Speed Operations · Cairo Hub (CAI)',
-      titlePrimary: 'PRECISION AIR FREIGHT',
-      titleAccent: 'AT TRANSONIC SPEED',
-      subtitle:
-        'Resolving the 48-hour Cairo Cargo Village bottleneck. Synchronized e-AWB pre-clearance with Egyptian Nafeza ACID and continuous real-time pharma cold-chain monitoring directly from tarmac to land reefer fleet.',
-      ctaSim: 'Launch Volumetric Simulator',
-      ctaRadar: 'View Live Flight HUD',
-      telemetryBar: {
-        flight: 'CARGO FLIGHT',
-        route: 'SECTOR',
-        altitude: 'ALTITUDE',
-        speed: 'GROUND SPEED',
-        temp: 'COLD-CHAIN SENSOR',
-        eta: 'CAI TOUCHDOWN',
-        status: 'DISPATCH STATUS',
-        statusValue: 'TARMAC READY',
-      },
+    telemetry: {
+      altitude: 'ALTITUDE',
+      speed: 'GROUND SPEED',
     },
     radar: {
       sectionBadge: 'Live Aviation Telemetry',
@@ -523,6 +517,28 @@ export const DICTIONARY: Record<Language, Dict> = {
       dwell: 'Tarmac Dwell',
       eta: 'Estimated Arrival',
     },
+    quote: {
+      navCta: 'Request Quote',
+      modalKicker: 'Priority Freight Desk',
+      modalTitle: 'Request a Time-Critical Quote',
+      modalSubtitle: 'Compose the shipment card below — it opens in your email or phone app, pre-addressed to the air logistics desk. Nothing is transmitted from this page.',
+      origin: 'Origin (City / IATA)',
+      originPlaceholder: 'e.g. Frankfurt (FRA)',
+      destination: 'Destination (City / IATA)',
+      destinationPlaceholder: 'e.g. Cairo (CAI)',
+      weight: 'Gross Weight (kg)',
+      commodity: 'Commodity & Temperature Needs',
+      commodityPlaceholder: 'e.g. Pharma biologics, 2–8°C cold chain',
+      urgency: 'Urgency Level',
+      urgencyStandard: 'Standard — next available uplift',
+      urgencyCritical: 'Critical — earliest uplift, 24/7 desk',
+      urgencyAog: 'AOG — aircraft-on-ground recovery',
+      emailCta: 'Send by Email',
+      callCta: 'Call the Air Desk',
+      whatsappCta: 'WhatsApp Desk',
+      emailSubject: 'Priority Air Freight Quote Request — YASLOGIST AIR',
+      privacyNote: 'No account, no tracking: the request is composed on your device and sent through your own email or phone app.',
+    },
   },
   ar: {
     brand: {
@@ -534,7 +550,6 @@ export const DICTIONARY: Record<Language, Dict> = {
       modelBadgeDesc: 'بيانات التيليميتري والرحلات معروضة لأغراض المحاكاة الرقمية وفق معايير IATA وقوانين الجمارك المصرية.',
     },
     nav: {
-      hero: 'نظرة عامة',
       radar: 'رادار الرحلات',
       simulator: 'محاكي الحجم والوزن',
       uld: 'أسطول الحاويات ULD',
@@ -552,24 +567,9 @@ export const DICTIONARY: Record<Language, Dict> = {
         air: 'الشحن الجوي',
       },
     },
-    hero: {
-      badge: 'عمليات جوية فائقة السرعة · مطار القاهرة (CAI)',
-      titlePrimary: 'دقة الشحن الجوي',
-      titleAccent: 'بسرعة التحليق الترانزستورية',
-      subtitle:
-        'علاج معضلة مكوث البضائع لـ 48 ساعة بقرية بضائع مطار القاهرة. مطابقة مسبقة رقمية لبوالص e-AWB مع نظام نافذة (ACID) المصري، ومراقبة حية لسلاسل تبريد الأدوية الحساسة من المهبط وحتى الشاحنات المبردة.',
-      ctaSim: 'تشغيل محاكي الوزن الحجمي',
-      ctaRadar: 'استعراض شاشة الرادار والتيليميتري',
-      telemetryBar: {
-        flight: 'رحلة الشحن',
-        route: 'المسار الملاحي',
-        altitude: 'ارتفاع التحليق',
-        speed: 'السرعة الأرضية',
-        temp: 'مستشعر التبريد',
-        eta: 'الهبوط بالقاهرة',
-        status: 'جاهزية الاستلام',
-        statusValue: 'جاهز للمهبط',
-      },
+    telemetry: {
+      altitude: 'ارتفاع التحليق',
+      speed: 'السرعة الأرضية',
     },
     radar: {
       sectionBadge: 'تيليميتري الملاحة الجوية المباشرة',
@@ -795,6 +795,28 @@ export const DICTIONARY: Record<Language, Dict> = {
       chargeable: 'الوزن الخاضع للرسوم',
       dwell: 'زمن المكوث على الساحة',
       eta: 'موعد الوصول المتوقع',
+    },
+    quote: {
+      navCta: 'اطلب عرض سعر',
+      modalKicker: 'مكتب الشحنات الحرجة',
+      modalTitle: 'اطلب عرض سعر لشحنة حرجة',
+      modalSubtitle: 'املأ بيانات الشحنة أدناه — سيفتح الطلب في تطبيق البريد أو الهاتف لديك موجهاً مسبقاً إلى مكتب الشحن الجوي. لا يُرسل أي شيء من هذه الصفحة.',
+      origin: 'المصدر (المدينة / код المطار)',
+      originPlaceholder: 'مثال: فرانكفورت (FRA)',
+      destination: 'الوجهة (المدينة / код المطار)',
+      destinationPlaceholder: 'مثال: القاهرة (CAI)',
+      weight: 'الوزن القائم (كجم)',
+      commodity: 'طبيعة البضاعة ومتطلبات التبريد',
+      commodityPlaceholder: 'مثال: أدوية بيولوجية، سلسلة تبريد 2–8°م',
+      urgency: 'درجة الاستعجال',
+      urgencyStandard: 'قياسي — أول رحلة متاحة',
+      urgencyCritical: 'حرج — أقرب رحلة، خدمة 24/7',
+      urgencyAog: 'AOG — استعادة طائرة معطلة على الأرض',
+      emailCta: 'إرسال بالبريد الإلكتروني',
+      callCta: 'اتصل بمكتب الشحن الجوي',
+      whatsappCta: 'واتساب المكتب',
+      emailSubject: 'طلب عرض سعر شحن جوي حرج — ياسلوجست للشحن الجوي',
+      privacyNote: 'بدون حساب وبدون تتبع: يُصاغ الطلب على جهازك ويُرسل عبر تطبيق البريد أو الهاتف الخاص بك.',
     },
   },
 };

@@ -18,6 +18,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (saved === 'light' || saved === 'dark') {
         return saved;
       }
+      /* No stored choice: follow the OS, matching the pre-paint bootstrap in
+         index.html (which owns the first paint — this must agree with it).
+         Dark remains the fallback for systems that report no preference. */
+      if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'light';
+      }
     }
     return 'dark';
   });

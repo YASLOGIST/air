@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLang } from '../lib/i18n';
 import { ModelBadge } from './ModelBadge';
+import { Reveal } from './Reveal';
 import {
   Scale,
   Clock,
@@ -73,15 +74,15 @@ export const StatsAir: React.FC = () => {
         </div>
       </div>
 
-      {/* 4 Truthful Key Metric Cards */}
+      {/* 4 Truthful Key Metric Cards — staggered reveal on scroll */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {STATS_DATA.map((item, idx) => {
           const Icon = item.icon;
           return (
-            <div
-              key={idx}
-              className={`glass-panel rounded-2xl p-6 border ${item.borderGlow} transition-all duration-300 group flex flex-col justify-between`}
-            >
+            <Reveal key={idx} delay={idx * 70}>
+              <div
+                className={`glass-panel rounded-2xl p-6 border ${item.borderGlow} transition-all duration-300 group flex flex-col justify-between h-full`}
+              >
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 rounded-xl glass-subcard group-hover:scale-110 transition-transform">
@@ -102,7 +103,8 @@ export const StatsAir: React.FC = () => {
               <p className="text-xs text-muted leading-relaxed pt-3 border-t border-[var(--glass-brd)] font-sans">
                 {item.desc}
               </p>
-            </div>
+              </div>
+            </Reveal>
           );
         })}
       </div>

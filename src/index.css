@@ -297,6 +297,34 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+/* ── Scroll-reveal motion system ──────────────────────────────────────────
+   Applied by <Reveal>. Opacity + transform only, on the brand's ease-out-expo
+   curve, with an optional per-element transition-delay for staggering. The
+   global prefers-reduced-motion block further down neutralises transitions,
+   and the explicit override below keeps content fully visible without
+   animation for users who asked for calm. */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 560ms var(--ease-out-expo),
+    transform 560ms var(--ease-out-expo);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal.is-visible {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
 /* Digital Twin Badge & Aeronautical Typographic Helpers */
 .twin-badge {
   display: inline-flex;

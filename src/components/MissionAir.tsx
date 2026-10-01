@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLang } from '../lib/i18n';
+import { Reveal } from './Reveal';
 
 export const MissionAir: React.FC = () => {
   const { dict } = useLang();
@@ -15,13 +16,12 @@ export const MissionAir: React.FC = () => {
         </div>
         <ol className="grid gap-4">
           {dict.mission.items.map((item, i) => (
-            <li
-              key={item}
-              className="glass-panel flex gap-4 rounded-2xl p-5 border border-[var(--c-border)] transition-transform hover:-translate-y-0.5"
-            >
-              <span className="mono text-lg font-bold text-sky-400">0{i + 1}</span>
-              <p className="text-sm leading-relaxed text-body font-medium">{item}</p>
-            </li>
+            <Reveal as="li" key={item} delay={i * 60}>
+              <div className="glass-panel flex gap-4 rounded-2xl border border-[var(--c-border)] p-5 transition-transform hover:-translate-y-0.5">
+                <span className="mono text-lg font-bold text-sky-400">0{i + 1}</span>
+                <p className="text-sm leading-relaxed text-body font-medium">{item}</p>
+              </div>
+            </Reveal>
           ))}
         </ol>
       </div>

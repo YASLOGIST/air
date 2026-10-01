@@ -182,6 +182,7 @@ export const ConsignmentTracker: React.FC = () => {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          aria-label={dict.tracker.placeholder}
           placeholder={dict.tracker.placeholder}
           className="flex-1 rounded-full border border-[var(--c-border)] bg-[var(--c-card)] px-5 py-3.5 text-sm text-title placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-sky-400 shadow-sm"
         />
@@ -239,9 +240,14 @@ export const ConsignmentTracker: React.FC = () => {
                 {result.flightNo} · {result.origin} → {result.destination}
               </p>
             </div>
-            <span className={`rounded-full border px-4 py-1.5 font-mono text-xs font-bold tracking-wider ${result.statusColor}`}>
-              {result.status}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full border px-4 py-1.5 font-mono text-xs font-bold tracking-wider ${result.statusColor}`}>
+                {result.status}
+              </span>
+              <span className="rounded-full border border-sky-400/25 bg-sky-400/10 px-2.5 py-1 font-mono text-[10px] font-semibold tracking-wider text-sky-300">
+                SIMULATED FEED
+              </span>
+            </div>
           </div>
 
           <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -295,12 +301,12 @@ export const ConsignmentTracker: React.FC = () => {
 function Cell({ icon, k, v }: { icon: React.ReactNode; k: string; v: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-[#070c14]/60 p-4">
-      <div className="flex items-center gap-2">
+      {/* dt/dd must be direct children of this div: <dl> allows exactly one
+          wrapper level. The icon row therefore lives inside the dt itself. */}
+      <dt className="mono flex items-center gap-2 text-[10px] tracking-[0.15em] text-[#9bb0bc] uppercase font-semibold">
         {icon}
-        <dt className="mono text-[10px] tracking-[0.15em] text-[#9bb0bc] uppercase font-semibold">
-          {k}
-        </dt>
-      </div>
+        <span>{k}</span>
+      </dt>
       <dd className="mono mt-2 text-sm text-slate-100 font-medium">{v}</dd>
     </div>
   );

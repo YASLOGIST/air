@@ -1,6 +1,6 @@
 import React, { useId, useState } from 'react';
 import { useLang } from '../lib/i18n';
-import { validateIataAwb } from '../lib/air-math';
+import { airlineForAwbPrefix, validateIataAwb } from '../lib/air-math';
 import { useDialog } from '../lib/a11y';
 import { FileCheck, Search, CheckCircle2, AlertCircle, X } from 'lucide-react';
 
@@ -133,15 +133,20 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
               <div className="pt-2 border-t border-emerald-500/20 space-y-1 text-[11px] text-muted">
                 <div className="flex justify-between">
                   <span>Airline Prefix:</span>
-                  <span className="text-title font-bold" dir="ltr">{awbInput.substring(0, 3)} (EgyptAir Cargo)</span>
+                  <span className="text-title font-bold" dir="ltr">
+                    {awbInput.replace(/[\s-]/g, '').substring(0, 3)}
+                    {airlineForAwbPrefix(awbInput.replace(/[\s-]/g, '').substring(0, 3))
+                      ? ` (${airlineForAwbPrefix(awbInput.replace(/[\s-]/g, '').substring(0, 3))})`
+                      : ' (carrier not in reference table)'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Customs ACID:</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold" dir="ltr">2026000994108770001</span>
+                  <span>Checksum Rule:</span>
+                  <span className="text-title font-bold" dir="ltr">IATA Mod-7 · 8-digit serial % 7</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Cargo Village Status:</span>
-                  <span className="text-cyan-600 dark:text-cyan-400 font-bold" dir="ltr">PRE-APPROVED FOR DIRECT REEFER GATE-OUT</span>
+                  <span>Simulated ACID Record:</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold" dir="ltr">2026000994108770001 (DEMO)</span>
                 </div>
               </div>
             )}

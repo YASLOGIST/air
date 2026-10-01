@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLang } from '../lib/i18n';
 import type { ULDContainer } from '../types/air-freight';
 import { ModelBadge } from './ModelBadge';
+import { Reveal } from './Reveal';
 import {
   Box,
   ThermometerSnowflake,
@@ -206,7 +207,8 @@ export const ULDSelector: React.FC = () => {
         </div>
 
         {/* Right 8 Cols: Detailed Inspection Panel */}
-        <div className="lg:col-span-8 glass-panel rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
+        <Reveal className="lg:col-span-8">
+          <div className="glass-panel rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 h-full">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--glass-brd)] pb-4 gap-3">
             <div>
               <div className="flex items-center gap-2.5">
@@ -299,7 +301,8 @@ export const ULDSelector: React.FC = () => {
               </ul>
             </div>
           </div>
-        </div>
+          </div>
+        </Reveal>
       </div>
     </section>
   );

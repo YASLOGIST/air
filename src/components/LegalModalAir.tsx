@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useId } from 'react';
+import React, { useState, useId } from 'react';
 import { useLang } from '../lib/i18n';
 import { useDialog } from '../lib/a11y';
 import { Shield, FileText, Lock, X, AlertCircle } from 'lucide-react';
@@ -24,9 +24,15 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
      onClose is an inline arrow. */
   const panelRef = useDialog<HTMLDivElement>(isOpen, onClose);
 
-  useEffect(() => {
+  /* Prop-to-state sync for the tab happens during render (the React-endorsed
+     "adjust state when a prop changes" pattern) rather than in an effect, so
+     the dialog paints the right tab on the frame it opens, with no cascading
+     effect render. */
+  const [lastInitialTab, setLastInitialTab] = useState(initialTab);
+  if (lastInitialTab !== initialTab) {
+    setLastInitialTab(initialTab);
     setActiveTab(initialTab);
-  }, [initialTab]);
+  }
 
   if (!isOpen) return null;
 

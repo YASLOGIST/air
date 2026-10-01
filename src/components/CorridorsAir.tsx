@@ -3,6 +3,7 @@ import { useLang } from '../lib/i18n';
 import type { AirCorridor } from '../types/air-freight';
 import { AIR_CORRIDORS } from '../lib/corridors';
 import { ModelBadge } from './ModelBadge';
+import { Reveal } from './Reveal';
 import {
   PlaneTakeoff,
   Globe2,
@@ -88,7 +89,8 @@ export const CorridorsAir: React.FC = () => {
         </div>
 
         {/* Right 7 Cols: Detailed Route Intelligence Panel */}
-        <div className="lg:col-span-7 glass-panel rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
+        <Reveal className="lg:col-span-7">
+          <div className="glass-panel rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 h-full">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--glass-brd)] pb-4 gap-3">
             <div>
               <div className="flex items-center gap-3">
@@ -162,6 +164,7 @@ export const CorridorsAir: React.FC = () => {
             </p>
           </div>
         </div>
+        </Reveal>
       </div>
     </section>
   );

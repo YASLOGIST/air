@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLang } from '../lib/i18n';
 import { ModelBadge } from './ModelBadge';
+import { Reveal } from './Reveal';
 import {
   PlaneLanding,
   ThermometerSnowflake,
@@ -120,7 +121,9 @@ export const CargoVillageFlow: React.FC = () => {
           return (
             <button
               key={step.id}
+              type="button"
               onClick={() => setActiveStepIndex(idx)}
+              aria-pressed={isSelected}
               className={`p-4 rounded-2xl border text-left rtl:text-right transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[140px] ${
                 isSelected
                   ? 'bg-gradient-to-br from-cyan-500/15 via-[var(--glass-bg)] to-[var(--glass-bg)] border-cyan-500 shadow-md'
@@ -155,6 +158,7 @@ export const CargoVillageFlow: React.FC = () => {
       </div>
 
       {/* Selected Stage Detail Hero Panel */}
+      <Reveal>
       <div className="glass-panel rounded-2xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Left 7 Cols: Comprehensive Operational Breakdown */}
@@ -226,7 +230,7 @@ export const CargoVillageFlow: React.FC = () => {
             {/* Visual Photography of Cairo Cargo Village Gate & Logistics Hub */}
             <div className="relative h-44 w-full overflow-hidden">
               <img
-                src="/assets/cargo-village.jpg"
+                src="/assets/cargo-village.webp"
                 alt="Cairo International Airport Cargo Village Logistics Gate"
                 width={1200}
                 height={896}
@@ -274,6 +278,7 @@ export const CargoVillageFlow: React.FC = () => {
           </div>
         </div>
       </div>
+      </Reveal>
     </section>
   );
 };

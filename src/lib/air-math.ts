@@ -107,12 +107,35 @@ export function calculateAirFreight(input: AirCalculationInput): AirCalculationO
 /**
  * Standard Air Waybill (AWB) Checksum Validator (Mod 7 algorithm)
  * Validates the standard 11-digit IATA AWB number format: XXX-XXXXXXXC
+ *
+ * The candidate must be exactly 11 digits after stripping separators. The
+ * previous implementation used parseInt, which silently accepted trailing
+ * letters inside the serial ('077-884421A5' parsed as 884421) and could
+ * therefore pass a malformed number as checksum-valid.
  */
 export function validateIataAwb(awbNumber: string): boolean {
   const clean = awbNumber.replace(/[\s-]/g, '');
-  if (clean.length !== 11) return false;
-  const serialPart = parseInt(clean.substring(3, 10), 10);
-  const checkDigit = parseInt(clean.substring(10, 11), 10);
-  if (isNaN(serialPart) || isNaN(checkDigit)) return false;
+  if (!/^\d{11}$/.test(clean)) return false;
+  const serialPart = Number(clean.substring(3, 10));
+  const checkDigit = Number(clean.substring(10, 11));
   return serialPart % 7 === checkDigit;
+}
+
+/**
+ * Airline AWB prefixes referenced by this site's simulated consignments.
+ * Used to name the issuing carrier honestly in the e-AWB checker instead of
+ * labelling every prefix "EgyptAir Cargo". Unknown prefixes are surfaced as
+ * unknown rather than guessed.
+ */
+export const AIRLINE_AWB_PREFIXES: Record<string, string> = {
+  '020': 'Lufthansa Cargo',
+  '074': 'Air France KLM Cargo',
+  '077': 'EgyptAir Cargo',
+  '176': 'Emirates SkyCargo',
+  '999': 'China Cargo Airlines',
+};
+
+/** Issuing-carrier name for a 3-digit AWB prefix, or null when unrecognized. */
+export function airlineForAwbPrefix(prefix: string): string | null {
+  return AIRLINE_AWB_PREFIXES[prefix] ?? null;
 }

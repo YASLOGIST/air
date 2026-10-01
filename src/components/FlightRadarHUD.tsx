@@ -209,7 +209,7 @@ export const FlightRadarHUD: React.FC = () => {
             >
               <div className="p-3 rounded-xl glass-subcard">
                 <span className="block text-[10px] font-mono text-muted uppercase">
-                  {dict.hero.telemetryBar.altitude}
+                  {dict.telemetry.altitude}
                 </span>
                 <span className="text-xl font-bold font-mono text-title tabular block mt-0.5">
                   <span dir="ltr" className="telemetry-unit">
@@ -223,7 +223,7 @@ export const FlightRadarHUD: React.FC = () => {
 
               <div className="p-3 rounded-xl glass-subcard">
                 <span className="block text-[10px] font-mono text-muted uppercase">
-                  {dict.hero.telemetryBar.speed}
+                  {dict.telemetry.speed}
                 </span>
                 <span className="text-xl font-bold font-mono text-title tabular block mt-0.5">
                   <span dir="ltr" className="telemetry-unit">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLang } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
 import { BrandMarkAir } from './BrandAir';
@@ -10,19 +10,44 @@ import {
   X,
   FileCheck,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  Send
 } from 'lucide-react';
 import { SUITE_URLS } from '../lib/suite';
 
 interface NavbarAirProps {
   onOpenAwbModal: () => void;
+  onOpenQuoteModal: () => void;
 }
 
-export const NavbarAir: React.FC<NavbarAirProps> = ({ onOpenAwbModal }) => {
+export const NavbarAir: React.FC<NavbarAirProps> = ({ onOpenAwbModal, onOpenQuoteModal }) => {
   const { dict, lang, toggleLang, isRtl } = useLang();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [ecosystemOpen, setEcosystemOpen] = useState(false);
+  const ecosystemRef = useRef<HTMLDivElement>(null);
+
+  /* The ecosystem switcher previously closed only onMouseLeave — unreachable
+     by keyboard, and it stayed open after a click elsewhere. It now behaves
+     like a proper disclosure: Escape closes it, so does an outside pointer
+     press, and the trigger carries aria-expanded. */
+  useEffect(() => {
+    if (!ecosystemOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setEcosystemOpen(false);
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!ecosystemRef.current?.contains(event.target as Node)) setEcosystemOpen(false);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [ecosystemOpen]);
 
   const NAV_LINKS = [
     { label: dict.nav.radar, href: '#radar' },
@@ -63,9 +88,12 @@ export const NavbarAir: React.FC<NavbarAirProps> = ({ onOpenAwbModal }) => {
             </a>
 
             {/* Platform Switcher Dropdown */}
-            <div className="relative hidden xl:block ml-4 rtl:ml-0 rtl:mr-4">
+            <div ref={ecosystemRef} className="relative hidden xl:block ml-4 rtl:ml-0 rtl:mr-4">
               <button
+                type="button"
                 onClick={() => setEcosystemOpen(!ecosystemOpen)}
+                aria-expanded={ecosystemOpen}
+                aria-haspopup="true"
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono text-muted hover:text-title glass-subcard transition-colors"
               >
                 <span>YASLOGIST SUITE</span>
@@ -118,6 +146,16 @@ export const NavbarAir: React.FC<NavbarAirProps> = ({ onOpenAwbModal }) => {
             >
               <FileCheck className="w-3.5 h-3.5 text-cyan-500" />
               <span>{dict.nav.trackAwb}</span>
+            </button>
+
+            {/* Priority Quote CTA — the site's primary conversion action */}
+            <button
+              type="button"
+              onClick={onOpenQuoteModal}
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono text-xs font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 border border-cyan-300/60 transition-all shadow-[0_0_18px_rgba(56,189,248,0.25)] active:scale-95"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>{dict.quote.navCta}</span>
             </button>
 
             {/* Language Switcher */}
@@ -179,11 +217,24 @@ export const NavbarAir: React.FC<NavbarAirProps> = ({ onOpenAwbModal }) => {
 
           <div className="pt-3 border-t border-[var(--glass-brd)] space-y-2">
             <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenQuoteModal();
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 transition-colors"
+            >
+              <Send className="w-4 h-4" />
+              <span>{dict.quote.navCta}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
                 onOpenAwbModal();
               }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold text-cyan-500 bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 transition-colors"
             >
               <FileCheck className="w-4 h-4" />
               <span>{dict.nav.trackAwb}</span>
