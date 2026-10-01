@@ -9,9 +9,7 @@ import {
   ShieldCheck,
   Plane,
   Check,
-  Sparkles,
   Layers,
-  Maximize2,
 } from 'lucide-react';
 
 const ULD_FLEET: ULDContainer[] = [

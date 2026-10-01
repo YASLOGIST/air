@@ -3,6 +3,7 @@ import { useLang } from '../lib/i18n';
 import { calculateAirFreight, estimateAirFreightCost } from '../lib/air-math';
 import { DEFAULT_CORRIDOR_ID, findCorridor } from '../lib/corridors';
 import { ModelBadge } from './ModelBadge';
+import { useDialog } from '../lib/a11y';
 import {
   Calculator,
   Scale,
@@ -88,6 +89,7 @@ export const CargoSimAir: React.FC = () => {
   const [urgencyMode, setUrgencyMode] = useState<'STANDARD' | 'PRIORITY'>('STANDARD');
   const [manifestModalOpen, setManifestModalOpen] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const manifestDialogRef = useDialog<HTMLDivElement>(manifestModalOpen, () => setManifestModalOpen(false));
 
   /* The active corridor, or null once the distance is dragged off a scheduled lane */
   const [corridorId, setCorridorId] = useState<string | null>(DEFAULT_CORRIDOR_ID);
@@ -133,8 +135,7 @@ export const CargoSimAir: React.FC = () => {
     setCorridorId(null);
   };
 
-  const handleCopyManifest = () => {
-    const summary = `=== YASLOGIST AIR — CONSIGNMENT MANIFEST (SIMULATION DEMO) ===
+  const manifestSummary = () => `=== YASLOGIST AIR — CONSIGNMENT MANIFEST (SIMULATION DEMO) ===
 Corridor: ${corridor?.code ?? 'Charter/Unscheduled'} (${distanceKm} km)
 Dimensions: ${lengthCm} × ${widthCm} × ${heightCm} cm
 Volume: ${calc.volumeCbm} CBM
@@ -147,9 +148,24 @@ Total Estimated Tariff: $${cost.totalEstimatedUsd} USD
 Terminal: Cairo International Airport Cargo Village (CAI / HECA)
 * Operational capability simulation under IATA TACT frameworks.`;
 
-    navigator.clipboard?.writeText(summary);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  const handleCopyManifest = async () => {
+    try {
+      await navigator.clipboard.writeText(manifestSummary());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const handleDownloadManifest = () => {
+    const blob = new Blob([manifestSummary()], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'yaslogist-air-simulation.txt';
+    anchor.click();
+    URL.revokeObjectURL(url);
   };
 
   const isGrossBilled = calc.billingBasis === 'GROSS_WEIGHT';
@@ -568,14 +584,14 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
 
       {/* Export Consignment Specification Modal */}
       {manifestModalOpen && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="printable-manifest-card bg-[#070d18] border border-cyan-500/30 rounded-3xl max-w-2xl w-full p-6 text-slate-100 shadow-2xl relative overflow-hidden font-mono text-xs">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" onClick={() => setManifestModalOpen(false)}>
+          <div ref={manifestDialogRef} role="dialog" aria-modal="true" aria-labelledby="manifest-title" tabIndex={-1} onClick={(event) => event.stopPropagation()} className="printable-manifest-card max-h-[90vh] overflow-y-auto bg-[#070d18] border border-cyan-500/30 rounded-3xl max-w-2xl w-full p-6 text-slate-100 shadow-2xl relative font-mono text-xs">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-cyan-500/20 pb-4 mb-4">
               <div className="flex items-center gap-2.5">
                 <Building2 className="w-5 h-5 text-cyan-400" />
                 <div>
-                  <h3 className="font-bold text-sm text-white">
+                  <h3 id="manifest-title" className="font-bold text-sm text-white">
                     {isRtl ? 'بيان مواصفات وتكاليف الشحن الجوي الرسمي' : 'OFFICIAL AIR CONSIGNMENT SPECIFICATION'}
                   </h3>
                   <span className="text-[10px] text-cyan-400/80">
@@ -588,7 +604,8 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 onClick={() => setManifestModalOpen(false)}
                 className="no-print p-1.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
+                <span className="sr-only">Close manifest</span>
               </button>
             </div>
 
@@ -675,6 +692,15 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Download className="w-4 h-4" />}
                 <span>{copied ? (isRtl ? 'تم النسخ للحافظة!' : 'Copied to Clipboard!') : (isRtl ? 'نسخ البيان' : 'Copy Text')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadManifest}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/20 hover:bg-white/10 text-white transition-all"
+              >
+                <Download className="w-4 h-4" aria-hidden="true" />
+                <span>{isRtl ? 'تنزيل TXT' : 'Download TXT'}</span>
               </button>
 
               <button

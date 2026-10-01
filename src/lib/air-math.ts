@@ -35,6 +35,12 @@ function tonnesCo2(chargeableWeightKg: number, distanceKm: number, kgPerTonneKm:
 
 export function calculateAirFreight(input: AirCalculationInput): AirCalculationOutput {
   const { lengthCm, widthCm, heightCm, grossWeightKg, distanceKm, seaLane } = input;
+  const numericInputs = { lengthCm, widthCm, heightCm, grossWeightKg, distanceKm };
+  for (const [name, value] of Object.entries(numericInputs)) {
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new RangeError(`${name} must be a finite number greater than zero`);
+    }
+  }
 
   // 1. Volume calculation in Cubic Meters (CBM)
   const rawVolumeCbm = (lengthCm * widthCm * heightCm) / 1_000_000;
@@ -104,10 +110,9 @@ export function calculateAirFreight(input: AirCalculationInput): AirCalculationO
  */
 export function validateIataAwb(awbNumber: string): boolean {
   const clean = awbNumber.replace(/[\s-]/g, '');
-  if (clean.length !== 11) return false;
-  const serialPart = parseInt(clean.substring(3, 10), 10);
-  const checkDigit = parseInt(clean.substring(10, 11), 10);
-  if (isNaN(serialPart) || isNaN(checkDigit)) return false;
+  if (!/^\d{11}$/.test(clean)) return false;
+  const serialPart = Number(clean.slice(3, 10));
+  const checkDigit = Number(clean.slice(10));
   return serialPart % 7 === checkDigit;
 }
 
