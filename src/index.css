@@ -420,3 +420,24 @@ select:focus-visible {
   font-weight: 800;
 }
 .skip-link:focus { transform: translateY(0); }
+
+/* Tactical display texture: lightweight CSS only, isolated from layout/paint flow. */
+.radar-scanlines {
+  opacity: 0.18;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    rgba(56, 189, 248, 0.12) 4px
+  );
+  mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .radar-scanlines { animation: radarScanDrift 8s linear infinite; }
+}
+
+@keyframes radarScanDrift {
+  from { transform: translateY(-4px); }
+  to { transform: translateY(4px); }
+}
