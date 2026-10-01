@@ -197,6 +197,7 @@ export interface Dict {
     contactHeading: string;
     phone: string;
     email: string;
+    supportEmail: string;
     address: string;
     founderLabel: string;
     founderName: string;
@@ -254,10 +255,10 @@ export const DICTIONARY: Record<Language, Dict> = {
   en: {
     brand: {
       name: 'YASLOGIST AIR',
-      subdomain: 'air.yaslogist.me',
+      subdomain: 'air.yaslogist.com',
       tagline: 'High-Velocity Cargo & Cold-Chain Telemetry',
       badge: 'Time-Critical Aviation Logistics',
-      modelBadge: 'Interactive Model · Digital Twin Simulation',
+      modelBadge: 'SIMULATION DEMO',
       modelBadgeDesc: 'Telemetry and operations simulated for demonstration purposes under IATA and Egyptian Customs frameworks.',
     },
     nav: {
@@ -401,7 +402,7 @@ export const DICTIONARY: Record<Language, Dict> = {
         gateOut: {
           title: 'Direct Handshake to Land Fleet',
           subtitle: 'Gate-Out to Reefer Transport',
-          desc: 'Immediate container loading onto dedicated refrigerated trucks connected to land.yaslogist.me for final distribution across Egypt.',
+          desc: 'Immediate container loading onto dedicated refrigerated trucks connected to land.yaslogist.com for final distribution across Egypt.',
           metric: 'Immediate dispatch to highway',
           compliance: 'Air-to-Land Seamless SLA',
         },
@@ -451,7 +452,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       statusAwb: 'e-AWB & Nafeza ACID: Verified & Customs Released',
       statusCold: 'Cold-Chain Integrity: +4.2°C held, no excursion logged on this run',
       statusNext: 'Next Milestone: Direct Delivery to 10th of Ramadan Pharma Hub',
-      ctaLand: 'Track Consignment on Land Network (land.yaslogist.me)',
+      ctaLand: 'Track Consignment on Land Network (land.yaslogist.com)',
       ctaSubtext: 'Continuous multimodal visibility across highway and distribution network.',
     },
     legal: {
@@ -467,7 +468,8 @@ export const DICTIONARY: Record<Language, Dict> = {
       tagline: 'High-Velocity Cargo & Cold-Chain Telemetry Engine',
       contactHeading: 'Corporate Air Logistics Desk',
       phone: '+20 104 113 9910',
-      email: 'contact@yaslogist.me',
+      email: 'contact@yaslogist.com',
+      supportEmail: 'support@yaslogist.com',
       address: 'New Cairo, Cairo, Egypt',
       founderLabel: 'Platform Architect & Founder',
       founderName: 'Ahmed Yasser Ali',
@@ -492,7 +494,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       phase03Title: 'Direct Reefer Gate-Out & Multi-Modal Transfer',
       phase03Body: 'Direct apron transfer to refrigerated trucks with active dwell clocks to eliminate tarmac delay.',
       hudDwell: '< 15 MIN',
-      scrubHint: 'SCROLL TO SCRUB ARRIVAL / مرر الشاشة للتحكم بمسار الهبوط',
+      scrubHint: 'SCROLL TO FOLLOW THE ARRIVAL TIMELINE',
     },
     mission: {
       kicker: 'Engineered Operating Stance',
@@ -527,10 +529,10 @@ export const DICTIONARY: Record<Language, Dict> = {
   ar: {
     brand: {
       name: 'ياسلوجست للشحن الجوي',
-      subdomain: 'air.yaslogist.me',
+      subdomain: 'air.yaslogist.com',
       tagline: 'شحن فائق السرعة وتيليميتري سلاسل التبريد',
       badge: 'اللوجستيات الجوية للشحنات الحرجة',
-      modelBadge: 'نموذج تفاعلي · محاكاة توأم رقمي',
+      modelBadge: 'محاكاة تشغيلية',
       modelBadgeDesc: 'بيانات التيليميتري والرحلات معروضة لأغراض المحاكاة الرقمية وفق معايير IATA وقوانين الجمارك المصرية.',
     },
     nav: {
@@ -674,7 +676,7 @@ export const DICTIONARY: Record<Language, Dict> = {
         gateOut: {
           title: 'التسليم المباشر لأسطول النقل البري المبرد',
           subtitle: 'الانطلاق إلى الوجهة النهائية',
-          desc: 'تحميل الحاويات مباشرة على شاحنات مبردة متصلة بمنصة land.yaslogist.me للانطلاق الفوري إلى المصانع والمستودعات.',
+          desc: 'تحميل الحاويات مباشرة على شاحنات مبردة متصلة بمنصة land.yaslogist.com للانطلاق الفوري إلى المصانع والمستودعات.',
           metric: 'انطلاق فوري لشبكة الطرق السريعة',
           compliance: 'تكامل لوجستي سلس بين الجو والبر',
         },
@@ -724,7 +726,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       statusAwb: 'بوليصة e-AWB ورقم نافذة ACID: مستوفاة ومطابقة جمركياً بالكامل',
       statusCold: 'سلامة سلسلة التبريد: +4.2°م مستقرة، دون تسجيل أي انحراف حراري في هذه الرحلة',
       statusNext: 'المحطة القادمة: التسليم المباشر للمنطقة الصناعية بالعاشر من رمضان',
-      ctaLand: 'تتبع الشحنة على شبكة النقل البري عبر land.yaslogist.me',
+      ctaLand: 'تتبع الشحنة على شبكة النقل البري عبر land.yaslogist.com',
       ctaSubtext: 'رؤية لوجستية متعددة الوسائط متصلة بين المطارات والطرق السريعة.',
     },
     legal: {
@@ -740,7 +742,8 @@ export const DICTIONARY: Record<Language, Dict> = {
       tagline: 'منظومة الشحن الجوي فائق السرعة وتيليميتري سلاسل التبريد',
       contactHeading: 'مكتب تنسيق اللوجستيات الجوية الموحد',
       phone: '+20 104 113 9910',
-      email: 'contact@yaslogist.me',
+      email: 'contact@yaslogist.com',
+      supportEmail: 'support@yaslogist.com',
       address: 'القاهرة الجديدة، القاهرة، مصر',
       founderLabel: 'المؤسس والمعماري التقني',
       founderName: 'أحمد ياسر علي',
@@ -765,7 +768,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       phase03Title: 'تسليم فوري للمبردات وانتقال مباشر للنقل البري',
       phase03Body: 'تسليم فوري من ساحة المطار لأسطول الشاحنات المبردة مع مؤقتات مكوث إلكترونية تضمن الخروج في أقل من 15 دقيقة.',
       hudDwell: '< 15 دقيقة',
-      scrubHint: 'مرر الشاشة للتحكم بمسار الهبوط والاقتراب',
+      scrubHint: 'حرّك الصفحة لاستعراض مراحل الوصول',
     },
     mission: {
       kicker: 'الركائز التشغيلية الجوية',
@@ -812,9 +815,13 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [lang, setLangState] = useState<Language>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === 'en' || saved === 'ar') {
-        return saved;
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved === 'en' || saved === 'ar') {
+          return saved;
+        }
+      } catch {
+        // Fall back to English when storage is unavailable.
       }
     }
     return 'en';

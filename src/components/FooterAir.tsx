@@ -62,31 +62,29 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 pb-12 border-b border-[var(--glass-brd)]">
-          {/* Brand & Mission Column (5 Cols) */}
+          {/* Brand Column (5 Cols) */}
           <div className="lg:col-span-5 space-y-4">
             <div className="flex items-center gap-3">
               <BrandMarkAir className="w-10 h-10" />
-              <div>
-                <span className="font-extrabold text-lg text-title font-serif tracking-wider block">
-                  {dict.brand.name}
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-xl text-title font-sans tracking-[0.08em] block" dir="ltr">
+                  YASLOGIST
                 </span>
-                <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-400 block font-semibold">
-                  {isRtl ? 'بوابة قرية البضائع بمطار القاهرة الدولي' : 'Cairo Cargo Village (CAI) · Logistics Gateway'}
+                <span className="rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider text-cyan-400">
+                  AIR
                 </span>
               </div>
             </div>
 
-            <p className="text-sm text-muted max-w-sm leading-relaxed">
-              {dict.footer.tagline}
-            </p>
-
             {/* Founder Profile Block with Real Photography */}
             <div className="pt-3 flex items-center gap-3.5">
-              <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-cyan-500/40 shrink-0 shadow-md">
+              <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-cyan-500/40 shrink-0 shadow-md bg-slate-900">
                 <img
-                  src="/assets/founder.jpg"
+                  src="/assets/founder.jpg?v=2"
                   alt="Ahmed Yasser Ali"
                   className="w-full h-full object-cover object-top"
+                  loading="eager"
+                  decoding="async"
                 />
               </div>
               <div className="text-xs">
@@ -145,6 +143,14 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
               >
                 <Mail className="w-4 h-4 text-cyan-500 shrink-0" />
                 <span dir="ltr">{dict.footer.email}</span>
+              </a>
+
+              <a
+                href={`mailto:${dict.footer.supportEmail}`}
+                className="flex items-center gap-2.5 text-muted hover:text-cyan-500 transition-colors"
+              >
+                <Mail className="w-4 h-4 text-cyan-500 shrink-0" />
+                <span dir="ltr">{dict.footer.supportEmail}</span>
               </a>
 
               <div className="flex items-center gap-2.5 text-muted">

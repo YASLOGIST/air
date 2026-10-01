@@ -18,10 +18,6 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
   const [activeTab, setActiveTab] = useState<'TERMS' | 'PRIVACY' | 'SECURITY'>(initialTab);
   const titleId = useId();
 
-  /* Escape handling, focus trapping, scroll locking and focus restoration all
-     come from useDialog now. The previous local effect reset body.overflow to
-     '' rather than its prior value, and re-subscribed on every render because
-     onClose is an inline arrow. */
   const panelRef = useDialog<HTMLDivElement>(isOpen, onClose);
 
   useEffect(() => {
@@ -56,15 +52,16 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
                 {dict.legal.modalTitle}
               </h3>
               <span className="text-xs font-mono text-cyan-600 dark:text-cyan-400 font-semibold" dir="ltr">
-                YASLOGIST AIR · REGULATORY COMPLIANCE 2026
+                {isRtl ? 'ياسلوجست للشحن الجوي · الامتثال التنظيمي 2026' : 'YASLOGIST AIR · REGULATORY COMPLIANCE 2026'}
               </span>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             className="p-2 rounded-xl text-muted hover:text-title hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-            aria-label="Close"
+            aria-label={isRtl ? 'إغلاق' : 'Close'}
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -118,24 +115,28 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
         {/* Modal Scrollable Body */}
         <div className="p-6 overflow-y-auto space-y-6 text-sm text-muted leading-relaxed">
           {/* Prominent Non-Carrier Digital Twin Disclaimer */}
-          <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-start gap-3 text-xs text-cyan-700 dark:text-cyan-200 font-mono">
-            <AlertCircle className="w-5 h-5 text-cyan-500 shrink-0 mt-0.5" />
-            <p>{dict.legal.nonCarrierNotice}</p>
+          <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-start gap-3 text-xs text-slate-900 dark:text-cyan-200 font-mono">
+            <AlertCircle className="w-5 h-5 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5" />
+            <p className="leading-relaxed font-medium">{dict.legal.nonCarrierNotice}</p>
           </div>
 
           {activeTab === 'TERMS' && (
             <div className="space-y-4">
               <h4 className="font-bold text-title text-base">
-                1. Operational Scope & Air Cargo Digital Twin
+                {isRtl ? '١. نطاق العمليات والتوأم الرقمي للشحن الجوي' : '1. Operational Scope & Air Cargo Digital Twin'}
               </h4>
               <p>
-                YASLOGIST AIR delivers software intelligence, mathematical modeling, and multi-modal logistics orchestration. Operations are conducted in alignment with IATA Cargo standards (TACT Rules, ONE Record) and the Egyptian Customs Authority (Law No. 207 of 2020 governing pre-arrival cargo information via the Nafeza ACID platform).
+                {isRtl
+                  ? 'تقدم منصة YASLOGIST AIR حلول الذكاء البرمجي والنمذجة الرياضية والتنسيق اللوجستي متعدد الوسائط. تُدار كافة العمليات بالتوافق التام مع المعايير الدولية للشحن الجوي الصادرة عن الاتحاد الدولي للنقل الجوي IATA (قواعد TACT ونظام ONE Record) والضوابط التنظيمية لمصلحة الجمارك المصرية (قانون الجمارك رقم 207 لسنة 2020 المنظم للمعلومات المسبقة عن الشحنات عبر منظومة نافذة ورقم ACID).'
+                  : 'YASLOGIST AIR delivers software intelligence, mathematical modeling, and multi-modal logistics orchestration. Operations are conducted in alignment with IATA Cargo standards (TACT Rules, ONE Record) and the Egyptian Customs Authority (Law No. 207 of 2020 governing pre-arrival cargo information via the Nafeza ACID platform).'}
               </p>
               <h4 className="font-bold text-title text-base">
-                2. Calculation Integrity
+                {isRtl ? '٢. نزاهة ودقة النمذجة الرياضية' : '2. Calculation Integrity'}
               </h4>
               <p>
-                All volumetric calculations execute under the standard IATA 1:6000 divisor (1 CBM = 166.67 kg). Carbon figures are modelled on GLEC Framework / EN 16258 default intensities — approximately 502 g CO₂e per tonne-km for freighter aviation and 15 g for container shipping. These are sector averages used to size the difference between modes; they are not a quotation and are not third-party assured. Sea transit ranges are indicative of published liner schedules on each named lane.
+                {isRtl
+                  ? 'تُنفذ جميع حسابات الوزن الحجمي بدقة متناهية وفق قاسم IATA القياسي 1:6000 (1 متر مكعب = 166.67 كجم). وتُنمذج مؤشرات الانبعاثات الكربونية وفق معاملات إطار GLEC ومعيار EN 16258 بمعدل يقارب 502 جم من مكافئ ثاني أكسيد الكربون لكل طن/كم لشحن البضائع الجوي، و15 جم لحاويات الشحن البحري. تُعد هذه الأرقام متوسطات معيارية لقطاع الشحن لتوضيح الفوارق بين وسائط النقل وليست عروض أسعار تعاقدية ولا تمثل ضمانات من أطراف ثالثة. كما تعكس فترات الإبحار البحري الجداول الملاحية المعلنة لكل خط ملاحي.'
+                  : 'All volumetric calculations execute under the standard IATA 1:6000 divisor (1 CBM = 166.67 kg). Carbon figures are modelled on GLEC Framework / EN 16258 default intensities — approximately 502 g CO₂e per tonne-km for freighter aviation and 15 g for container shipping. These are sector averages used to size the difference between modes; they are not a quotation and are not third-party assured. Sea transit ranges are indicative of published liner schedules on each named lane.'}
               </p>
             </div>
           )}
@@ -143,16 +144,26 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
           {activeTab === 'PRIVACY' && (
             <div className="space-y-4">
               <h4 className="font-bold text-title text-base">
-                1. Local Persistence & Telemetry Safeguards
+                {isRtl ? '١. حفظ التفضيلات محلياً وتأمين التيليميتري' : '1. Local Persistence & Telemetry Safeguards'}
               </h4>
               <p>
-                Client preferences (selected language and theme) are strictly preserved locally via standard browser localStorage keys (<code>yaslogist-air-theme</code>, <code>yaslogist-air-lang</code>). No persistent cross-site tracking cookies or third-party profiling scripts are injected.
+                {isRtl ? (
+                  <>
+                    تُحفظ خيارات المستخدم (اللغة المحددة والمظهر الليلي/النهاري) محلياً وبشكل صارم داخل المتصفح عبر مفاتيح التخزين المحلية القياسية (<code>yaslogist-air-theme</code> و <code>yaslogist-air-lang</code>). لا تتضمن المنصة أي ملفات تعريف ارتباط عابرة للمواقع (Tracking Cookies) أو سكريبتات تتبع أو استهداف إعلاني تابعة لجهات خارجية.
+                  </>
+                ) : (
+                  <>
+                    Client preferences (selected language and theme) are strictly preserved locally via standard browser localStorage keys (<code>yaslogist-air-theme</code>, <code>yaslogist-air-lang</code>). No persistent cross-site tracking cookies or third-party profiling scripts are injected.
+                  </>
+                )}
               </p>
               <h4 className="font-bold text-title text-base">
-                2. Simulated Cargo & AWB Verification
+                {isRtl ? '٢. محاكاة الشحنات والتحقق الآمن من بوالص الشحن (AWB)' : '2. Simulated Cargo & AWB Verification'}
               </h4>
               <p>
-                Air Waybill validation occurs on client-side checksum algorithms (IATA Mod-7 format) with zero outbound transmission of private internal records without authenticated authorization.
+                {isRtl
+                  ? 'تجري عمليات التحقق من أرقام بوالص الشحن الجوي عبر خوارزميات التدقيق الداخلي (معيار IATA Mod-7) محلياً على جانب العميل داخل المتصفح، مع الالتزام التام بعدم إرسال أو تسريب أي سجلات داخلية أو بوالص خاصة لأي خوادم خارجية دون مصادقة وتفويض مشفر.'
+                  : 'Air Waybill validation occurs on client-side checksum algorithms (IATA Mod-7 format) with zero outbound transmission of private internal records without authenticated authorization.'}
               </p>
             </div>
           )}
@@ -160,16 +171,32 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
           {activeTab === 'SECURITY' && (
             <div className="space-y-4">
               <h4 className="font-bold text-title text-base">
-                1. Architectural Security Posture
+                {isRtl ? '١. المعمارية الأمنية والسياسات البرمجية الصارمة' : '1. Architectural Security Posture'}
               </h4>
               <p>
-                Production builds ship a Content Security Policy that restricts script execution to the same-origin application bundle plus a single hash-pinned theme bootstrap — no inline script, no third-party script host. Stylesheets and fonts are limited to Google Fonts; images to same-origin and <code>data:</code> URIs. Frame-ancestor and transport headers are supplied by the hosting layer and are not asserted here.
+                {isRtl ? (
+                  <>
+                    تتضمن النسخ الإنتاجية للمنصة سياسة أمان محتوى صارمة (Content Security Policy) تحظر تشغيل أي سكريبتات خارج حزمة التطبيق الأصلية ذات المصدر نفسه، باستثناء كود تهيئة المظهر المثبت بتجزئة رقمية موثقة (Hash) — مما يمنع منعاً باتاً أي هجمات حقن للأكواد (XSS). وتقتصر الأنماط والخطوط على Google Fonts والصور على نفس النطاق أو بيانات <code>data:</code> الآمنة.
+                  </>
+                ) : (
+                  <>
+                    Production builds ship a Content Security Policy that restricts script execution to the same-origin application bundle plus a single hash-pinned theme bootstrap — no inline script, no third-party script host. Stylesheets and fonts are limited to Google Fonts; images to same-origin and <code>data:</code> URIs. Frame-ancestor and transport headers are supplied by the hosting layer and are not asserted here.
+                  </>
+                )}
               </p>
               <h4 className="font-bold text-title text-base">
-                2. Vulnerability Disclosure
+                {isRtl ? '٢. الإبلاغ عن الثغرات والتكامل التقني' : '2. Vulnerability Disclosure & Technical Communication'}
               </h4>
               <p>
-                Inquiries regarding platform security, API connectivity, or operational integrations should be addressed directly to <code>contact@yaslogist.me</code>.
+                {isRtl ? (
+                  <>
+                    تُوجه كافة المراسلات والاستفسارات المتعلقة بأمن المنصة أو الربط البرمجي للواجهات (APIs) أو التكامل التشغيلي مباشرة إلى مكتب التنسيق التقني عبر البريد الإلكتروني: <code>contact@yaslogist.com</code>.
+                  </>
+                ) : (
+                  <>
+                    Inquiries regarding platform security, API connectivity, or operational integrations should be addressed directly to <code>contact@yaslogist.com</code>.
+                  </>
+                )}
               </p>
             </div>
           )}
@@ -189,3 +216,5 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
     </div>
   );
 };
+
+export default LegalModalAir;

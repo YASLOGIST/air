@@ -1,34 +1,47 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DigitalTwinBadge } from './DigitalTwinBadge';
 import { useLang } from '../lib/i18n';
-import { Play, Pause } from 'lucide-react';
+import { useTheme } from '../lib/theme';
+import {
+  FileCheck2,
+  Gauge,
+  Navigation,
+  PackageCheck,
+  Plane,
+  RadioTower,
+  Route,
+  ShieldCheck,
+  Snowflake,
+  ThermometerSnowflake,
+  Timer,
+  Truck,
+} from 'lucide-react';
 
-const LERP = 0.14;
+const LERP = 0.18;
+const SEEK_INTERVAL_MS = 28;
 
 function clamp01(n: number) {
   return Math.max(0, Math.min(1, n));
 }
 
-function layerOpacity(progress: number, start: number, end: number) {
-  const fade = 0.1;
-  if (progress < start - fade) return 0;
-  if (progress < start) return (progress - (start - fade)) / fade;
-  if (progress <= end) return 1;
-  if (progress < end + fade) return 1 - (progress - end) / fade;
-  return 0;
-}
-
 export const CinematicStage: React.FC = () => {
   const { dict } = useLang();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   const trackRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoNightRef = useRef<HTMLVideoElement>(null);
+  const videoDayRef = useRef<HTMLVideoElement>(null);
+
   const [progress, setProgress] = useState(0);
-  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const targetRef = useRef(0);
   const currentRef = useRef(0);
-  const lastScrollTime = useRef(0);
-  const scrollStopTimeout = useRef<number | null>(null);
+  const lastAppliedTimeNightRef = useRef(-1);
+  const lastAppliedTimeDayRef = useRef(-1);
+  const lastSeekAtRef = useRef(0);
+  const isSeekingNightRef = useRef(false);
+  const isSeekingDayRef = useRef(false);
 
+  // Sync scroll scrubbing for both day & night runway reels
   useEffect(() => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const track = trackRef.current;
@@ -38,31 +51,6 @@ export const CinematicStage: React.FC = () => {
       const rect = track.getBoundingClientRect();
       const total = Math.max(1, track.offsetHeight - window.innerHeight);
       targetRef.current = clamp01(-rect.top / total);
-
-      // Handle video playback while scrolling
-      const video = videoRef.current;
-      if (video && !reduced) {
-        lastScrollTime.current = Date.now();
-        if (video.paused) {
-          video.play().then(() => {
-            setIsVideoPlaying(true);
-          }).catch(() => {
-            // Autoplay policy fallback
-          });
-        }
-
-        if (scrollStopTimeout.current) {
-          window.clearTimeout(scrollStopTimeout.current);
-        }
-
-        // Pause video 160ms after user stops scrolling
-        scrollStopTimeout.current = window.setTimeout(() => {
-          if (video && !video.paused) {
-            video.pause();
-            setIsVideoPlaying(false);
-          }
-        }, 160);
-      }
     };
 
     if (reduced) {
@@ -80,6 +68,46 @@ export const CinematicStage: React.FC = () => {
       if (Math.abs(target - current) < 0.00045) current = target;
       currentRef.current = current;
       setProgress(current);
+
+      const now = performance.now();
+      if (now - lastSeekAtRef.current >= SEEK_INTERVAL_MS) {
+        lastSeekAtRef.current = now;
+
+        // Apply scrub to Night Video
+        const vNight = videoNightRef.current;
+        if (vNight && vNight.readyState >= 2 && Number.isFinite(vNight.duration) && vNight.duration > 0) {
+          const targetTime = current * Math.max(0, vNight.duration - 0.04);
+          if (Math.abs(lastAppliedTimeNightRef.current - targetTime) > 0.015) {
+            if (!isSeekingNightRef.current) {
+              isSeekingNightRef.current = true;
+              lastAppliedTimeNightRef.current = targetTime;
+              try {
+                vNight.currentTime = targetTime;
+              } catch {
+                isSeekingNightRef.current = false;
+              }
+            }
+          }
+        }
+
+        // Apply scrub to Day Video
+        const vDay = videoDayRef.current;
+        if (vDay && vDay.readyState >= 2 && Number.isFinite(vDay.duration) && vDay.duration > 0) {
+          const targetTime = current * Math.max(0, vDay.duration - 0.04);
+          if (Math.abs(lastAppliedTimeDayRef.current - targetTime) > 0.015) {
+            if (!isSeekingDayRef.current) {
+              isSeekingDayRef.current = true;
+              lastAppliedTimeDayRef.current = targetTime;
+              try {
+                vDay.currentTime = targetTime;
+              } catch {
+                isSeekingDayRef.current = false;
+              }
+            }
+          }
+        }
+      }
+
       raf = requestAnimationFrame(tick);
     };
 
@@ -92,11 +120,60 @@ export const CinematicStage: React.FC = () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('scroll', measure);
       window.removeEventListener('resize', measure);
-      if (scrollStopTimeout.current) {
-        window.clearTimeout(scrollStopTimeout.current);
-      }
     };
   }, []);
+
+  // Setup video event handlers for both videos
+  useEffect(() => {
+    const videos = [
+      { vid: videoNightRef.current, seekingRef: isSeekingNightRef },
+      { vid: videoDayRef.current, seekingRef: isSeekingDayRef },
+    ];
+
+    const cleanups: (() => void)[] = [];
+
+    videos.forEach(({ vid, seekingRef }) => {
+      if (!vid) return;
+
+      vid.muted = true;
+      vid.pause();
+
+      const pauseOnLoad = () => {
+        vid.pause();
+      };
+
+      const handleSeeked = () => {
+        seekingRef.current = false;
+      };
+
+      vid.addEventListener('loadeddata', pauseOnLoad);
+      vid.addEventListener('loadedmetadata', pauseOnLoad);
+      vid.addEventListener('seeked', handleSeeked);
+      if (vid.readyState >= 2) pauseOnLoad();
+
+      cleanups.push(() => {
+        vid.removeEventListener('loadeddata', pauseOnLoad);
+        vid.removeEventListener('loadedmetadata', pauseOnLoad);
+        vid.removeEventListener('seeked', handleSeeked);
+        vid.pause();
+      });
+    });
+
+    return () => {
+      cleanups.forEach((c) => c());
+    };
+  }, []);
+
+  // Instant sync on theme change so the emerging video is already in lockstep
+  useEffect(() => {
+    const activeVideo = isDark ? videoNightRef.current : videoDayRef.current;
+    if (activeVideo && activeVideo.readyState >= 2 && Number.isFinite(activeVideo.duration)) {
+      const targetTime = currentRef.current * Math.max(0, activeVideo.duration - 0.04);
+      try {
+        activeVideo.currentTime = targetTime;
+      } catch {}
+    }
+  }, [isDark]);
 
   const phases = useMemo(
     () => [
@@ -106,11 +183,12 @@ export const CinematicStage: React.FC = () => {
         title: dict.cinematic.phase01Title,
         body: dict.cinematic.phase01Body,
         metrics: [
-          ['FLT', dict.cinematic.hudFlight],
-          ['RTE', dict.cinematic.hudRoute],
-          ['ALT', dict.cinematic.hudFl],
-          ['ULD', dict.cinematic.hudTemp],
+          { label: 'FLIGHT', value: dict.cinematic.hudFlight, icon: Plane },
+          { label: 'ROUTE', value: dict.cinematic.hudRoute, icon: Route },
+          { label: 'ALTITUDE', value: dict.cinematic.hudFl, icon: Gauge },
+          { label: 'TEMP', value: dict.cinematic.hudTemp, icon: ThermometerSnowflake },
         ],
+        icon: Navigation,
       },
       {
         id: 'p2',
@@ -118,11 +196,12 @@ export const CinematicStage: React.FC = () => {
         title: dict.cinematic.phase02Title,
         body: dict.cinematic.phase02Body,
         metrics: [
-          ['EVT', 'WHEELS DOWN'],
-          ['RWY', dict.cinematic.hudRunway],
-          ['TOW', '< 15 MIN'],
-          ['HOLD', 'CAI COLD CELL'],
+          { label: 'EVENT', value: 'WHEELS DOWN', icon: RadioTower },
+          { label: 'RUNWAY', value: dict.cinematic.hudRunway, icon: Navigation },
+          { label: 'TURNAROUND', value: '< 15 MIN', icon: Timer },
+          { label: 'CARGO', value: 'CAI COLD CELL', icon: Snowflake },
         ],
+        icon: RadioTower,
       },
       {
         id: 'p3',
@@ -130,11 +209,12 @@ export const CinematicStage: React.FC = () => {
         title: dict.cinematic.phase03Title,
         body: dict.cinematic.phase03Body,
         metrics: [
-          ['e-AWB', 'PRE-CLEARED'],
-          ['ACID', 'NAFEZA'],
-          ['GATE', 'REEFER'],
-          ['DWELL', dict.cinematic.hudDwell],
+          { label: 'E-AWB', value: 'PRE-CLEARED', icon: FileCheck2 },
+          { label: 'ACID', value: 'NAFEZA', icon: ShieldCheck },
+          { label: 'GATE', value: 'REEFER', icon: Truck },
+          { label: 'DWELL', value: dict.cinematic.hudDwell, icon: PackageCheck },
         ],
+        icon: PackageCheck,
       },
     ],
     [dict.cinematic]
@@ -142,163 +222,129 @@ export const CinematicStage: React.FC = () => {
 
   const activeIndex = progress < 0.33 ? 0 : progress < 0.66 ? 1 : 2;
   const active = phases[activeIndex];
-
-  // Aircraft animation coordinates across 320vh scroll
-  const aircraftLeft = 10 + progress * 62;
-  const aircraftTop = 16 + progress * 46;
-  const aircraftScale = 0.75 + progress * 0.55;
-  const aircraftRotate = -10 + progress * 16;
-
-  const p1Opacity = layerOpacity(progress, 0, 0.32);
-  const p2Opacity = layerOpacity(progress, 0.28, 0.68);
-  const p3Opacity = layerOpacity(progress, 0.64, 1);
+  const ActiveIcon = active.icon;
+  const activeLabel = active.kicker.split('·').pop()?.trim() ?? active.kicker;
 
   return (
-    <section ref={trackRef} className="relative h-[320vh]" aria-label="Arrival digital twin">
-      <div className="sticky top-0 h-[100svh] overflow-hidden bg-[#070c14]">
-        {/* Layer 1: High Stratosphere Deep Gradient */}
-        <div
-          className="absolute inset-0 transition-opacity duration-150"
-          style={{
-            opacity: p1Opacity,
-            background: 'radial-gradient(ellipse 120% 80% at 50% 20%, #0d1b2a 0%, #060b12 70%, #03070d 100%)',
-          }}
-        >
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.04)_1px,transparent_1px)] bg-[size:64px_64px]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#070c14] via-transparent to-black/60" />
-        </div>
-
-        {/* Layer 2: Final Approach Runway Drone Video Background */}
-        <div
-          className="absolute inset-0 transition-opacity duration-150 overflow-hidden"
-          style={{ opacity: p2Opacity }}
-        >
+    <section ref={trackRef} className="relative h-[320vh] bg-[var(--c-bg)]" aria-label="Arrival digital twin">
+      <div className="sticky top-0 h-[100svh] overflow-hidden bg-[var(--c-bg)]">
+        {/* Dual Cinematic Background: Night (Dark Mode) & Day (Light Mode) with buttery Crossfade */}
+        <div className="absolute inset-0 overflow-hidden">
+          {/* Night Runway Video (Dark Mode) */}
           <video
-            ref={videoRef}
+            ref={videoNightRef}
             src="/assets/runway-scrub.mp4"
+            poster="/assets/runway-poster.jpg"
             muted
             playsInline
-            loop
+            loop={false}
             preload="auto"
-            className="w-full h-full object-cover scale-105 filter brightness-90 contrast-110"
+            aria-hidden="true"
+            className={`absolute inset-0 w-full h-full object-cover scale-105 filter brightness-90 contrast-110 transition-opacity duration-700 ease-in-out ${
+              isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+            }`}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#070c14]/70 via-[#070c14]/30 to-[#070c14]/85" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(7,12,20,0.7)_100%)]" />
 
-          {/* Video Scroll Playback Status Indicator */}
-          <div className="absolute bottom-6 right-6 z-20 flex items-center gap-2 rounded-full border border-sky-400/30 bg-black/60 px-3 py-1.5 backdrop-blur-md">
-            {isVideoPlaying ? (
-              <Play className="h-3 w-3 text-sky-400 fill-sky-400 animate-pulse" />
-            ) : (
-              <Pause className="h-3 w-3 text-slate-400" />
-            )}
-            <span className="font-mono text-[10px] tracking-widest text-sky-300 uppercase">
-              {isVideoPlaying ? 'SCROLL ACTIVE · RUNWAY FEED' : 'SCROLL TO PLAY · RUNWAY 05L'}
-            </span>
-          </div>
+          {/* Day Runway Video (Light Mode) */}
+          <video
+            ref={videoDayRef}
+            src="/assets/runway-scrub-day.mp4"
+            poster="/assets/runway-poster.jpg"
+            muted
+            playsInline
+            loop={false}
+            preload="auto"
+            aria-hidden="true"
+            className={`absolute inset-0 w-full h-full object-cover scale-105 filter brightness-100 contrast-105 transition-opacity duration-700 ease-in-out ${
+              !isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+            }`}
+          />
+
+          {/* Atmosphere Tint Gradient */}
+          <div
+            className={`absolute inset-0 z-20 pointer-events-none transition-colors duration-700 ${
+              isDark
+                ? 'bg-gradient-to-b from-[#070c14]/70 via-[#070c14]/30 to-[#070c14]/85'
+                : 'bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/70'
+            }`}
+          />
+          <div className="absolute inset-0 z-20 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_30%,rgba(7,12,20,0.6)_100%)]" />
         </div>
 
-        {/* Layer 3: Cairo Cargo Village Apron & Reefer Docks */}
+        {/* Dynamic bottom seam blend into the rest of the site */}
         <div
-          className="absolute inset-0 transition-opacity duration-150"
-          style={{ opacity: p3Opacity }}
-        >
-          <img
-            src="/assets/cargo-village.jpg"
-            alt="Cairo Airport Cargo Village Apron"
-            className="w-full h-full object-cover scale-105 filter brightness-80 contrast-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#070c14]/80 via-[#070c14]/40 to-[#070c14]/90" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_25%,rgba(7,12,20,0.75)_100%)]" />
-        </div>
-
-        {/* Dynamic Flying Aircraft SVG (320vh Descent Simulation) */}
-        <svg
-          className="pointer-events-none absolute z-20 transition-transform duration-75"
-          style={{
-            left: `${aircraftLeft}%`,
-            top: `${aircraftTop}%`,
-            width: 140,
-            transform: `translate(-50%, -50%) rotate(${aircraftRotate}deg) scale(${aircraftScale})`,
-            filter: 'drop-shadow(0 10px 24px rgba(56,189,248,0.5)) drop-shadow(0 0 12px rgba(2,132,199,0.4))',
-          }}
-          viewBox="0 0 120 40"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-28"
+          style={{ background: 'linear-gradient(to bottom, transparent, var(--c-bg))' }}
           aria-hidden="true"
-        >
-          <path
-            d="M8 22 L52 20 L70 8 L76 8 L64 20 L96 19 L110 12 L114 14 L100 22 L114 28 L110 30 L96 24 L64 23 L76 34 L70 34 L52 23 L8 22 Z"
-            fill="#e2e8f0"
-            stroke="#38bdf8"
-            strokeWidth="0.8"
-          />
-          {/* Navigation Wing Lights */}
-          <circle cx="70" cy="8" r="1.5" fill="#ef4444" className="animate-pulse" />
-          <circle cx="70" cy="34" r="1.5" fill="#22c55e" className="animate-pulse" />
-        </svg>
+        />
 
-        {/* Cockpit HUD Overlay Header & Phase Info Panel */}
-        <div className="absolute inset-x-0 top-20 z-30 mx-auto flex max-w-[1440px] flex-col gap-4 px-4 md:top-24 md:px-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <DigitalTwinBadge />
-            <p className="mono text-[11px] text-sky-400/90 font-medium tracking-wide">
-              {dict.cinematic.scrubHint}
-            </p>
-          </div>
+        {/* Ergonomic & Symmetrical Cockpit HUD Deck */}
+        <div className="absolute inset-x-0 top-16 bottom-6 z-30 mx-auto flex max-w-5xl flex-col justify-end px-4 sm:px-6 md:px-8">
+          <article
+            className="w-full rounded-2xl md:rounded-3xl border border-sky-300/20 bg-[linear-gradient(135deg,rgba(6,11,18,0.88),rgba(6,16,28,0.72))] p-4 sm:p-5 md:p-6 text-slate-100 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.95)] backdrop-blur-2xl"
+            aria-live="polite"
+          >
+            {/* Top Bar: Sequence Indicator + Active Phase Badge + Live Progress */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300/25 bg-sky-400/10 px-3 py-1 font-mono text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-sky-200">
+                  <ActiveIcon className="h-3.5 w-3.5 text-cyan-300" aria-hidden="true" />
+                  <span>{activeLabel}</span>
+                </span>
+                <span className="font-mono text-[10px] sm:text-xs tracking-widest text-slate-400" dir="ltr">
+                  0{activeIndex + 1} / 03
+                </span>
+              </div>
 
-          <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
-            {/* Main Stage Text Card */}
-            <article
-              className="glass max-w-2xl rounded-3xl p-5 text-slate-100 md:p-7 transition-all duration-300"
-              style={{ background: 'rgba(6, 11, 18, 0.72)', borderColor: 'rgba(56, 189, 248, 0.25)' }}
-            >
-              <p className="kicker text-sky-400">{active.kicker}</p>
-              <h1 className="display mt-3 text-[clamp(1.8rem,4vw,3.2rem)] font-bold text-white tracking-tight leading-none">
+              {/* Segmented Timeline Stepper */}
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {phases.map((phase, i) => (
+                  <span
+                    key={phase.id}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      i === activeIndex
+                        ? 'w-8 sm:w-12 bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]'
+                        : i < activeIndex
+                        ? 'w-4 sm:w-6 bg-cyan-400/40'
+                        : 'w-3 sm:w-4 bg-white/20'
+                    }`}
+                    aria-hidden="true"
+                  />
+                ))}
+                <span className="font-mono text-[10px] sm:text-xs text-cyan-300 ml-1.5 rtl:ml-0 rtl:mr-1.5" dir="ltr">
+                  {Math.round(progress * 100)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Content Body: Balanced Modern Typography */}
+            <div className="mt-3.5 md:mt-4">
+              <h1 className="font-sans font-extrabold text-lg sm:text-2xl md:text-3xl text-white tracking-tight leading-snug">
                 {active.title}
               </h1>
-              <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-200 md:text-base">
+              <p className="mt-1.5 md:mt-2 text-xs sm:text-sm md:text-[15px] leading-relaxed text-slate-300 max-w-3xl">
                 {active.body}
               </p>
+            </div>
 
-              {/* Avionics Metrics Grid */}
-              <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4" dir="ltr">
-                {active.metrics.map(([k, v]) => (
-                  <div
-                    key={k}
-                    className="rounded-2xl border border-sky-400/20 bg-[#070c14]/70 px-3 py-2.5 backdrop-blur-sm"
-                  >
-                    <dt className="mono text-[10px] tracking-[0.18em] text-[#9bb0bc] uppercase font-semibold">
-                      {k}
-                    </dt>
-                    <dd className="mono mt-1 text-sm font-bold text-sky-300">
-                      {v}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </article>
-
-            {/* Vertical Phase Stepper (Desktop) */}
-            <ol className="hidden flex-col justify-center gap-3 lg:flex" dir="ltr">
-              {phases.map((phase, i) => (
-                <li
-                  key={phase.id}
-                  className={`rounded-2xl border px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-all duration-200 ${
-                    i === activeIndex
-                      ? 'border-sky-400 bg-sky-400/15 text-sky-300 shadow-[0_0_20px_rgba(56,189,248,0.2)]'
-                      : 'border-white/10 text-slate-400 bg-black/30'
-                  }`}
+            {/* Bottom Row: 4 Clean Avionics Telemetry Cards */}
+            <dl className="mt-4 md:mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 md:gap-3" dir="ltr">
+              {active.metrics.map(({ label, value, icon: MetricIcon }) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-white/10 bg-black/30 p-2.5 sm:p-3 backdrop-blur-md transition-all hover:border-sky-400/40 hover:bg-black/40"
                 >
-                  0{i + 1} · {i === 0 ? 'CRUISE' : i === 1 ? 'APPROACH' : 'VILLAGE'}
-                </li>
+                  <dt className="flex items-center gap-1.5 font-mono text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                    <MetricIcon className="h-3.5 w-3.5 text-cyan-300 shrink-0" aria-hidden="true" />
+                    <span>{label}</span>
+                  </dt>
+                  <dd className="mt-1 font-mono text-xs sm:text-sm font-bold tracking-tight text-sky-200">
+                    {value}
+                  </dd>
+                </div>
               ))}
-              <li className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                <span
-                  className="block h-full bg-gradient-to-r from-sky-400 to-teal-400 transition-all duration-75"
-                  style={{ width: `${progress * 100}%` }}
-                />
-              </li>
-            </ol>
-          </div>
+            </dl>
+          </article>
         </div>
       </div>
     </section>

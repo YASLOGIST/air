@@ -9,12 +9,9 @@ interface ModelBadgeProps {
 
 /**
  * The simulation disclaimer that makes the rest of the site defensible.
- *
- * This used to be a `title` attribute on a div — invisible to touch users
- * entirely, unreachable by keyboard, and inconsistently announced by screen
- * readers. It is now a disclosure button: the badge toggles a panel that is
- * real text in the accessibility tree, closes on Escape or an outside click,
- * and is reachable by tab, click and tap alike.
+ * Renders as a single, accessible amber/yellow badge:
+ * - English: "SIMULATION DEMO"
+ * - Arabic: "محاكاة تشغيلية"
  */
 export const ModelBadge: React.FC<ModelBadgeProps> = ({ className = '', short = false }) => {
   const { dict, isRtl } = useLang();
@@ -49,21 +46,23 @@ export const ModelBadge: React.FC<ModelBadgeProps> = ({ className = '', short = 
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={panelId}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-sky-400/25 bg-sky-950/30 text-[10px] sm:text-xs font-mono tracking-wider uppercase text-sky-300 backdrop-blur-md transition-colors hover:border-sky-400/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--c-bg)]"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-400/40 bg-amber-500/10 text-[10px] sm:text-xs font-mono tracking-wider uppercase text-amber-300 backdrop-blur-md transition-colors hover:border-amber-400 hover:bg-amber-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--c-bg)]"
       >
-        <Activity className="w-3 h-3 text-cyan-400 animate-pulse shrink-0" aria-hidden="true" />
-        <span>{label}</span>
-        <Info className="w-3 h-3 text-sky-300/70 shrink-0" aria-hidden="true" />
+        <Activity className="w-3 h-3 text-amber-400 animate-pulse shrink-0" aria-hidden="true" />
+        <span className="font-semibold">{label}</span>
+        <Info className="w-3 h-3 text-amber-300/70 shrink-0" aria-hidden="true" />
       </button>
 
       <span
         id={panelId}
         role="note"
         hidden={!open}
-        className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 w-64 max-w-[min(16rem,calc(100vw-2rem))] p-3 rounded-xl border border-sky-400/30 bg-[var(--c-card-solid)] shadow-2xl text-[11px] leading-relaxed text-body font-sans normal-case tracking-normal text-left rtl:text-right"
+        className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 w-64 max-w-[min(16rem,calc(100vw-2rem))] p-3 rounded-xl border border-amber-400/30 bg-[var(--c-card-solid)] shadow-2xl text-[11px] leading-relaxed text-body font-sans normal-case tracking-normal text-left rtl:text-right"
       >
         {dict.brand.modelBadgeDesc}
       </span>
     </span>
   );
 };
+
+export default ModelBadge;

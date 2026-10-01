@@ -1,12 +1,15 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+
 @theme {
   --font-serif: "Archivo", "IBM Plex Sans", system-ui, sans-serif;
   --font-display: "Archivo", "IBM Plex Sans", system-ui, sans-serif;
   --font-sans: "IBM Plex Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --font-ruqaa: "Aref Ruqaa", "IBM Plex Sans Arabic", serif;
-  --font-ar-tech: "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-arabic: "Cairo", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-ruqaa: "Cairo", "IBM Plex Sans Arabic", sans-serif;
+  --font-ar-tech: "Cairo", "IBM Plex Sans Arabic", system-ui, sans-serif;
 
   --color-steel: #9BB0BC;
   --color-strato: #0A0F16;
@@ -92,6 +95,50 @@
   --hero-veil: linear-gradient(180deg, rgba(248, 250, 252, 0.82) 0%, rgba(241, 245, 249, 0.92) 60%, #F8FAFC 100%);
 }
 
+/* The specialized telemetry palette stays bright on dark HUD surfaces, but
+   the same utility classes need darker ink on the daylight ground to preserve
+   WCAG AA / AAA contrast for labels, alerts, callouts, and status text. */
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-cyan-200,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-cyan-300,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-cyan-400,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-cyan-500,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-cyan-600 {
+  color: #0369a1 !important; /* Deep ocean cyan/sky */
+}
+
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-sky-200,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-sky-300,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-sky-400,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-sky-500,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-sky-600 {
+  color: #0284c7 !important;
+}
+
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-teal-200,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-teal-300,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-teal-400,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-teal-500 {
+  color: #0f766e !important; /* Deep pharma teal */
+}
+
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-emerald-300,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-emerald-400,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-emerald-500 {
+  color: #047857 !important; /* Deep compliance emerald */
+}
+
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-amber-300,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-amber-400,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-amber-500 {
+  color: #b45309 !important; /* Deep warning amber */
+}
+
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-rose-300,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-rose-400,
+[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-rose-500 {
+  color: #be123c !important; /* Deep alert rose */
+}
+
 *,
 *::before,
 *::after {
@@ -99,9 +146,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* The UA stylesheet's `display:none` for [hidden] loses to any class that sets
-   display. ModelBadge toggles its disclosure panel with the hidden attribute,
-   so pin it rather than depend on utility ordering. */
 [hidden] {
   display: none !important;
 }
@@ -155,7 +199,7 @@ body {
 .tabular {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+  font-feature-settings: \"tnum\" 1;
 }
 
 .telemetry-unit {
@@ -167,23 +211,23 @@ body {
 }
 
 /* Arabic typography harmony */
-[lang="ar"] body,
-[lang="ar"] .font-display,
-[lang="ar"] .font-sans,
-[lang="ar"] p,
-[lang="ar"] span,
-[lang="ar"] button,
-[lang="ar"] a,
-[lang="ar"] input {
+[lang=\"ar\"] body,
+[lang=\"ar\"] .font-display,
+[lang=\"ar\"] .font-sans,
+[lang=\"ar\"] p,
+[lang=\"ar\"] span,
+[lang=\"ar\"] button,
+[lang=\"ar\"] a,
+[lang=\"ar\"] input {
   font-family: var(--font-ar-tech);
 }
 
-[lang="ar"] .h1-hero,
-[lang="ar"] .h2-display,
-[lang="ar"] h1,
-[lang="ar"] h2,
-[lang="ar"] h3,
-[lang="ar"] .font-ruqaa {
+[lang=\"ar\"] .h1-hero,
+[lang=\"ar\"] .h2-display,
+[lang=\"ar\"] h1,
+[lang=\"ar\"] h2,
+[lang=\"ar\"] h3,
+[lang=\"ar\"] .font-ruqaa {
   font-family: var(--font-ruqaa);
   font-stretch: normal;
   font-weight: 700;
@@ -192,7 +236,7 @@ body {
 }
 
 /* Prevent letter-spacing in Arabic cursive joins */
-[lang="ar"] [class*="tracking-"] {
+[lang=\"ar\"] [class*=\"tracking-\"] {
   letter-spacing: 0 !important;
 }
 
@@ -266,9 +310,6 @@ body {
   animation: altitudeFlight 6s ease-in-out infinite;
 }
 
-/* WCAG 2.3.3 — the radar sweep, ping pulse, HUD blink and float all run
-   infinitely. Honour a stated preference for reduced motion: hold each at a
-   settled frame rather than removing the element, so nothing disappears. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -297,24 +338,7 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
-/* Digital Twin Badge & Aeronautical Typographic Helpers */
-.twin-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(6, 11, 18, 0.75);
-  color: #7dd3fc;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 0.32rem 0.65rem;
-  border-radius: 999px;
-  direction: ltr;
-  unicode-bidi: isolate;
-}
-
+/* Aeronautical typographic helpers */
 .kicker {
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -324,11 +348,11 @@ select:focus-visible {
   font-weight: 700;
 }
 
-[data-theme="dark"] .kicker {
+[data-theme=\"dark\"] .kicker {
   color: #38bdf8;
 }
 
-[lang="ar"] .kicker {
+[lang=\"ar\"] .kicker {
   letter-spacing: 0.06em;
 }
 
@@ -338,7 +362,7 @@ select:focus-visible {
   color: var(--c-heading);
 }
 
-[lang="ar"] .display {
+[lang=\"ar\"] .display {
   font-family: var(--font-ruqaa);
   letter-spacing: 0 !important;
 }
@@ -346,6 +370,38 @@ select:focus-visible {
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+  font-feature-settings: \"tnum\" 1;
 }
 
+/* Dedicated Print Stylesheet for Official Consignment Manifest */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printable-manifest-card,
+  .printable-manifest-card * {
+    visibility: visible;
+  }
+  .printable-manifest-card {
+    position: fixed;
+    inset: 0;
+    width: 100% !important;
+    height: auto !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 32px !important;
+    border: 2px solid #0f172a !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .printable-manifest-card .no-print {
+    display: none !important;
+  }
+  .printable-manifest-card span,
+  .printable-manifest-card p,
+  .printable-manifest-card h3,
+  .printable-manifest-card div {
+    color: #0f172a !important;
+    text-shadow: none !important;
+  }
+}

@@ -150,3 +150,15 @@ export interface ActiveTelemetryFlight {
   awbNumber: string;
   acidNumber: string;
 }
+
+export interface FreightCostBreakdown {
+  baseRatePerKg: number;
+  baseFreightTotal: number;
+  fuelSurchargePerKg: number;
+  fuelSurchargeTotal: number;
+  securitySurchargePerKg: number;
+  securitySurchargeTotal: number;
+  terminalHandlingFixed: number;
+  nafezaPreValidationFee: number;
+  totalEstimatedUsd: number;
+}

@@ -14,9 +14,16 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === 'light' || saved === 'dark') {
-        return saved;
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved === 'light' || saved === 'dark') {
+          return saved;
+        }
+      } catch {
+        // Continue with the system preference when storage is unavailable.
+      }
+      if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'light';
       }
     }
     return 'dark';

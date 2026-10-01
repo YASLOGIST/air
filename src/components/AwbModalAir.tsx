@@ -1,8 +1,8 @@
 import React, { useId, useState } from 'react';
 import { useLang } from '../lib/i18n';
-import { validateIataAwb } from '../lib/air-math';
+import { validateIataAwb, lookupAirlineByPrefix } from '../lib/air-math';
 import { useDialog } from '../lib/a11y';
-import { FileCheck, Search, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { FileCheck, Search, CheckCircle2, AlertCircle, X, Sparkles } from 'lucide-react';
 
 interface AwbModalAirProps {
   isOpen: boolean;
@@ -14,10 +14,6 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
   const titleId = useId();
   const panelRef = useDialog<HTMLDivElement>(isOpen, onClose);
   const [awbInput, setAwbInput] = useState<string>('077-94821031');
-  /* `null` = not yet checked. Modelling the result as a nullable boolean rather
-     than a (hasChecked, isValid) pair makes "claims valid before any check ran"
-     unrepresentable — the previous default of (true, true) rendered a green
-     Mod-7 PASS on open, which the prefilled sample then failed on submit. */
   const [result, setResult] = useState<boolean | null>(null);
 
   if (!isOpen) return null;
@@ -29,9 +25,10 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
 
   const handleChange = (value: string) => {
     setAwbInput(value);
-    // A verdict belongs to the string it was computed from, not to the field.
     setResult(null);
   };
+
+  const airline = lookupAirlineByPrefix(awbInput);
 
   return (
     <div
@@ -72,6 +69,21 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
           </button>
         </div>
 
+        {/* Demo Capability Notice */}
+        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs font-mono text-amber-950 dark:text-amber-300 flex items-start gap-2">
+          <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold block text-amber-950 dark:text-amber-200">
+              {isRtl ? 'نموذج محاكاة تشغيلي للقدرات:' : 'Operational Simulation & Capability Demo:'}
+            </span>
+            <span className="text-[11px] text-amber-900/90 dark:text-slate-400">
+              {isRtl
+                ? 'محاكاة تقنية لربط تدقيق معايير IATA وخوارزمية Mod-7 مع إشعار نافذة الجمركي بمطار القاهرة.'
+                : 'Simulating IATA Mod-7 checksum validation integrated with Cairo Airport Nafeza pre-clearance.'}
+            </span>
+          </div>
+        </div>
+
         {/* Input form */}
         <form onSubmit={handleVerify} className="space-y-4">
           <div>
@@ -97,15 +109,39 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
                 <span>{isRtl ? 'فحص' : 'Check'}</span>
               </button>
             </div>
-            <span className="block text-[10px] font-mono text-muted mt-1" dir="ltr">
-              Sample: 077-94821031 (simulated consignment · Mod-7 valid)
-            </span>
+            <div className="flex flex-wrap gap-2 text-[10px] font-mono text-muted mt-2">
+              <span>{isRtl ? 'أمثلة للتجربة:' : 'Quick Samples:'}</span>
+              <button
+                type="button"
+                onClick={() => { setAwbInput('077-94821031'); setResult(validateIataAwb('077-94821031')); }}
+                className="hover:text-cyan-400 underline"
+                dir="ltr"
+              >
+                077-94821031 (MS)
+              </button>
+              <span>·</span>
+              <button
+                type="button"
+                onClick={() => { setAwbInput('176-33910244'); setResult(validateIataAwb('176-33910244')); }}
+                className="hover:text-cyan-400 underline"
+                dir="ltr"
+              >
+                176-33910244 (EK)
+              </button>
+              <span>·</span>
+              <button
+                type="button"
+                onClick={() => { setAwbInput('074-11028863'); setResult(validateIataAwb('074-11028863')); }}
+                className="hover:text-cyan-400 underline"
+                dir="ltr"
+              >
+                074-11028863 (KL)
+              </button>
+            </div>
           </div>
         </form>
 
         {/* Result Verification Box */}
-        {/* role="status" announces the verdict when it appears. It changes only
-            on submit, so there is nothing here to spam a screen reader with. */}
         {result !== null && (
           <div
             role="status"
@@ -130,18 +166,26 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
             </div>
 
             {result && (
-              <div className="pt-2 border-t border-emerald-500/20 space-y-1 text-[11px] text-muted">
+              <div className="pt-2 border-t border-emerald-500/20 space-y-1.5 text-[11px] text-muted">
                 <div className="flex justify-between">
-                  <span>Airline Prefix:</span>
-                  <span className="text-title font-bold" dir="ltr">{awbInput.substring(0, 3)} (EgyptAir Cargo)</span>
+                  <span>{isRtl ? 'شركة الطيران الناقلة:' : 'AIRLINE CARRIER:'}</span>
+                  <span className="text-title font-bold" dir="ltr">
+                    {airline.nameEn} ({airline.iataCode} · {airline.prefix})
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Customs ACID:</span>
+                  <span>{isRtl ? 'المقر والمركز الرئيسي:' : 'CARRIER MAIN HUB:'}</span>
+                  <span className="text-cyan-600 dark:text-cyan-400 font-semibold" dir="ltr">{airline.hub}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>{isRtl ? 'المطابقة الجمركية المسبقة:' : 'CUSTOMS ACID PRE-AUTH:'}</span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-bold" dir="ltr">2026000994108770001</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Cargo Village Status:</span>
-                  <span className="text-cyan-600 dark:text-cyan-400 font-bold" dir="ltr">PRE-APPROVED FOR DIRECT REEFER GATE-OUT</span>
+                  <span>{isRtl ? 'حالة قرية بضائع القاهرة:' : 'CAIRO CARGO VILLAGE:'}</span>
+                  <span className="text-cyan-600 dark:text-cyan-400 font-bold" dir="ltr">
+                    {isRtl ? 'موافقة مسبقة للخروج الفوري للمبردات' : 'PRE-APPROVED FOR DIRECT REEFER GATE-OUT'}
+                  </span>
                 </div>
               </div>
             )}

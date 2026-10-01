@@ -12,8 +12,8 @@
 const DEV = import.meta.env.DEV;
 
 export const SUITE_URLS = {
-  hub: 'https://yaslogist.me',
-  land: DEV ? 'http://localhost:3000' : 'https://land.yaslogist.me',
-  ocean: DEV ? 'http://localhost:3100' : 'https://ocean.yaslogist.me',
-  air: DEV ? 'http://localhost:3200' : 'https://air.yaslogist.me',
+  hub: 'https://yaslogist.com',
+  land: DEV ? 'http://localhost:3000' : 'https://land.yaslogist.com',
+  ocean: DEV ? 'http://localhost:3100' : 'https://ocean.yaslogist.com',
+  air: DEV ? 'http://localhost:3200' : 'https://air.yaslogist.com',
 } as const;

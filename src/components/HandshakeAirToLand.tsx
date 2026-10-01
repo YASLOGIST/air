@@ -24,7 +24,7 @@ export const HandshakeAirToLand: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 border-b border-[var(--glass-brd)] pb-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-medium tracking-wider bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 uppercase">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">
               {dict.handshake.sectionBadge}
             </span>
             <ModelBadge />
@@ -108,14 +108,14 @@ export const HandshakeAirToLand: React.FC = () => {
             </div>
           </div>
 
-          {/* Right 4 Cols: Prominent Call-to-Action to land.yaslogist.me */}
+          {/* Right 4 Cols: Prominent Call-to-Action to land.yaslogist.com */}
           <div className="lg:col-span-4 flex flex-col justify-center p-6 rounded-2xl glass-subcard border border-cyan-500/30 text-center space-y-4 shadow-lg">
             <div className="space-y-1">
               <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-300 uppercase tracking-wider block font-semibold">
                 {isRtl ? 'المنصة الشقيقة المتصلة' : 'Connected Sister Portal'}
               </span>
               <span className="text-lg font-black font-mono text-title block" dir="ltr">
-                land.yaslogist.me
+                land.yaslogist.com
               </span>
             </div>
 

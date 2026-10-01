@@ -80,7 +80,7 @@ export const CargoVillageFlow: React.FC = () => {
   const activeContent = getStepContent(activeStepIndex);
 
   return (
-    <section id="cargovillage" className="relative py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <section id="cargovillage" className="scroll-mt-24 relative py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* Section Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 border-b border-[var(--glass-brd)] pb-6">
         <div>
@@ -262,7 +262,7 @@ export const CargoVillageFlow: React.FC = () => {
               </div>
               <div className="flex justify-between items-center text-muted">
                 <span>{isRtl ? 'الربط البري المستهدف:' : 'Land Link Target:'}</span>
-                <span className="text-sky-600 dark:text-sky-400 font-bold" dir="ltr">land.yaslogist.me</span>
+                <span className="text-sky-600 dark:text-sky-400 font-bold" dir="ltr">land.yaslogist.com</span>
               </div>
 
               <div className="pt-2 border-t border-[var(--glass-brd)] text-[11px] text-muted leading-relaxed font-sans">

@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
-import { Search, Plane, ShieldCheck, Thermometer, Clock, CheckCircle2 } from 'lucide-react';
+import {
+  Search,
+  Plane,
+  ShieldCheck,
+  Thermometer,
+  Clock,
+  CheckCircle2,
+  FileCheck,
+  PlaneTakeoff,
+  Building2,
+  Truck,
+  Sparkles,
+} from 'lucide-react';
 import { useLang } from '../lib/i18n';
+import { ModelBadge } from './ModelBadge';
 
 export interface ConsignmentItem {
   awb: string;
@@ -21,6 +34,7 @@ export interface ConsignmentItem {
   dwellMinutes: number | null;
   flightLevel: string | null;
   eta: string;
+  currentMilestoneIndex: number; // 0 to 4
 }
 
 const DEFAULT_SAMPLES: ConsignmentItem[] = [
@@ -38,11 +52,12 @@ const DEFAULT_SAMPLES: ConsignmentItem[] = [
     chargeableKg: 412.0,
     classification: 'Pharma / Time-Critical',
     tempTargetC: 4.2,
-    acidNumber: 'ACID-39218471',
+    acidNumber: '2026000994108770001',
     eAwbStatus: 'PRE-CLEARED',
     dwellMinutes: null,
     flightLevel: 'FL380',
     eta: 'Today 14:45 UTC',
+    currentMilestoneIndex: 2,
   },
   {
     awb: '176-33910244',
@@ -58,11 +73,12 @@ const DEFAULT_SAMPLES: ConsignmentItem[] = [
     chargeableKg: 352.0,
     classification: 'Volumetric / Express Parcel',
     tempTargetC: null,
-    acidNumber: 'ACID-40112883',
+    acidNumber: '2026000994108770002',
     eAwbStatus: 'LODGED',
     dwellMinutes: null,
     flightLevel: 'FL350',
     eta: 'Today 19:15 UTC',
+    currentMilestoneIndex: 1,
   },
   {
     awb: '074-11028863',
@@ -78,11 +94,12 @@ const DEFAULT_SAMPLES: ConsignmentItem[] = [
     chargeableKg: 672.0,
     classification: 'Perishables / Cool-Chain',
     tempTargetC: 6.0,
-    acidNumber: 'ACID-38820119',
+    acidNumber: '2026000994108770003',
     eAwbStatus: 'PRE-CLEARED',
     dwellMinutes: 42,
     flightLevel: 'FL360',
     eta: 'Arrived CAI Apron',
+    currentMilestoneIndex: 3,
   },
   {
     awb: '999-77421008',
@@ -98,16 +115,60 @@ const DEFAULT_SAMPLES: ConsignmentItem[] = [
     chargeableKg: 275.0,
     classification: 'High-Value Bonded Cargo',
     tempTargetC: 18.0,
-    acidNumber: 'ACID-37665102',
+    acidNumber: '2026000994108770004',
     eAwbStatus: 'RELEASED',
     dwellMinutes: 154,
     flightLevel: 'FL380',
     eta: 'Released to Land Transport',
+    currentMilestoneIndex: 4,
+  },
+];
+
+const MILESTONES = [
+  {
+    key: 'acid',
+    titleEn: 'ACID Pre-Auth',
+    titleAr: 'إشعار نافذة المسبق',
+    subEn: 'Customs e-Approved',
+    subAr: 'موافق إلكترونياً',
+    icon: FileCheck,
+  },
+  {
+    key: 'uplift',
+    titleEn: 'Origin Uplift',
+    titleAr: 'تحميل الطائرة والإقلاع',
+    subEn: 'Airside Departed',
+    subAr: 'غادرت المهبط',
+    icon: PlaneTakeoff,
+  },
+  {
+    key: 'enroute',
+    titleEn: 'Airborne Telemetry',
+    titleAr: 'التحليق وتتبع التبريد',
+    subEn: 'FL380 Inbound CAI',
+    subAr: 'المسار الجوي المباشر',
+    icon: Plane,
+  },
+  {
+    key: 'cai-ramp',
+    titleEn: 'Cargo Village Ramp',
+    titleAr: 'قرية البضائع بالقاهرة',
+    subEn: 'CAI Terminal 3',
+    subAr: 'ساحة التفريغ السريع',
+    icon: Building2,
+  },
+  {
+    key: 'gate-out',
+    titleEn: 'Reefer Handshake',
+    titleAr: 'التسليم لأسطول النقل',
+    subEn: 'Gate-Out Highway',
+    subAr: 'انطلاق الشاحنات',
+    icon: Truck,
   },
 ];
 
 export const ConsignmentTracker: React.FC = () => {
-  const { dict, lang } = useLang();
+  const { dict, lang, isRtl } = useLang();
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<ConsignmentItem | null>(DEFAULT_SAMPLES[0]);
   const [notFound, setNotFound] = useState(false);
@@ -128,7 +189,6 @@ export const ConsignmentTracker: React.FC = () => {
       setResult(found);
       setNotFound(false);
     } else {
-      // Create a deterministic dynamic lookup simulation for any custom AWB format
       if (/^\d{3}-\d{8}$/.test(clean) || clean.length >= 8) {
         setResult({
           awb: searchAwb.toUpperCase(),
@@ -144,11 +204,12 @@ export const ConsignmentTracker: React.FC = () => {
           chargeableKg: 310.0,
           classification: 'General Cargo Standard',
           tempTargetC: null,
-          acidNumber: 'ACID-99281034',
+          acidNumber: '2026000994108770005',
           eAwbStatus: 'LODGED',
           dwellMinutes: 12,
           flightLevel: 'FL370',
           eta: 'Scheduled 16:30 UTC',
+          currentMilestoneIndex: 1,
         });
         setNotFound(false);
       } else {
@@ -159,20 +220,25 @@ export const ConsignmentTracker: React.FC = () => {
   };
 
   return (
-    <section id="tracker" className="mx-auto max-w-[1440px] px-4 py-16 md:px-8">
-      <div className="max-w-2xl">
-        <p className="kicker text-sky-400">{dict.tracker.kicker}</p>
-        <h2 className="display mt-3 text-[clamp(1.8rem,3.4vw,3rem)] font-bold text-title">
-          {dict.tracker.title}
-        </h2>
-        <p className="mt-3 text-muted text-base leading-relaxed">
-          {dict.tracker.subtitle}
-        </p>
+    <section id="tracker" className="scroll-mt-24 mx-auto max-w-[1440px] px-4 py-16 md:px-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[var(--glass-brd)] pb-6 mb-8">
+        <div className="max-w-2xl">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <p className="kicker text-sky-400">{dict.tracker.kicker}</p>
+            <ModelBadge />
+          </div>
+          <h2 className="display text-[clamp(1.8rem,3.4vw,3rem)] font-bold text-title">
+            {dict.tracker.title}
+          </h2>
+          <p className="mt-2 text-muted text-base leading-relaxed">
+            {dict.tracker.subtitle}
+          </p>
+        </div>
       </div>
 
       {/* Search Bar */}
       <form
-        className="mt-8 flex flex-col gap-3 sm:flex-row max-w-2xl"
+        className="mt-6 flex flex-col gap-3 sm:flex-row max-w-2xl"
         onSubmit={(e) => {
           e.preventDefault();
           handleSearch(query || '077-88442115');
@@ -183,11 +249,11 @@ export const ConsignmentTracker: React.FC = () => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={dict.tracker.placeholder}
-          className="flex-1 rounded-full border border-[var(--c-border)] bg-[var(--c-card)] px-5 py-3.5 text-sm text-title placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-sky-400 shadow-sm"
+          className="flex-1 rounded-2xl border border-[var(--c-border)] bg-[var(--c-card)] px-5 py-3.5 text-sm text-title placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-sky-400 shadow-sm font-mono"
         />
         <button
           type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 hover:bg-sky-400 px-6 py-3.5 text-sm font-bold text-black shadow-lg shadow-sky-500/20 transition-all active:scale-95"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-400 hover:bg-cyan-300 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-400/20 transition-all active:scale-95 font-mono"
         >
           <Search className="h-4 w-4" />
           <span>{dict.tracker.search}</span>
@@ -195,7 +261,7 @@ export const ConsignmentTracker: React.FC = () => {
       </form>
 
       {/* Quick Sample Buttons */}
-      <div className="mt-5 flex flex-wrap items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold tracking-wider text-sky-400 uppercase">
           {dict.tracker.samples}
         </span>
@@ -207,9 +273,9 @@ export const ConsignmentTracker: React.FC = () => {
               setQuery(s.awb);
               handleSearch(s.awb);
             }}
-            className={`mono rounded-full border px-3 py-1 text-xs transition-all ${
+            className={`mono rounded-xl border px-3 py-1 text-xs transition-all ${
               result?.awb === s.awb
-                ? 'border-sky-400 bg-sky-400/15 text-sky-300 font-bold'
+                ? 'border-sky-400 bg-sky-400/15 text-sky-700 dark:text-sky-300 font-bold'
                 : 'border-[var(--c-border)] text-muted hover:border-sky-400/50'
             }`}
           >
@@ -219,14 +285,15 @@ export const ConsignmentTracker: React.FC = () => {
       </div>
 
       {notFound && (
-        <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300 max-w-2xl">
+        <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-800 dark:text-rose-300 max-w-2xl font-mono">
           {dict.tracker.notFound}
         </div>
       )}
 
       {/* Telemetry Result Well */}
       {result && (
-        <article className="avionics-well mt-8 rounded-[28px] p-6 md:p-8" dir="ltr">
+        <article className="avionics-well mt-8 rounded-[32px] p-6 md:p-8" dir="ltr">
+          {/* Header row */}
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-sky-400/15 pb-6">
             <div>
               <div className="flex items-center gap-2">
@@ -244,6 +311,55 @@ export const ConsignmentTracker: React.FC = () => {
             </span>
           </div>
 
+          {/* Visual Milestone Stepper (5 Stages) */}
+          <div className="py-6 border-b border-sky-400/15">
+            <span className="block text-[10px] font-mono text-cyan-400 uppercase tracking-wider mb-4 font-bold">
+              CONSIGNMENT FLIGHT & CUSTOMS PIPELINE
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              {MILESTONES.map((m, idx) => {
+                const Icon = m.icon;
+                const isPassed = idx < result.currentMilestoneIndex;
+                const isCurrent = idx === result.currentMilestoneIndex;
+
+                return (
+                  <div
+                    key={m.key}
+                    className={`p-3 rounded-2xl border transition-all flex flex-col justify-between ${
+                      isCurrent
+                        ? 'bg-cyan-500/20 border-cyan-400 shadow-lg shadow-cyan-500/20 ring-1 ring-cyan-400/50'
+                        : isPassed
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                        : 'bg-black/30 border-white/5 opacity-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`w-6 h-6 rounded-full border grid place-items-center text-[10px] font-mono font-bold ${
+                        isCurrent
+                          ? 'border-cyan-400 bg-cyan-400 text-black animate-pulse'
+                          : isPassed
+                          ? 'border-emerald-400 bg-emerald-400 text-black'
+                          : 'border-slate-600 text-slate-400'
+                      }`}>
+                        {idx + 1}
+                      </span>
+                      <Icon className={`w-4 h-4 ${isCurrent ? 'text-cyan-300' : isPassed ? 'text-emerald-400' : 'text-slate-500'}`} />
+                    </div>
+                    <div>
+                      <span className="block text-xs font-bold text-white leading-tight font-sans">
+                        {isRtl ? m.titleAr : m.titleEn}
+                      </span>
+                      <span className="block text-[10px] font-mono text-slate-400 mt-0.5">
+                        {isRtl ? m.subAr : m.subEn}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Detailed 8-cell Telemetry grid */}
           <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Cell
               icon={<ShieldCheck className="h-4 w-4 text-sky-400" />}

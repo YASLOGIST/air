@@ -1,20 +1,20 @@
 # YASLOGIST AIR — المخطط التأسيسي والمعماري الشامل (Foundation Blueprint)
-**التاريخ:** سبتمبر 2026  
-**المسار المستهدف:** `air.yaslogist.me`  
+**التاريخ:** سبتمبر 2026
+**المسار المستهدف:** `air.yaslogist.com`
 **الحالة:** تأسيس جديد من الصفر (Clean Slate) لضمان أعلى درجات الجودة والتناسق المؤسسي.
 
 ---
 
 ## 1. الرؤية التنفيذية والهدف الاستراتيجي (Strategic Purpose)
 
-يمثل **YASLOGIST AIR** الجناح الجوي المتخصص في **الشحن فائق السرعة والشحنات الحرجة وعالية القيمة (Time-Critical & High-Value Freight)**. 
+يمثل **YASLOGIST AIR** الجناح الجوي المتخصص في **الشحن فائق السرعة والشحنات الحرجة وعالية القيمة (Time-Critical & High-Value Freight)**.
 
 ### المشكلة التي يعالجها في السوق المصري والإقليمي:
 - الطائرة تقطع المسافة بين فرانكفورت أو دبي والقاهرة في 3 إلى 5 ساعات، ولكن الشحنة تظل عالقة لـ **36 إلى 72 ساعة داخل قرية البضائع بمطار القاهرة الدولي (CAI)** بسبب الإجراءات الورقية لبوليصة الشحن (AWB)، وتأخر مطابقة أرقام الإفراج الجمركي المسبق (ACID / نافذة)، وغياب التنسيق مع شاحنات الاستلام.
 - يحل YASLOGIST هذه الأزمة بـ:
   1. **المطابقة الرقمية المسبقة لبوالص الشحن (e-AWB Pre-Clearance)** بالتكامل مع المعايير الدولية (IATA ONE Record) ومنظومة "نافذة" المصرية.
   2. **تتبع سلاسل التبريد الحساسة لحظة بلحظة (Cold-Chain Pharma Monitoring)** من بطن الطائرة وحتى غرف التبريد بقرية البضائع.
-  3. **الربط الفوري مع أسطول النقل البري (Air-to-Land Handshake)** لتستلم شاحنات `land.yaslogist.me` الشحنة من بوابة المطار دون أي هدر زمني.
+  3. **الربط الفوري مع أسطول النقل البري (Air-to-Land Handshake)** لتستلم شاحنات `land.yaslogist.com` الشحنة من بوابة المطار دون أي هدر زمني.
 
 ---
 
@@ -87,7 +87,7 @@ air/
 - **كيف يعمل المحاكي:**
   - يتيح للمستخدم إدخال الأبعاد وسحب مؤشر الوزن الفعلي.
   - يبرز المحاكي بصرياً فور تحريك المؤشر: هل الشحنة **ثقيلة وكثيفة (High-Density / Billed on Weight)** أم **ضخمة الحجم خفيفة الوزن (Voluminous / Billed on Volume)**.
-  - حساب انبعاثات الكربون الجوية وفق إطار GLEC ومعايير IATA RP 1678 مع مقارنتها ببدائل النقل البحري لتوضيح معادلة (السرعة مقابل الاستدامة).
+  - حساب انبعاثات الكربون الجوية وفق إطار GLEC / EN 16258 مع مقارنتها ببدائل النقل البحري لتوضيح معادلة (السرعة مقابل الاستدامة).
 
 ### ج. مستعرض حاويات الشحن الجوي الذكية (`ULDSelector.tsx`)
 عرض تفاعلي لأشكال ومواصفات حاويات ومنصات الطائرات (Unit Load Devices):
@@ -100,7 +100,7 @@ air/
 1. **الهبوط على المهبط (Touchdown):** وصول الطائرة إلى مطار القاهرة الدولي.
 2. **النقل الآمن (Tarmac to Cool-Chain):** سحب الحاوية فوراً إلى غرف التبريد المخصصة بمستودعات المطار وتفادي الوقوف تحت حرارة الشمس.
 3. **المطابقة الرقمية (Digital Pre-Clearance):** مطابقة بوليصة الشحن الجوي الإلكترونية (e-AWB) ورقم التسجيل المسبق (ACID) عبر نافذة.
-4. **التسليم لبوابة الشاحنات البرية (Gate-Out to Reefer Truck):** خروج الشحنة لبوابة الشاحنات المتصلة بـ `land.yaslogist.me` للانطلاق للمصنع أو المستودع النهائي.
+4. **التسليم لبوابة الشاحنات البرية (Gate-Out to Reefer Truck):** خروج الشحنة لبوابة الشاحنات المتصلة بـ `land.yaslogist.com` للانطلاق للمصنع أو المستودع النهائي.
 
 ### هـ. شبكة الممرات الجوية الاستراتيجية لمصر (`CorridorsAir.tsx`)
 أربعة ممرات ملاحية جوية تخدم الواقع التجاري المصري بدقة:
@@ -155,22 +155,22 @@ export interface AirCalculationOutput {
 
 export function calculateAirFreight(input: AirCalculationInput): AirCalculationOutput {
   const { lengthCm, widthCm, heightCm, grossWeightKg, distanceKm } = input;
-  
+
   // 1. حساب الحجم بالمتر المكعب (CBM)
   const volumeCbm = Number(((lengthCm * widthCm * heightCm) / 1_000_000).toFixed(3));
-  
+
   // 2. حساب الوزن الحجمي وفق معيار IATA (قاسم 6000)
   const volumetricWeightKg = Number(((lengthCm * widthCm * heightCm) / 6000).toFixed(1));
-  
+
   // 3. تحديد الوزن الخاضع للرسوم (الأكبر بينهما)
   const chargeableWeightKg = Math.max(grossWeightKg, volumetricWeightKg);
   const billingBasis = grossWeightKg >= volumetricWeightKg ? 'GROSS_WEIGHT' : 'VOLUMETRIC_WEIGHT';
   const freightClass = grossWeightKg >= volumetricWeightKg ? 'DENSE_HEAVY' : 'VOLUMINOUS_LIGHT';
-  
-  // 4. حساب انبعاثات الكربون الجوية (معيار IATA RP 1678: ~0.50 كجم CO2 لكل طن/كم للشحن الجوي العريض)
+
+  // 4. حساب انبعاثات الكربون الجوية (عامل نموذجي من GLEC / EN 16258: ~0.50 كجم CO2 لكل طن/كم للشحن الجوي العريض)
   const tonneKm = (chargeableWeightKg / 1000) * distanceKm;
   const estimatedCo2Tonnes = Number((tonneKm * 0.000502).toFixed(2));
-  
+
   return {
     volumeCbm,
     volumetricWeightKg,
@@ -197,7 +197,7 @@ export function calculateAirFreight(input: AirCalculationInput): AirCalculationO
   - `Next Stage:` التحميل الفوري على مقطورة مبردة متصلة بنظام النقل البري.
 - **زر الانتقال التفاعلي (Call to Action):**
   - زر مميز ينقل الزائر مباشرة إلى منصة الشحن البري:
-    **[ تتبع الشحنة على شبكة الطرق البرية عبر land.yaslogist.me ← ]**
+    **[ تتبع الشحنة على شبكة الطرق البرية عبر land.yaslogist.com ← ]**
   - هذا الربط يختم زيارة صفحة الشحن الجوي بتقديم الدليل الملموس على أن الشحنة لا تتوقف، بل تنتقل بسلاسة إلى أسطول النقل البري.
 
 ---

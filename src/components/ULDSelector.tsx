@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { useLang } from '../lib/i18n';
 import type { ULDContainer } from '../types/air-freight';
 import { ModelBadge } from './ModelBadge';
+import { ULDViewer3D } from './ULDViewer3D';
 import {
   Box,
   ThermometerSnowflake,
   ShieldCheck,
   Plane,
-  Check
+  Check,
+  Sparkles,
+  Layers,
+  Maximize2,
 } from 'lucide-react';
 
 const ULD_FLEET: ULDContainer[] = [
@@ -108,8 +112,10 @@ export const ULDSelector: React.FC = () => {
     return true;
   });
 
+  const isBellyDeck = selectedUld.code === 'AKE' || selectedUld.code === 'RKN';
+
   return (
-    <section id="uld" className="relative py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <section id="uld" className="scroll-mt-24 relative py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* Section Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 border-b border-[var(--glass-brd)] pb-6">
         <div>
@@ -128,26 +134,29 @@ export const ULDSelector: React.FC = () => {
         </div>
 
         {/* Filter Buttons */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl glass-subcard self-start md:self-auto text-xs font-mono">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl glass-subcard self-start md:self-auto text-xs font-mono">
           <button
+            type="button"
             onClick={() => setFilter('ALL')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-xl transition-all ${
               filter === 'ALL' ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 font-bold border border-cyan-500/30' : 'text-muted hover:text-title'
             }`}
           >
             {dict.uld.filterAll}
           </button>
           <button
+            type="button"
             onClick={() => setFilter('PHARMA')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-xl transition-all ${
               filter === 'PHARMA' ? 'bg-teal-500/20 text-teal-600 dark:text-teal-300 font-bold border border-teal-500/30' : 'text-muted hover:text-title'
             }`}
           >
             {dict.uld.filterPharma}
           </button>
           <button
+            type="button"
             onClick={() => setFilter('GENERAL')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-xl transition-all ${
               filter === 'GENERAL' ? 'bg-sky-500/20 text-sky-600 dark:text-sky-300 font-bold border border-sky-500/30' : 'text-muted hover:text-title'
             }`}
           >
@@ -157,7 +166,7 @@ export const ULDSelector: React.FC = () => {
       </div>
 
       {/* Grid: Unit Buttons & Selected Unit Details */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left 4 Cols: Fleet Cards Selector */}
         <div className="lg:col-span-4 space-y-3">
           {filteredFleet.map((uld) => {
@@ -168,9 +177,9 @@ export const ULDSelector: React.FC = () => {
                 type="button"
                 onClick={() => setSelectedUld(uld)}
                 aria-pressed={isSelected}
-                className={`w-full text-left rtl:text-right p-4 rounded-2xl border cursor-pointer transition-all duration-200 glass-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--c-bg)] ${
+                className={`w-full text-left rtl:text-right p-4 rounded-2xl border cursor-pointer transition-all duration-200 glass-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 ${
                   isSelected
-                    ? 'bg-gradient-to-r from-cyan-500/15 via-[var(--glass-bg)] to-[var(--glass-bg)] border-cyan-500 shadow-md'
+                    ? 'bg-gradient-to-r from-cyan-500/15 via-[var(--glass-bg)] to-[var(--glass-bg)] border-cyan-500 shadow-md ring-1 ring-cyan-500/30'
                     : 'glass-panel'
                 }`}
               >
@@ -206,7 +215,12 @@ export const ULDSelector: React.FC = () => {
         </div>
 
         {/* Right 8 Cols: Detailed Inspection Panel */}
-        <div className="lg:col-span-8 glass-panel rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
+        <div className="lg:col-span-8 space-y-6">
+          {/* Interactive 3D Digital Twin Viewer */}
+          <ULDViewer3D uld={selectedUld} />
+
+          {/* Detailed Engineering Inspection Panel */}
+          <div className="glass-panel rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--glass-brd)] pb-4 gap-3">
             <div>
               <div className="flex items-center gap-2.5">
@@ -223,20 +237,42 @@ export const ULDSelector: React.FC = () => {
             </div>
 
             {selectedUld.activeCooling ? (
-              <div className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 flex items-center gap-2 text-xs font-mono text-teal-600 dark:text-teal-300">
+              <div className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 flex items-center gap-2 text-xs font-mono text-teal-600 dark:text-teal-300 font-semibold">
                 <ShieldCheck className="w-4 h-4 text-teal-500" />
                 <span dir="ltr">{isRtl ? selectedUld.tempRangeAr : selectedUld.tempRangeEn}</span>
               </div>
             ) : (
-              <div className="self-start sm:self-auto px-3 py-1.5 rounded-xl glass-subcard text-xs font-mono text-muted">
+              <div className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl glass-subcard text-xs font-mono text-muted">
                 <span dir="ltr">{isRtl ? selectedUld.dimensionsAr : selectedUld.dimensionsEn}</span>
               </div>
             )}
           </div>
 
+          {/* Aircraft Fuselage Deck Placement & Contour Fitting (NEW FEATURE) */}
+          <div className="p-4 rounded-2xl glass-subcard border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-transparent">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-mono font-bold text-title flex items-center gap-2">
+                <Layers className="w-4 h-4 text-cyan-500" />
+                <span>{isRtl ? 'موضع التحميل داخل هيكل الطائرة (Fuselage Deck Fitting):' : 'Aircraft Fuselage Deck Fitting:'}</span>
+              </span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${isBellyDeck ? 'bg-sky-500/20 text-sky-300' : 'bg-amber-500/20 text-amber-300'}`}>
+                {isBellyDeck ? 'LOWER BELLY HOLD' : 'MAIN DECK WIDEBODY'}
+              </span>
+            </div>
+            <p className="text-xs text-muted leading-relaxed font-sans">
+              {isBellyDeck
+                ? (isRtl
+                    ? 'تصميم نصف عرض مائل الزاوية (Contoured Half-Width) يطابق بدقة انحناء بطن الطائرة السفلي لمنع أي فراغ ضائع وتأمين الاتزان الهوائي.'
+                    : 'Engineered with contoured chamfered base to match the curvature of lower deck aircraft belly lobes, ensuring aerodynamic balance and maximum space utilization.')
+                : (isRtl
+                    ? 'منصة شحن قياسية عريضة مسطحة، مزودة بنقاط تثبيت ميكانيكية وشباك حماية للسطح الرئيسي لطائرات الشحن العملاقة (B777F / B747-400F).'
+                    : 'Full-footprint heavy pallet secured via aircraft floor lock-pins and certified restraint nets, configured for main deck freighter holds.')}
+            </p>
+          </div>
+
           {/* Key Engineering Specs Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 font-mono">
-            <div className="p-3.5 rounded-xl glass-subcard">
+            <div className="p-3.5 rounded-2xl glass-subcard">
               <span className="block text-[11px] text-muted uppercase">
                 {dict.uld.tare}
               </span>
@@ -245,7 +281,7 @@ export const ULDSelector: React.FC = () => {
               </span>
             </div>
 
-            <div className="p-3.5 rounded-xl glass-subcard">
+            <div className="p-3.5 rounded-2xl glass-subcard">
               <span className="block text-[11px] text-muted uppercase">
                 {dict.uld.maxWeight}
               </span>
@@ -254,7 +290,7 @@ export const ULDSelector: React.FC = () => {
               </span>
             </div>
 
-            <div className="p-3.5 rounded-xl glass-subcard col-span-2 sm:col-span-1">
+            <div className="p-3.5 rounded-2xl glass-subcard col-span-2 sm:col-span-1">
               <span className="block text-[11px] text-muted uppercase">
                 {dict.uld.volume}
               </span>
@@ -265,7 +301,7 @@ export const ULDSelector: React.FC = () => {
           </div>
 
           {/* Description Block */}
-          <div className="p-4 rounded-xl glass-subcard">
+          <div className="p-4 rounded-2xl glass-subcard">
             <p className="text-sm text-muted leading-relaxed font-sans">
               {isRtl ? selectedUld.descriptionAr : selectedUld.descriptionEn}
             </p>
@@ -274,7 +310,7 @@ export const ULDSelector: React.FC = () => {
           {/* Recommendations & Compatible Aircraft */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
             {/* Cargo Categories */}
-            <div className="p-4 rounded-xl glass-subcard space-y-2">
+            <div className="p-4 rounded-2xl glass-subcard space-y-2">
               <span className="block font-bold text-title uppercase tracking-wider">
                 {dict.uld.recommendedCargo}:
               </span>
@@ -284,7 +320,7 @@ export const ULDSelector: React.FC = () => {
             </div>
 
             {/* Compatible Aircraft */}
-            <div className="p-4 rounded-xl glass-subcard space-y-2">
+            <div className="p-4 rounded-2xl glass-subcard space-y-2">
               <span className="block font-bold text-title uppercase tracking-wider flex items-center gap-1.5">
                 <Plane className="w-3.5 h-3.5 text-cyan-500" />
                 <span>{dict.uld.aircraftSuitability}:</span>
@@ -300,7 +336,10 @@ export const ULDSelector: React.FC = () => {
             </div>
           </div>
         </div>
+        </div>
       </div>
     </section>
   );
 };
+
+export default ULDSelector;
