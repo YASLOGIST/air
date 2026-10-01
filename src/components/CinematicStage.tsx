@@ -38,8 +38,6 @@ export const CinematicStage: React.FC = () => {
   const lastAppliedTimeNightRef = useRef(-1);
   const lastAppliedTimeDayRef = useRef(-1);
   const lastSeekAtRef = useRef(0);
-  const isSeekingNightRef = useRef(false);
-  const isSeekingDayRef = useRef(false);
 
   // Sync scroll scrubbing for both day & night runway reels
   useEffect(() => {
@@ -72,37 +70,19 @@ export const CinematicStage: React.FC = () => {
       const now = performance.now();
       if (now - lastSeekAtRef.current >= SEEK_INTERVAL_MS) {
         lastSeekAtRef.current = now;
-
-        // Apply scrub to Night Video
-        const vNight = videoNightRef.current;
-        if (vNight && vNight.readyState >= 2 && Number.isFinite(vNight.duration) && vNight.duration > 0) {
-          const targetTime = current * Math.max(0, vNight.duration - 0.04);
-          if (Math.abs(lastAppliedTimeNightRef.current - targetTime) > 0.015) {
-            if (!isSeekingNightRef.current) {
-              isSeekingNightRef.current = true;
-              lastAppliedTimeNightRef.current = targetTime;
-              try {
-                vNight.currentTime = targetTime;
-              } catch {
-                isSeekingNightRef.current = false;
-              }
-            }
-          }
-        }
-
-        // Apply scrub to Day Video
-        const vDay = videoDayRef.current;
-        if (vDay && vDay.readyState >= 2 && Number.isFinite(vDay.duration) && vDay.duration > 0) {
-          const targetTime = current * Math.max(0, vDay.duration - 0.04);
-          if (Math.abs(lastAppliedTimeDayRef.current - targetTime) > 0.015) {
-            if (!isSeekingDayRef.current) {
-              isSeekingDayRef.current = true;
-              lastAppliedTimeDayRef.current = targetTime;
-              try {
-                vDay.currentTime = targetTime;
-              } catch {
-                isSeekingDayRef.current = false;
-              }
+        // Metadata preload yields readyState 1. Seeking from metadata is valid and
+        // lets the browser fetch only the byte range needed for the active theme.
+        const video = isDark ? videoNightRef.current : videoDayRef.current;
+        const lastApplied = isDark ? lastAppliedTimeNightRef : lastAppliedTimeDayRef;
+        if (video && video.readyState >= HTMLMediaElement.HAVE_METADATA && Number.isFinite(video.duration) && video.duration > 0) {
+          const targetTime = current * Math.max(0, video.duration - 0.04);
+          if (Math.abs(lastApplied.current - targetTime) > 0.015) {
+            lastApplied.current = targetTime;
+            try {
+              video.currentTime = targetTime;
+            } catch {
+              // A later animation frame retries after the media range is ready.
+              lastApplied.current = -1;
             }
           }
         }
@@ -121,18 +101,15 @@ export const CinematicStage: React.FC = () => {
       window.removeEventListener('scroll', measure);
       window.removeEventListener('resize', measure);
     };
-  }, []);
+  }, [isDark]);
 
   // Setup video event handlers for both videos
   useEffect(() => {
-    const videos = [
-      { vid: videoNightRef.current, seekingRef: isSeekingNightRef },
-      { vid: videoDayRef.current, seekingRef: isSeekingDayRef },
-    ];
+    const videos = [videoNightRef.current, videoDayRef.current];
 
     const cleanups: (() => void)[] = [];
 
-    videos.forEach(({ vid, seekingRef }) => {
+    videos.forEach((vid) => {
       if (!vid) return;
 
       vid.muted = true;
@@ -142,19 +119,13 @@ export const CinematicStage: React.FC = () => {
         vid.pause();
       };
 
-      const handleSeeked = () => {
-        seekingRef.current = false;
-      };
-
       vid.addEventListener('loadeddata', pauseOnLoad);
       vid.addEventListener('loadedmetadata', pauseOnLoad);
-      vid.addEventListener('seeked', handleSeeked);
       if (vid.readyState >= 2) pauseOnLoad();
 
       cleanups.push(() => {
         vid.removeEventListener('loadeddata', pauseOnLoad);
         vid.removeEventListener('loadedmetadata', pauseOnLoad);
-        vid.removeEventListener('seeked', handleSeeked);
         vid.pause();
       });
     });
@@ -167,7 +138,7 @@ export const CinematicStage: React.FC = () => {
   // Instant sync on theme change so the emerging video is already in lockstep
   useEffect(() => {
     const activeVideo = isDark ? videoNightRef.current : videoDayRef.current;
-    if (activeVideo && activeVideo.readyState >= 2 && Number.isFinite(activeVideo.duration)) {
+    if (activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA && Number.isFinite(activeVideo.duration)) {
       const targetTime = currentRef.current * Math.max(0, activeVideo.duration - 0.04);
       try {
         activeVideo.currentTime = targetTime;

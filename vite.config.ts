@@ -12,5 +12,5 @@ export default defineConfig({
     target: 'es2022',
   },
   preview: { host: '0.0.0.0' },
-  server: { host: '0.0.0.0' },
+  server: { host: '0.0.0.0', allowedHosts: true },
 });
