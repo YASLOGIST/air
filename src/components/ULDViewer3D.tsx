@@ -48,6 +48,10 @@ interface PolygonFace {
 export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   const { isRtl } = useLang();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const prefersReducedMotion = useMemo(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    [],
+  );
 
   // Viewer state
   const [rotationX, setRotationX] = useState<number>(0.35); // Pitch
@@ -62,28 +66,46 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   // Drag interaction
   const isDraggingRef = useRef<boolean>(false);
   const lastMousePos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const orbitVelocity = useRef({ x: 0, y: 0 });
+  const inertiaFrame = useRef<number | null>(null);
 
-  // Smooth door animation
+  useEffect(() => () => {
+    if (inertiaFrame.current !== null) cancelAnimationFrame(inertiaFrame.current);
+  }, []);
+
+  // Critically damped hinge motion gives the insulated door believable mass.
   useEffect(() => {
-    let animId: number;
+    if (prefersReducedMotion) {
+      setDoorProgress(isDoorOpen ? 1 : 0);
+      return;
+    }
+    let animId = 0;
+    let position = doorProgress;
+    let velocity = 0;
     const target = isDoorOpen ? 1 : 0;
-    const animateDoor = () => {
-      setDoorProgress((prev) => {
-        const diff = target - prev;
-        if (Math.abs(diff) < 0.02) return target;
-        return prev + diff * 0.15;
-      });
-      if (Math.abs(target - doorProgress) >= 0.02) {
-        animId = requestAnimationFrame(animateDoor);
+    let previous = performance.now();
+    const animateDoor = (time: number) => {
+      const dt = Math.min(0.034, Math.max(0.001, (time - previous) / 1000));
+      previous = time;
+      const force = (target - position) * 42;
+      velocity = (velocity + force * dt) * Math.pow(0.0008, dt);
+      position += velocity * dt;
+      if (Math.abs(target - position) < 0.001 && Math.abs(velocity) < 0.001) {
+        setDoorProgress(target);
+        return;
       }
+      setDoorProgress(Math.max(0, Math.min(1, position)));
+      animId = requestAnimationFrame(animateDoor);
     };
     animId = requestAnimationFrame(animateDoor);
     return () => cancelAnimationFrame(animId);
-  }, [isDoorOpen, doorProgress]);
+    // doorProgress is deliberately sampled only when a new target is selected.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDoorOpen, prefersReducedMotion]);
 
   // Auto rotation loop
   useEffect(() => {
-    if (!isAutoRotate || isInsideView) return;
+    if (!isAutoRotate || isInsideView || prefersReducedMotion) return;
     let animId: number;
     const loop = () => {
       setRotationY((prev) => prev + 0.006);
@@ -91,7 +113,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
     };
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [isAutoRotate, isInsideView]);
+  }, [isAutoRotate, isInsideView, prefersReducedMotion]);
 
   // Reset camera when switching containers
   useEffect(() => {
@@ -134,6 +156,9 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
 
   // Mouse / Touch interaction handlers
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (inertiaFrame.current !== null) cancelAnimationFrame(inertiaFrame.current);
+    inertiaFrame.current = null;
+    orbitVelocity.current = { x: 0, y: 0 };
     isDraggingRef.current = true;
     lastMousePos.current = { x: e.clientX, y: e.clientY };
     setIsAutoRotate(false);
@@ -145,11 +170,29 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
     const dy = e.clientY - lastMousePos.current.y;
     lastMousePos.current = { x: e.clientX, y: e.clientY };
 
-    setRotationY((prev) => prev + dx * 0.008);
-    setRotationX((prev) => Math.max(-1.2, Math.min(1.2, prev + dy * 0.008)));
+    orbitVelocity.current = { x: dx * 0.008, y: dy * 0.008 };
+    setRotationY((prev) => prev + orbitVelocity.current.x);
+    setRotationX((prev) => Math.max(-1.2, Math.min(1.2, prev + orbitVelocity.current.y)));
+  };
+
+  const beginInertia = () => {
+    if (inertiaFrame.current !== null) cancelAnimationFrame(inertiaFrame.current);
+    const coast = () => {
+      orbitVelocity.current.x *= 0.92;
+      orbitVelocity.current.y *= 0.92;
+      if (Math.abs(orbitVelocity.current.x) + Math.abs(orbitVelocity.current.y) < 0.0004) {
+        inertiaFrame.current = null;
+        return;
+      }
+      setRotationY((prev) => prev + orbitVelocity.current.x);
+      setRotationX((prev) => Math.max(-1.2, Math.min(1.2, prev + orbitVelocity.current.y)));
+      inertiaFrame.current = requestAnimationFrame(coast);
+    };
+    inertiaFrame.current = requestAnimationFrame(coast);
   };
 
   const handleMouseUp = () => {
+    if (isDraggingRef.current) beginInertia();
     isDraggingRef.current = false;
   };
 
@@ -161,6 +204,9 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   // Touch handlers for mobile
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
+      if (inertiaFrame.current !== null) cancelAnimationFrame(inertiaFrame.current);
+      inertiaFrame.current = null;
+      orbitVelocity.current = { x: 0, y: 0 };
       isDraggingRef.current = true;
       lastMousePos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       setIsAutoRotate(false);
@@ -173,11 +219,13 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
     const dy = e.touches[0].clientY - lastMousePos.current.y;
     lastMousePos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 
-    setRotationY((prev) => prev + dx * 0.008);
-    setRotationX((prev) => Math.max(-1.2, Math.min(1.2, prev + dy * 0.008)));
+    orbitVelocity.current = { x: dx * 0.008, y: dy * 0.008 };
+    setRotationY((prev) => prev + orbitVelocity.current.x);
+    setRotationX((prev) => Math.max(-1.2, Math.min(1.2, prev + orbitVelocity.current.y)));
   };
 
   const handleTouchEnd = () => {
+    if (isDraggingRef.current) beginInertia();
     isDraggingRef.current = false;
   };
 
@@ -185,6 +233,15 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   const faces = useMemo(() => {
     const list: PolygonFace[] = [];
     const dp = doorProgress; // 0 to 1
+
+    const addCrate = (x: number, y: number, z: number, w: number, h: number, d: number, label?: string) => {
+      const colors = ['#0f766e', '#115e59', '#134e4a'];
+      list.push(
+        { pts: [{ x, y, z: z + d }, { x: x + w, y, z: z + d }, { x: x + w, y: y + h, z: z + d }, { x, y: y + h, z: z + d }], color: colors[0], strokeColor: '#5eead4', lineWidth: 1, label },
+        { pts: [{ x, y, z }, { x, y, z: z + d }, { x, y: y + h, z: z + d }, { x, y: y + h, z }], color: colors[1], strokeColor: '#2dd4bf', lineWidth: 0.8 },
+        { pts: [{ x, y, z }, { x: x + w, y, z }, { x: x + w, y, z: z + d }, { x, y, z: z + d }], color: colors[2], strokeColor: '#99f6e4', lineWidth: 0.8 },
+      );
+    };
 
     if (uld.code === 'AKE') {
       // AKE / LD3: Contoured half-width lower belly container
@@ -462,6 +519,24 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         label: 'BIOPHARMA PALLET (+4.2°C)',
       });
 
+      // Individually modeled thermal shippers with visible depth and stacking.
+      addCrate(-0.48, 0.18, -0.28, 0.43, 0.34, 0.34, 'BIO-01');
+      addCrate(0.03, 0.18, -0.28, 0.43, 0.34, 0.34, 'BIO-02');
+      addCrate(-0.22, -0.18, -0.2, 0.43, 0.34, 0.34, 'BIO-03');
+
+      // Raised airflow floor rails preserve circulation below the pallet.
+      for (const railX of [-0.58, -0.2, 0.18, 0.56]) {
+        list.push({
+          pts: [
+            { x: railX - 0.035, y: h - 0.05, z: -0.68 },
+            { x: railX + 0.035, y: h - 0.05, z: -0.68 },
+            { x: railX + 0.035, y: h - 0.05, z: 0.68 },
+            { x: railX - 0.035, y: h - 0.05, z: 0.68 },
+          ],
+          color: '#64748b', strokeColor: '#cbd5e1', lineWidth: 0.7,
+        });
+      }
+
       // Hinged Insulated Door (Swings open on left hinge around Y axis)
       const doorAngle = dp * 1.8; // 0 to ~103 degrees
       const doorW = w * 1.8;
@@ -479,6 +554,16 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         strokeColor: '#5eead4',
         lineWidth: 2,
         label: dp < 0.1 ? 'RKN SEALED DOOR (+4°C)' : 'DOOR OPEN',
+      });
+      // Inner vacuum-insulated door liner adds physical thickness and gasket contrast.
+      list.push({
+        pts: [
+          { x: -w + 0.025, y: -h + 0.15, z: d - 0.025 },
+          { x: doorEndX - 0.025, y: -h + 0.15, z: doorEndZ - 0.025 },
+          { x: doorEndX - 0.025, y: h - 0.1, z: doorEndZ - 0.025 },
+          { x: -w + 0.025, y: h - 0.1, z: d - 0.025 },
+        ],
+        color: '#dbeafe', strokeColor: '#0f172a', lineWidth: 2,
       });
     } else {
       // RAP: Multi-Pallet Mega Active Reefer Container
@@ -606,6 +691,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
     const height = canvas.height;
     ctx.clearRect(0, 0, width, height);
     const now = performance.now();
+    const motionTime = prefersReducedMotion ? 0 : now;
 
     // Deep studio environment with a soft overhead key light.
     const backdrop = ctx.createRadialGradient(width * 0.5, height * 0.36, 10, width * 0.5, height * 0.48, width * 0.72);
@@ -806,6 +892,44 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         ctx.stroke();
       }
 
+      // Animated condenser fan and status LED communicate active cooling.
+      const fan = project({ x: -0.5, y: -0.83, z: 0.18 });
+      ctx.save();
+      ctx.translate(fan.x, fan.y);
+      ctx.rotate(motionTime * 0.004);
+      ctx.strokeStyle = 'rgba(153,246,228,.8)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, 11, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let blade = 0; blade < 5; blade++) {
+        ctx.rotate((Math.PI * 2) / 5);
+        ctx.beginPath();
+        ctx.ellipse(0, -5, 2.2, 6.5, 0.35, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(45,212,191,.42)';
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(fan.x + 16, fan.y - 5, 2, 0, Math.PI * 2);
+      ctx.fillStyle = Math.sin(motionTime * 0.006) > -0.35 ? '#34d399' : '#064e3b';
+      ctx.shadowColor = '#34d399';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Cargo restraint bands visibly wrap the thermal shippers.
+      for (const x of [-0.28, 0.24]) {
+        const top = project({ x, y: -0.2, z: 0.16 });
+        const bottom = project({ x, y: 0.56, z: 0.48 });
+        ctx.beginPath();
+        ctx.moveTo(top.x, top.y);
+        ctx.lineTo(bottom.x, bottom.y);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+      }
+
       // Stainless fasteners around the front frame.
       const rivets: Point3D[] = [];
       for (const x of [-0.78, 0.78]) for (let y = -0.66; y <= 0.66; y += 0.22) rivets.push({ x, y, z: 0.865 });
@@ -821,9 +945,9 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       // Visible cold-air circulation when the insulated door is open.
       if (doorProgress > 0.15) {
         for (let index = 0; index < 12; index++) {
-          const phase = (now * 0.00018 + index / 12) % 1;
+          const phase = (motionTime * 0.00018 + index / 12) % 1;
           const particle = project({
-            x: -0.5 + (index % 4) * 0.32 + Math.sin(now * 0.001 + index) * 0.04,
+            x: -0.5 + (index % 4) * 0.32 + Math.sin(motionTime * 0.001 + index) * 0.04,
             y: 0.52 - phase * 1.05,
             z: 0.48 + phase * 0.62,
           });
@@ -866,7 +990,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       ctx.fill();
 
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 9 + Math.sin(now * 0.004 + h.pos.x * 4) * 3, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 9 + Math.sin(motionTime * 0.004 + h.pos.x * 4) * 3, 0, Math.PI * 2);
       ctx.strokeStyle = h.color;
       ctx.lineWidth = 1.5;
       ctx.stroke();
@@ -886,7 +1010,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       ctx.textBaseline = 'middle';
       ctx.fillText(h.label, p.x, p.y - 19);
     });
-  }, [faces, rotationX, rotationY, zoom, isInsideView, uld.activeCooling, uld.volumeCbm, uld.maxGrossWeightKg, uld.tareWeightKg]);
+  }, [faces, rotationX, rotationY, zoom, isInsideView, uld.activeCooling, uld.volumeCbm, uld.maxGrossWeightKg, uld.tareWeightKg, prefersReducedMotion, doorProgress]);
 
   // Request Animation Frame on render dependency change
   useEffect(() => {
@@ -995,10 +1119,19 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           className="w-full h-full object-cover"
         />
         {uld.code === 'RKN' && (
-          <div className="pointer-events-none absolute right-4 top-4 hidden text-right font-mono sm:block" dir="ltr">
-            <span className="block text-[9px] tracking-[.22em] text-teal-300/70">ENVIROTAINER · ACTIVE UNIT</span>
-            <span className="mt-1 block text-[8px] text-slate-500">INSULATED SHELL / REDUNDANT COOLING / SIMULATION</span>
-          </div>
+          <>
+            <div className="pointer-events-none absolute right-4 top-4 hidden text-right font-mono sm:block" dir="ltr">
+              <span className="block text-[9px] tracking-[.22em] text-teal-300/70">ENVIROTAINER · ACTIVE UNIT</span>
+              <span className="mt-1 block text-[8px] text-slate-500">INSULATED SHELL / REDUNDANT COOLING / SIMULATION</span>
+            </div>
+            <div className="pointer-events-none absolute inset-x-[18%] bottom-14 hidden items-center font-mono text-[8px] text-cyan-200/60 sm:flex" dir="ltr">
+              <span className="h-2 border-l border-cyan-300/40" />
+              <span className="h-px flex-1 bg-cyan-300/30" />
+              <span className="mx-2">2000 mm · DIGITAL SCALE</span>
+              <span className="h-px flex-1 bg-cyan-300/30" />
+              <span className="h-2 border-r border-cyan-300/40" />
+            </div>
+          </>
         )}
 
         {/* Floating Telemetry & Information HUD on Canvas */}
