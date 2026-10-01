@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { NavbarAir } from './components/NavbarAir';
 import { CinematicStage } from './components/CinematicStage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ExperienceLayer } from './components/ExperienceLayer';
 
 const StatsAir = lazy(() => import('./components/StatsAir').then((module) => ({ default: module.StatsAir })));
 const MissionAir = lazy(() => import('./components/MissionAir').then((module) => ({ default: module.MissionAir })));
@@ -37,6 +38,7 @@ export const App: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300">
       <a href="#main-content" className="skip-link">Skip to main content</a>
+      <ExperienceLayer />
       <NavbarAir onOpenAwbModal={() => setAwbModalOpen(true)} />
       <main id="main-content" className="flex-grow" tabIndex={-1}>
         <CinematicStage />
