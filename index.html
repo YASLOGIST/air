@@ -9,27 +9,9 @@
       content="YASLOGIST AIR — High-Velocity Critical Freight, e-AWB Pre-Clearance & Active Cold-Chain Telemetry directly integrated with Cairo International Airport (CAI) Cargo Village."
     />
     <link rel="canonical" href="https://air.yaslogist.com" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline'; connect-src 'self' https://vitals.vercel-insights.com;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self'; connect-src 'self' https://vitals.vercel-insights.com;" />
     <title>YASLOGIST AIR — Time-Critical Air Freight & Cold-Chain Telemetry</title>
-    <script>
-      try {
-        var t = localStorage.getItem("yaslogist-air-theme");
-        if (!t) t = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-        if (t === "light" || t === "dark") {
-          document.documentElement.setAttribute("data-theme", t);
-          document.documentElement.classList.remove("light", "dark");
-          document.documentElement.classList.add(t);
-        }
-        var l = localStorage.getItem("yaslogist-air-lang") || "en";
-        if (l === "ar") {
-          document.documentElement.lang = "ar";
-          document.documentElement.dir = "rtl";
-        } else {
-          document.documentElement.lang = "en";
-          document.documentElement.dir = "ltr";
-        }
-      } catch (e) {}
-    </script>
+    <script src="/theme-init.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

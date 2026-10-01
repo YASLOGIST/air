@@ -155,18 +155,19 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
               {result ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  <span>{isRtl ? 'بوليصة صحيحة ومطابقة للخوارزمية' : 'Valid IATA e-AWB Format (Mod-7 Verified)'}</span>
+                  <span>{isRtl ? 'بنية رقم صحيحة وفق تدقيق Mod-7' : 'Valid AWB number structure (Mod-7 checksum)'}</span>
                 </>
               ) : (
                 <>
                   <AlertCircle className="w-4 h-4 text-rose-500" />
-                  <span>{isRtl ? 'بوليصة غير صحيحة (فشل التدقيق)' : 'Invalid Checksum (Mod-7 Failure)'}</span>
+                  <span>{isRtl ? 'بنية الرقم غير صحيحة (فشل Mod-7)' : 'Invalid AWB number structure (Mod-7 failure)'}</span>
                 </>
               )}
             </div>
 
             {result && (
               <div className="pt-2 border-t border-emerald-500/20 space-y-1.5 text-[11px] text-muted">
+                <p className="rounded-lg bg-amber-500/10 p-2 text-amber-700 dark:text-amber-300">Checksum validation does not confirm a booking, carrier record, customs clearance, or shipment status.</p>
                 <div className="flex justify-between">
                   <span>{isRtl ? 'شركة الطيران الناقلة:' : 'AIRLINE CARRIER:'}</span>
                   <span className="text-title font-bold" dir="ltr">
@@ -177,16 +178,8 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
                   <span>{isRtl ? 'المقر والمركز الرئيسي:' : 'CARRIER MAIN HUB:'}</span>
                   <span className="text-cyan-600 dark:text-cyan-400 font-semibold" dir="ltr">{airline.hub}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>{isRtl ? 'المطابقة الجمركية المسبقة:' : 'CUSTOMS ACID PRE-AUTH:'}</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold" dir="ltr">2026000994108770001</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{isRtl ? 'حالة قرية بضائع القاهرة:' : 'CAIRO CARGO VILLAGE:'}</span>
-                  <span className="text-cyan-600 dark:text-cyan-400 font-bold" dir="ltr">
-                    {isRtl ? 'موافقة مسبقة للخروج الفوري للمبردات' : 'PRE-APPROVED FOR DIRECT REEFER GATE-OUT'}
-                  </span>
-                </div>
+
+
               </div>
             )}
           </div>

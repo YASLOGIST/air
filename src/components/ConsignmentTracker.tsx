@@ -10,7 +10,6 @@ import {
   PlaneTakeoff,
   Building2,
   Truck,
-  Sparkles,
 } from 'lucide-react';
 import { useLang } from '../lib/i18n';
 import { ModelBadge } from './ModelBadge';
@@ -189,33 +188,10 @@ export const ConsignmentTracker: React.FC = () => {
       setResult(found);
       setNotFound(false);
     } else {
-      if (/^\d{3}-\d{8}$/.test(clean) || clean.length >= 8) {
-        setResult({
-          awb: searchAwb.toUpperCase(),
-          origin: 'FRA',
-          destination: 'CAI',
-          flightNo: 'MS-774',
-          status: 'VERIFIED · PRE-LODGED',
-          statusColor: 'text-sky-400 border-sky-400/40 bg-sky-400/10',
-          commodityEn: 'General Air Cargo & Spares',
-          commodityAr: 'بضائع عامة وقطع غيار صناعية',
-          uldCode: 'AKE (LD3)',
-          grossKg: 310.0,
-          chargeableKg: 310.0,
-          classification: 'General Cargo Standard',
-          tempTargetC: null,
-          acidNumber: '2026000994108770005',
-          eAwbStatus: 'LODGED',
-          dwellMinutes: 12,
-          flightLevel: 'FL370',
-          eta: 'Scheduled 16:30 UTC',
-          currentMilestoneIndex: 1,
-        });
-        setNotFound(false);
-      } else {
-        setResult(null);
-        setNotFound(true);
-      }
+      // This static demonstration has no carrier/customs data connection. Never
+      // synthesize operational status for an unknown identifier.
+      setResult(null);
+      setNotFound(true);
     }
   };
 
@@ -249,6 +225,10 @@ export const ConsignmentTracker: React.FC = () => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={dict.tracker.placeholder}
+          aria-label={dict.tracker.placeholder}
+          autoComplete="off"
+          inputMode="text"
+          maxLength={16}
           className="flex-1 rounded-2xl border border-[var(--c-border)] bg-[var(--c-card)] px-5 py-3.5 text-sm text-title placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-sky-400 shadow-sm font-mono"
         />
         <button

@@ -8,19 +8,12 @@ import {
   DoorOpen,
   DoorClosed,
   Eye,
-  Maximize2,
   ZoomIn,
   ZoomOut,
-  Thermometer,
-  ShieldCheck,
-  Package,
   Layers,
   Radio,
   FileCode,
   Sparkles,
-  ChevronRight,
-  ChevronLeft,
-  Info,
 } from 'lucide-react';
 
 interface ULDViewer3DProps {
@@ -64,7 +57,6 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   const [isDoorOpen, setIsDoorOpen] = useState<boolean>(false);
   const [doorProgress, setDoorProgress] = useState<number>(0); // 0 (closed) to 1 (fully open)
   const [isInsideView, setIsInsideView] = useState<boolean>(false);
-  const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
   const [customModelNotice, setCustomModelNotice] = useState<boolean>(false);
 
   // Drag interaction
@@ -328,7 +320,6 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
     } else if (uld.code === 'PMC') {
       // PMC: Heavy Duty 125x96 aircraft flat pallet with loaded cargo & netting
       const w = 1.35;
-      const h = 0.08; // Thin flat aluminum base plate
       const d = 1.05;
 
       // Base Pallet Plate

@@ -405,3 +405,18 @@ select:focus-visible {
     text-shadow: none !important;
   }
 }
+
+/* Keyboard users can bypass the persistent navigation and long cinematic stage. */
+.skip-link {
+  position: fixed;
+  inset-block-start: 0.75rem;
+  inset-inline-start: 0.75rem;
+  z-index: 11000;
+  transform: translateY(-200%);
+  border-radius: 0.75rem;
+  background: #38bdf8;
+  color: #07101c;
+  padding: 0.65rem 1rem;
+  font-weight: 800;
+}
+.skip-link:focus { transform: translateY(0); }

@@ -238,7 +238,7 @@ export const CinematicStage: React.FC = () => {
             muted
             playsInline
             loop={false}
-            preload="auto"
+            preload="metadata"
             aria-hidden="true"
             className={`absolute inset-0 w-full h-full object-cover scale-105 filter brightness-90 contrast-110 transition-opacity duration-700 ease-in-out ${
               isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
@@ -253,7 +253,7 @@ export const CinematicStage: React.FC = () => {
             muted
             playsInline
             loop={false}
-            preload="auto"
+            preload="metadata"
             aria-hidden="true"
             className={`absolute inset-0 w-full h-full object-cover scale-105 filter brightness-100 contrast-105 transition-opacity duration-700 ease-in-out ${
               !isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'

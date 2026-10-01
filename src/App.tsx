@@ -1,88 +1,65 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { NavbarAir } from './components/NavbarAir';
 import { CinematicStage } from './components/CinematicStage';
-import { StatsAir } from './components/StatsAir';
-import { MissionAir } from './components/MissionAir';
-import { CargoVillageFlow } from './components/CargoVillageFlow';
-import { FlightRadarHUD } from './components/FlightRadarHUD';
-import { ULDSelector } from './components/ULDSelector';
-import { CargoSimAir } from './components/CargoSimAir';
-import { CorridorsAir } from './components/CorridorsAir';
-import { ConsignmentTracker } from './components/ConsignmentTracker';
-import { HandshakeAirToLand } from './components/HandshakeAirToLand';
-import { StanceAir } from './components/StanceAir';
-import { FooterAir } from './components/FooterAir';
-import { LegalModalAir } from './components/LegalModalAir';
-import { AwbModalAir } from './components/AwbModalAir';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+const StatsAir = lazy(() => import('./components/StatsAir').then((module) => ({ default: module.StatsAir })));
+const MissionAir = lazy(() => import('./components/MissionAir').then((module) => ({ default: module.MissionAir })));
+const CargoVillageFlow = lazy(() => import('./components/CargoVillageFlow').then((module) => ({ default: module.CargoVillageFlow })));
+const FlightRadarHUD = lazy(() => import('./components/FlightRadarHUD').then((module) => ({ default: module.FlightRadarHUD })));
+const ULDSelector = lazy(() => import('./components/ULDSelector').then((module) => ({ default: module.ULDSelector })));
+const CargoSimAir = lazy(() => import('./components/CargoSimAir').then((module) => ({ default: module.CargoSimAir })));
+const CorridorsAir = lazy(() => import('./components/CorridorsAir').then((module) => ({ default: module.CorridorsAir })));
+const ConsignmentTracker = lazy(() => import('./components/ConsignmentTracker').then((module) => ({ default: module.ConsignmentTracker })));
+const HandshakeAirToLand = lazy(() => import('./components/HandshakeAirToLand').then((module) => ({ default: module.HandshakeAirToLand })));
+const StanceAir = lazy(() => import('./components/StanceAir').then((module) => ({ default: module.StanceAir })));
+const FooterAir = lazy(() => import('./components/FooterAir').then((module) => ({ default: module.FooterAir })));
+const LegalModalAir = lazy(() => import('./components/LegalModalAir').then((module) => ({ default: module.LegalModalAir })));
+const AwbModalAir = lazy(() => import('./components/AwbModalAir').then((module) => ({ default: module.AwbModalAir })));
+
+type LegalTab = 'TERMS' | 'PRIVACY' | 'SECURITY';
+
+function SectionFallback() {
+  return <div className="mx-auto my-8 h-40 max-w-7xl animate-pulse rounded-3xl bg-[var(--c-card)]" aria-hidden="true" />;
+}
 
 export const App: React.FC = () => {
   const [legalModalOpen, setLegalModalOpen] = useState(false);
-  const [legalModalTab, setLegalModalTab] = useState<'TERMS' | 'PRIVACY' | 'SECURITY'>('TERMS');
+  const [legalModalTab, setLegalModalTab] = useState<LegalTab>('TERMS');
   const [awbModalOpen, setAwbModalOpen] = useState(false);
 
-  const handleOpenLegal = (tab: 'TERMS' | 'PRIVACY' | 'SECURITY') => {
+  const openLegal = (tab: LegalTab) => {
     setLegalModalTab(tab);
     setLegalModalOpen(true);
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300">
-      {/* Fixed Navigation Bar */}
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <NavbarAir onOpenAwbModal={() => setAwbModalOpen(true)} />
-
-      {/* Main Content Sections — Restored Session-Start Architecture */}
-      <main className="flex-grow">
-        {/* 1. Cinematic Stage: 320vh Arrival Digital Twin & Runway Video Descent */}
+      <main id="main-content" className="flex-grow" tabIndex={-1}>
         <CinematicStage />
-
-        {/* 2. Key Aviation Standards & Measurable SLAs */}
-        <StatsAir />
-
-        {/* 3. Strategic Mission Pillars */}
-        <MissionAir />
-
-        {/* 4. Cairo Airport Cargo Village 4-Phase Fast-Track Flow */}
-        <CargoVillageFlow />
-
-        {/* 5. Real-Time Flight Vector Radar & Cold-Chain HUD */}
-        <FlightRadarHUD />
-
-        {/* 6. Aircraft Unit Load Device (ULD) Browser */}
-        <ULDSelector />
-
-        {/* 7. Volumetric Weight & Carbon GLEC Calculator */}
-        <CargoSimAir />
-
-        {/* 8. Strategic Egyptian Air Corridors */}
-        <CorridorsAir />
-
-        {/* 9. Consignment Radar & Interactive e-AWB Tracker */}
-        <ConsignmentTracker />
-
-        {/* 10. Air-to-Land Multi-Modal Handshake */}
-        <HandshakeAirToLand />
-
-        {/* 11. Non-Carrier Stance Statement */}
-        <StanceAir />
+        <ErrorBoundary>
+          <Suspense fallback={<SectionFallback />}>
+            <StatsAir />
+            <MissionAir />
+            <CargoVillageFlow />
+            <FlightRadarHUD />
+            <ULDSelector />
+            <CargoSimAir />
+            <CorridorsAir />
+            <ConsignmentTracker />
+            <HandshakeAirToLand />
+            <StanceAir />
+          </Suspense>
+        </ErrorBoundary>
       </main>
-
-      {/* Unified Platform Footer */}
-      <FooterAir onOpenLegal={handleOpenLegal} />
-
-      {/* Modals */}
-      <LegalModalAir
-        isOpen={legalModalOpen}
-        onClose={() => setLegalModalOpen(false)}
-        initialTab={legalModalTab}
-      />
-
-      <AwbModalAir
-        isOpen={awbModalOpen}
-        onClose={() => setAwbModalOpen(false)}
-      />
-
-      {/* Vercel Web Analytics */}
+      <Suspense fallback={null}>
+        <FooterAir onOpenLegal={openLegal} />
+        {legalModalOpen && <LegalModalAir isOpen onClose={() => setLegalModalOpen(false)} initialTab={legalModalTab} />}
+        {awbModalOpen && <AwbModalAir isOpen onClose={() => setAwbModalOpen(false)} />}
+      </Suspense>
       <Analytics />
     </div>
   );

@@ -11,8 +11,6 @@ import {
   RefreshCw,
   FileCheck,
   Activity,
-  Layers,
-  ChevronRight,
   CheckCircle2,
 } from 'lucide-react';
 
@@ -182,7 +180,7 @@ export const FlightRadarHUD: React.FC = () => {
   useEffect(() => {
     if (!isLiveActive) return;
     const interval = setInterval(() => {
-      setCurrentSpeed((prev) => +(activeFlight.speedKts + (Math.random() * 3 - 1.5)).toFixed(0));
+      setCurrentSpeed(() => +(activeFlight.speedKts + (Math.random() * 3 - 1.5)).toFixed(0));
       setCurrentTemp(() => +(activeFlight.tempCelsius + (Math.random() * 0.08 - 0.04)).toFixed(1));
       setCurrentDist((prev) => (prev > 6 ? +(prev - 0.15).toFixed(1) : activeFlight.distanceNm));
       setCurrentAltitude((prev) => (prev > 2800 ? prev - 20 : activeFlight.altitudeFt));
@@ -190,10 +188,6 @@ export const FlightRadarHUD: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [isLiveActive, activeFlight]);
-
-  const coldChainStable = activeFlight.isTempControlled
-    ? currentTemp >= 2 && currentTemp <= 8
-    : true;
 
   return (
     <section id="radar" className="scroll-mt-24 relative py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
