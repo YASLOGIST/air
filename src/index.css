@@ -441,3 +441,27 @@ select:focus-visible {
   from { transform: translateY(-4px); }
   to { transform: translateY(4px); }
 }
+
+/* Sensor bus tiles use color as reinforcement only; labels and values remain explicit. */
+.sensor-tile { background: rgba(2, 8, 18, 0.82); border-color: rgba(148, 163, 184, 0.14); }
+.sensor-cyan { border-color: rgba(34, 211, 238, 0.28); }
+.sensor-cyan .sensor-glow, .sensor-cyan .sensor-level { background: #22d3ee; }
+.sensor-emerald { border-color: rgba(52, 211, 153, 0.28); }
+.sensor-emerald .sensor-glow, .sensor-emerald .sensor-level { background: #34d399; }
+.sensor-amber { border-color: rgba(245, 158, 11, 0.4); }
+.sensor-amber .sensor-glow, .sensor-amber .sensor-level { background: #f59e0b; }
+.sensor-sky { border-color: rgba(56, 189, 248, 0.28); }
+.sensor-sky .sensor-glow, .sensor-sky .sensor-level { background: #38bdf8; }
+.sensor-glow { filter: blur(15px); transform: translateY(80%); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .sensor-level { animation: sensorBreath 2.8s ease-in-out infinite alternate; transform-origin: left; }
+  .sensor-trace { stroke-dasharray: 140; stroke-dashoffset: 140; animation: drawSensorTrace 1.3s var(--ease-out-expo) forwards; }
+  .sensor-pulse-dot { animation: sensorDot 1.5s ease-in-out infinite; transform-origin: center; }
+  .sensor-chart-scan { animation: sensorScan 4s linear infinite; }
+}
+
+@keyframes sensorBreath { to { transform: scaleX(.84); opacity: .65; } }
+@keyframes drawSensorTrace { to { stroke-dashoffset: 0; } }
+@keyframes sensorDot { 50% { opacity: .35; transform: scale(1.8); } }
+@keyframes sensorScan { from { transform: translateX(-120%); } to { transform: translateX(700%); } }
