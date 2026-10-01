@@ -17,6 +17,8 @@ import {
   ScanLine,
   ThermometerSnowflake,
   Box,
+  Maximize2,
+  PanelsTopLeft,
 } from 'lucide-react';
 
 interface ULDViewer3DProps {
@@ -51,6 +53,8 @@ interface PolygonFace {
 export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   const { isRtl } = useLang();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const [isViewportVisible, setIsViewportVisible] = useState(true);
   const prefersReducedMotion = useMemo(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     [],
@@ -66,6 +70,8 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   const [isInsideView, setIsInsideView] = useState<boolean>(false);
   const [customModelNotice, setCustomModelNotice] = useState<boolean>(false);
   const [renderMode, setRenderMode] = useState<'material' | 'thermal' | 'xray'>('material');
+  const [isExploded, setIsExploded] = useState(false);
+  const [explosion, setExplosion] = useState(0);
 
   // Drag interaction
   const isDraggingRef = useRef<boolean>(false);
@@ -76,6 +82,34 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   useEffect(() => () => {
     if (inertiaFrame.current !== null) cancelAnimationFrame(inertiaFrame.current);
   }, []);
+
+  // Suspend the continuous renderer when the model is off-screen.
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => setIsViewportVisible(entry.isIntersecting), { rootMargin: '200px' });
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
+
+  // Smooth exploded assembly inspection without changing the source geometry.
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setExplosion(isExploded ? 1 : 0);
+      return;
+    }
+    let frame = 0;
+    const target = isExploded ? 1 : 0;
+    let position = explosion;
+    const animate = () => {
+      position += (target - position) * 0.12;
+      const complete = Math.abs(target - position) < 0.004;
+      setExplosion(complete ? target : position);
+      if (!complete) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [isExploded, prefersReducedMotion]);
 
   // Critically damped hinge motion gives the insulated door believable mass.
   useEffect(() => {
@@ -742,7 +776,13 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
     // Calculate face depth for Painter's algorithm (Back to Front)
     const sortedFaces = faces
       .map((face) => {
-        const proj = face.pts.map(project);
+        const center = face.pts.reduce((sum, point) => ({ x: sum.x + point.x / face.pts.length, y: sum.y + point.y / face.pts.length, z: sum.z + point.z / face.pts.length }), { x: 0, y: 0, z: 0 });
+        const separation = explosion * 0.28;
+        const proj = face.pts.map((point) => project({
+          x: point.x + center.x * separation,
+          y: point.y + center.y * separation,
+          z: point.z + center.z * separation,
+        }));
         const avgZ = proj.reduce((sum, p) => sum + p.z, 0) / proj.length;
 
         // Calculate normal for lighting/culling
@@ -1027,10 +1067,39 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       ctx.textBaseline = 'middle';
       ctx.fillText(h.label, p.x, p.y - 19);
     });
-  }, [faces, rotationX, rotationY, zoom, isInsideView, uld.activeCooling, uld.volumeCbm, uld.maxGrossWeightKg, uld.tareWeightKg, prefersReducedMotion, doorProgress, renderMode]);
+  }, [faces, rotationX, rotationY, zoom, isInsideView, uld.activeCooling, uld.volumeCbm, uld.maxGrossWeightKg, uld.tareWeightKg, prefersReducedMotion, doorProgress, renderMode, explosion]);
+
+  const handleViewerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 0.18 : 0.08;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      setIsAutoRotate(false);
+      setRotationY((value) => value + (event.key === 'ArrowLeft' ? -step : step));
+    } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      setRotationX((value) => Math.max(-1.2, Math.min(1.2, value + (event.key === 'ArrowUp' ? -step : step))));
+    } else if (event.key === '+' || event.key === '=') {
+      setZoom((value) => Math.min(2.8, value + 0.15));
+    } else if (event.key === '-') {
+      setZoom((value) => Math.max(0.6, value - 0.15));
+    } else if (event.key.toLowerCase() === 'e') {
+      setIsExploded((value) => !value);
+    } else if (event.key.toLowerCase() === 'd') {
+      setIsDoorOpen((value) => !value);
+    }
+  };
+
+  const openFullscreen = async () => {
+    try {
+      await viewportRef.current?.requestFullscreen?.();
+    } catch {
+      // Fullscreen can be blocked by embedding/browser policy; normal view remains.
+    }
+  };
 
   // Request Animation Frame on render dependency change
   useEffect(() => {
+    if (!isViewportVisible) return;
     let animId: number;
     const update = () => {
       render();
@@ -1038,7 +1107,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
     };
     animId = requestAnimationFrame(update);
     return () => cancelAnimationFrame(animId);
-  }, [render]);
+  }, [render, isViewportVisible]);
 
   return (
     <div className="relative rounded-3xl border border-cyan-500/30 bg-[#060b14] overflow-hidden shadow-2xl flex flex-col">
@@ -1116,7 +1185,13 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       </div>
 
       {/* Main Canvas Viewport with Touch/Mouse Interaction */}
-      <div className="uld-studio relative h-[420px] sm:h-[500px] w-full cursor-grab active:cursor-grabbing select-none overflow-hidden">
+      <div
+        ref={viewportRef}
+        tabIndex={0}
+        onKeyDown={handleViewerKeyDown}
+        aria-label="Interactive 3D viewer. Use arrow keys to orbit, plus and minus to zoom, D for door, and E for exploded view."
+        className="uld-studio relative h-[420px] sm:h-[500px] w-full cursor-grab active:cursor-grabbing select-none overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300"
+      >
         <div className="uld-studio-beam absolute inset-0 pointer-events-none" aria-hidden="true" />
         <div className="absolute left-3 top-3 h-8 w-8 border-l border-t border-cyan-300/40 pointer-events-none" aria-hidden="true" />
         <div className="absolute right-3 top-3 h-8 w-8 border-r border-t border-cyan-300/40 pointer-events-none" aria-hidden="true" />
@@ -1169,7 +1244,20 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
               <span className="hidden md:inline">{label}</span>
             </button>
           ))}
+          <span className="mx-0.5 h-4 w-px bg-white/15" />
+          <button type="button" aria-pressed={isExploded} onClick={() => setIsExploded((value) => !value)} className={`flex items-center gap-1 rounded-lg px-2 py-1.5 transition ${isExploded ? 'bg-amber-300 text-slate-950' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`} title="Exploded assembly view (E)">
+            <PanelsTopLeft className="h-3 w-3" /><span className="hidden lg:inline">EXPLODE</span>
+          </button>
+          <button type="button" onClick={openFullscreen} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white" title="Fullscreen inspection">
+            <Maximize2 className="h-3 w-3" />
+          </button>
         </div>
+
+        {isExploded && (
+          <div className="pointer-events-none absolute left-1/2 top-16 z-20 -translate-x-1/2 rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 font-mono text-[8px] tracking-[.16em] text-amber-200 backdrop-blur" dir="ltr">
+            ASSEMBLY SEPARATION {Math.round(explosion * 100)}% · E TO COLLAPSE
+          </div>
+        )}
 
         {renderMode === 'thermal' && (
           <div className="pointer-events-none absolute right-4 top-20 z-20 hidden rounded-xl border border-white/10 bg-black/55 p-2 font-mono text-[8px] text-white backdrop-blur sm:block" dir="ltr">
