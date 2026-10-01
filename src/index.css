@@ -484,3 +484,11 @@ select:focus-visible {
   .uld-studio-beam { animation: studioBeam 9s ease-in-out infinite alternate; }
 }
 @keyframes studioBeam { to { transform: translateX(4%) rotate(2deg); opacity: .55; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .xray-scan-plane { animation: xrayTraverse 3.8s ease-in-out infinite alternate; }
+}
+@keyframes xrayTraverse {
+  from { transform: translateX(-100%); opacity: .35; }
+  to { transform: translateX(calc(100vw - 5rem)); opacity: .85; }
+}

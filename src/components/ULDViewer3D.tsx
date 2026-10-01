@@ -14,6 +14,9 @@ import {
   Radio,
   FileCode,
   Sparkles,
+  ScanLine,
+  ThermometerSnowflake,
+  Box,
 } from 'lucide-react';
 
 interface ULDViewer3DProps {
@@ -62,6 +65,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   const [doorProgress, setDoorProgress] = useState<number>(0); // 0 (closed) to 1 (fully open)
   const [isInsideView, setIsInsideView] = useState<boolean>(false);
   const [customModelNotice, setCustomModelNotice] = useState<boolean>(false);
+  const [renderMode, setRenderMode] = useState<'material' | 'thermal' | 'xray'>('material');
 
   // Drag interaction
   const isDraggingRef = useRef<boolean>(false);
@@ -806,19 +810,30 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
         );
         const metal = ctx.createLinearGradient(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY);
-        metal.addColorStop(0, face.color);
-        metal.addColorStop(0.42, face.color);
-        metal.addColorStop(0.52, uld.code === 'RKN' ? 'rgba(45,212,191,.34)' : 'rgba(125,211,252,.22)');
-        metal.addColorStop(0.62, face.color);
-        metal.addColorStop(1, '#06111b');
+        if (renderMode === 'thermal') {
+          metal.addColorStop(0, '#312e81');
+          metal.addColorStop(0.35, '#0891b2');
+          metal.addColorStop(0.62, '#14b8a6');
+          metal.addColorStop(0.82, '#f59e0b');
+          metal.addColorStop(1, '#ef4444');
+        } else {
+          metal.addColorStop(0, face.color);
+          metal.addColorStop(0.42, face.color);
+          metal.addColorStop(0.52, uld.code === 'RKN' ? 'rgba(45,212,191,.34)' : 'rgba(125,211,252,.22)');
+          metal.addColorStop(0.62, face.color);
+          metal.addColorStop(1, '#06111b');
+        }
+        ctx.save();
+        if (renderMode === 'xray') ctx.globalAlpha = 0.18;
         ctx.fillStyle = metal;
         ctx.fill();
+        ctx.restore();
 
         // Fine brushed-metal highlight without image assets.
         ctx.save();
         ctx.clip();
-        ctx.globalAlpha = 0.08;
-        ctx.strokeStyle = '#ffffff';
+        ctx.globalAlpha = renderMode === 'material' ? 0.08 : 0.14;
+        ctx.strokeStyle = renderMode === 'thermal' ? '#fef08a' : '#ffffff';
         ctx.lineWidth = 0.5;
         for (let x = bounds.minX; x < bounds.maxX; x += 7) {
           ctx.beginPath();
@@ -830,9 +845,11 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       }
 
       if (face.strokeColor) {
-        ctx.strokeStyle = face.strokeColor;
-        ctx.lineWidth = face.lineWidth || 1;
+        ctx.strokeStyle = renderMode === 'xray' ? 'rgba(103,232,249,.9)' : renderMode === 'thermal' ? 'rgba(254,240,138,.72)' : face.strokeColor;
+        ctx.lineWidth = renderMode === 'xray' ? 1.1 : face.lineWidth || 1;
+        ctx.setLineDash(renderMode === 'xray' ? [4, 3] : []);
         ctx.stroke();
+        ctx.setLineDash([]);
       }
 
       // Render face label if available and face is facing camera
@@ -1010,7 +1027,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       ctx.textBaseline = 'middle';
       ctx.fillText(h.label, p.x, p.y - 19);
     });
-  }, [faces, rotationX, rotationY, zoom, isInsideView, uld.activeCooling, uld.volumeCbm, uld.maxGrossWeightKg, uld.tareWeightKg, prefersReducedMotion, doorProgress]);
+  }, [faces, rotationX, rotationY, zoom, isInsideView, uld.activeCooling, uld.volumeCbm, uld.maxGrossWeightKg, uld.tareWeightKg, prefersReducedMotion, doorProgress, renderMode]);
 
   // Request Animation Frame on render dependency change
   useEffect(() => {
@@ -1130,6 +1147,43 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
               <span className="mx-2">2000 mm · DIGITAL SCALE</span>
               <span className="h-px flex-1 bg-cyan-300/30" />
               <span className="h-2 border-r border-cyan-300/40" />
+            </div>
+          </>
+        )}
+
+        {/* Smart visualization layers */}
+        <div className="absolute left-1/2 top-4 z-20 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-cyan-300/20 bg-[#030912]/75 p-1 font-mono text-[9px] shadow-2xl backdrop-blur-xl" dir="ltr">
+          {[
+            { id: 'material' as const, label: 'MATERIAL', icon: Box },
+            { id: 'thermal' as const, label: 'THERMAL', icon: ThermometerSnowflake },
+            { id: 'xray' as const, label: 'X-RAY', icon: ScanLine },
+          ].map(({ id, label, icon: ModeIcon }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={renderMode === id}
+              onClick={() => setRenderMode(id)}
+              className={`flex items-center gap-1 rounded-lg px-2 py-1.5 transition ${renderMode === id ? 'bg-cyan-300 text-slate-950 shadow-[0_0_15px_rgba(103,232,249,.4)]' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}
+            >
+              <ModeIcon className="h-3 w-3" />
+              <span className="hidden md:inline">{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {renderMode === 'thermal' && (
+          <div className="pointer-events-none absolute right-4 top-20 z-20 hidden rounded-xl border border-white/10 bg-black/55 p-2 font-mono text-[8px] text-white backdrop-blur sm:block" dir="ltr">
+            <span className="block mb-1 tracking-wider">SURFACE THERMAL MAP · SIM</span>
+            <div className="h-2 w-28 rounded-full bg-gradient-to-r from-indigo-800 via-cyan-500 to-red-500" />
+            <div className="mt-1 flex justify-between text-slate-400"><span>2°C</span><span>8°C</span><span>24°C</span></div>
+          </div>
+        )}
+
+        {renderMode === 'xray' && (
+          <>
+            <div className="xray-scan-plane pointer-events-none absolute inset-y-12 z-10 w-20 bg-gradient-to-r from-transparent via-cyan-200/15 to-transparent" aria-hidden="true" />
+            <div className="pointer-events-none absolute right-4 top-20 z-20 hidden rounded-xl border border-cyan-300/20 bg-cyan-950/30 px-3 py-2 font-mono text-[8px] tracking-wider text-cyan-200 backdrop-blur sm:block" dir="ltr">
+              SHELL OPACITY 18% · PAYLOAD / AIRFLOW VISIBLE
             </div>
           </>
         )}
