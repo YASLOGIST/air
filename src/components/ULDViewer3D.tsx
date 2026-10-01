@@ -605,6 +605,15 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
     const width = canvas.width;
     const height = canvas.height;
     ctx.clearRect(0, 0, width, height);
+    const now = performance.now();
+
+    // Deep studio environment with a soft overhead key light.
+    const backdrop = ctx.createRadialGradient(width * 0.5, height * 0.36, 10, width * 0.5, height * 0.48, width * 0.72);
+    backdrop.addColorStop(0, uld.code === 'RKN' ? '#10303a' : '#102638');
+    backdrop.addColorStop(0.48, '#07121f');
+    backdrop.addColorStop(1, '#02060c');
+    ctx.fillStyle = backdrop;
+    ctx.fillRect(0, 0, width, height);
 
     // Camera transformation matrices
     const cx = width / 2;
@@ -662,6 +671,14 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       })
       .sort((a, b) => b.depth - a.depth);
 
+    // Contact shadow anchors the container to the loading-bay floor.
+    const shadow = ctx.createRadialGradient(cx, cy + height * 0.24, 8, cx, cy + height * 0.24, width * 0.28 * zoom);
+    shadow.addColorStop(0, 'rgba(0,0,0,.78)');
+    shadow.addColorStop(0.55, 'rgba(3,105,161,.12)');
+    shadow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = shadow;
+    ctx.fillRect(0, cy, width, height - cy);
+
     // Draw grid floor in 3D
     const floorY = 0.85;
     const gridSize = 2.0;
@@ -698,8 +715,32 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       ctx.closePath();
 
       if (!face.isWireframe) {
-        ctx.fillStyle = face.color;
+        const bounds = pts.reduce(
+          (acc, point) => ({ minX: Math.min(acc.minX, point.x), maxX: Math.max(acc.maxX, point.x), minY: Math.min(acc.minY, point.y), maxY: Math.max(acc.maxY, point.y) }),
+          { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
+        );
+        const metal = ctx.createLinearGradient(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY);
+        metal.addColorStop(0, face.color);
+        metal.addColorStop(0.42, face.color);
+        metal.addColorStop(0.52, uld.code === 'RKN' ? 'rgba(45,212,191,.34)' : 'rgba(125,211,252,.22)');
+        metal.addColorStop(0.62, face.color);
+        metal.addColorStop(1, '#06111b');
+        ctx.fillStyle = metal;
         ctx.fill();
+
+        // Fine brushed-metal highlight without image assets.
+        ctx.save();
+        ctx.clip();
+        ctx.globalAlpha = 0.08;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.5;
+        for (let x = bounds.minX; x < bounds.maxX; x += 7) {
+          ctx.beginPath();
+          ctx.moveTo(x, bounds.minY);
+          ctx.lineTo(x + 22, bounds.maxY);
+          ctx.stroke();
+        }
+        ctx.restore();
       }
 
       if (face.strokeColor) {
@@ -722,11 +763,83 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       }
     });
 
+    // Envirotainer-specific industrial detail: controller, vents, hinges and fasteners.
+    if (uld.code === 'RKN') {
+      const panelCorners = [
+        project({ x: 0.22, y: -0.48, z: 0.86 }), project({ x: 0.72, y: -0.48, z: 0.86 }),
+        project({ x: 0.72, y: -0.12, z: 0.86 }), project({ x: 0.22, y: -0.12, z: 0.86 }),
+      ];
+      ctx.beginPath();
+      ctx.moveTo(panelCorners[0].x, panelCorners[0].y);
+      panelCorners.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+      ctx.closePath();
+      const panelGlow = ctx.createLinearGradient(panelCorners[0].x, panelCorners[0].y, panelCorners[2].x, panelCorners[2].y);
+      panelGlow.addColorStop(0, '#071018');
+      panelGlow.addColorStop(1, '#123540');
+      ctx.fillStyle = panelGlow;
+      ctx.fill();
+      ctx.strokeStyle = '#5eead4';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      const screen = project({ x: 0.47, y: -0.31, z: 0.88 });
+      ctx.shadowColor = '#2dd4bf';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#34d399';
+      ctx.font = 'bold 11px "IBM Plex Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('+4.2°C', screen.x, screen.y);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#99f6e4';
+      ctx.font = '6px "IBM Plex Mono", monospace';
+      ctx.fillText('ACTIVE SETPOINT', screen.x, screen.y + 10);
+
+      // Compressor vent slots follow the roof perspective.
+      for (let index = 0; index < 7; index++) {
+        const a = project({ x: -0.56 + index * 0.17, y: -0.815, z: -0.35 });
+        const b = project({ x: -0.56 + index * 0.17, y: -0.815, z: 0.22 });
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = index % 2 ? 'rgba(94,234,212,.65)' : 'rgba(8,47,73,.9)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+
+      // Stainless fasteners around the front frame.
+      const rivets: Point3D[] = [];
+      for (const x of [-0.78, 0.78]) for (let y = -0.66; y <= 0.66; y += 0.22) rivets.push({ x, y, z: 0.865 });
+      for (const y of [-0.7, 0.7]) for (let x = -0.56; x <= 0.56; x += 0.22) rivets.push({ x, y, z: 0.865 });
+      rivets.forEach((point) => {
+        const rivet = project(point);
+        ctx.beginPath();
+        ctx.arc(rivet.x, rivet.y, 1.25, 0, Math.PI * 2);
+        ctx.fillStyle = '#d7f9ff';
+        ctx.fill();
+      });
+
+      // Visible cold-air circulation when the insulated door is open.
+      if (doorProgress > 0.15) {
+        for (let index = 0; index < 12; index++) {
+          const phase = (now * 0.00018 + index / 12) % 1;
+          const particle = project({
+            x: -0.5 + (index % 4) * 0.32 + Math.sin(now * 0.001 + index) * 0.04,
+            y: 0.52 - phase * 1.05,
+            z: 0.48 + phase * 0.62,
+          });
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, 1.5 + phase * 2, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(103,232,249,${(1 - phase) * doorProgress * 0.55})`;
+          ctx.fill();
+        }
+      }
+    }
+
     // Draw Active Sensor Hotspot Beacons in 3D
     const hotspots = [
       {
         id: 'temp',
-        label: uld.activeCooling ? '+4.2°C (GDP STABLE)' : 'AMBIENT HOLD',
+        label: uld.activeCooling ? '+4.2°C · SIM' : 'AMBIENT HOLD',
         pos: { x: 0, y: -0.1, z: 0.1 },
         color: uld.activeCooling ? '#2dd4bf' : '#38bdf8',
       },
@@ -738,7 +851,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       },
       {
         id: 'acid',
-        label: 'NAFEZA ACID MATCHED',
+        label: 'ACID REF · DEMO',
         pos: { x: 0.3, y: 0.35, z: 0.2 },
         color: '#34d399',
       },
@@ -753,7 +866,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       ctx.fill();
 
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 9 + Math.sin(now * 0.004 + h.pos.x * 4) * 3, 0, Math.PI * 2);
       ctx.strokeStyle = h.color;
       ctx.lineWidth = 1.5;
       ctx.stroke();
@@ -862,7 +975,10 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       </div>
 
       {/* Main Canvas Viewport with Touch/Mouse Interaction */}
-      <div className="relative h-[380px] sm:h-[440px] w-full cursor-grab active:cursor-grabbing select-none overflow-hidden">
+      <div className="uld-studio relative h-[420px] sm:h-[500px] w-full cursor-grab active:cursor-grabbing select-none overflow-hidden">
+        <div className="uld-studio-beam absolute inset-0 pointer-events-none" aria-hidden="true" />
+        <div className="absolute left-3 top-3 h-8 w-8 border-l border-t border-cyan-300/40 pointer-events-none" aria-hidden="true" />
+        <div className="absolute right-3 top-3 h-8 w-8 border-r border-t border-cyan-300/40 pointer-events-none" aria-hidden="true" />
         <canvas
           ref={canvasRef}
           width={800}
@@ -875,8 +991,15 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          aria-label={`Interactive simulated 3D digital twin of ${uld.code} air cargo container`}
           className="w-full h-full object-cover"
         />
+        {uld.code === 'RKN' && (
+          <div className="pointer-events-none absolute right-4 top-4 hidden text-right font-mono sm:block" dir="ltr">
+            <span className="block text-[9px] tracking-[.22em] text-teal-300/70">ENVIROTAINER · ACTIVE UNIT</span>
+            <span className="mt-1 block text-[8px] text-slate-500">INSULATED SHELL / REDUNDANT COOLING / SIMULATION</span>
+          </div>
+        )}
 
         {/* Floating Telemetry & Information HUD on Canvas */}
         <div className="absolute top-4 left-4 rtl:left-auto rtl:right-4 z-10 pointer-events-none space-y-2">
