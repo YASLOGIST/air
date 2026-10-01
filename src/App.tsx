@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Analytics } from '@vercel/analytics/react';
 import { NavbarAir } from './components/NavbarAir';
 import { CinematicStage } from './components/CinematicStage';
 import { StatsAir } from './components/StatsAir';
@@ -15,6 +14,7 @@ import { StanceAir } from './components/StanceAir';
 import { FooterAir } from './components/FooterAir';
 import { LegalModalAir } from './components/LegalModalAir';
 import { AwbModalAir } from './components/AwbModalAir';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
 
 export const App: React.FC = () => {
   const [legalModalOpen, setLegalModalOpen] = useState(false);
@@ -32,7 +32,9 @@ export const App: React.FC = () => {
       <NavbarAir onOpenAwbModal={() => setAwbModalOpen(true)} />
 
       {/* Main Content Sections — Restored Session-Start Architecture */}
-      <main className="flex-grow">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
+      <AppErrorBoundary>
+        <main id="main-content" className="flex-grow">
         {/* 1. Cinematic Stage: 320vh Arrival Digital Twin & Runway Video Descent */}
         <CinematicStage />
 
@@ -65,7 +67,8 @@ export const App: React.FC = () => {
 
         {/* 11. Non-Carrier Stance Statement */}
         <StanceAir />
-      </main>
+        </main>
+      </AppErrorBoundary>
 
       {/* Unified Platform Footer */}
       <FooterAir onOpenLegal={handleOpenLegal} />
@@ -82,8 +85,6 @@ export const App: React.FC = () => {
         onClose={() => setAwbModalOpen(false)}
       />
 
-      {/* Vercel Web Analytics */}
-      <Analytics />
     </div>
   );
 };

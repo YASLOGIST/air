@@ -10,7 +10,6 @@ import {
   PlaneTakeoff,
   Building2,
   Truck,
-  Sparkles,
 } from 'lucide-react';
 import { useLang } from '../lib/i18n';
 import { ModelBadge } from './ModelBadge';

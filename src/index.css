@@ -405,3 +405,20 @@ select:focus-visible {
     text-shadow: none !important;
   }
 }
+
+
+/* Keyboard users can bypass the long cinematic landing sequence. */
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: -4rem;
+  z-index: var(--z-modal);
+  padding: .65rem 1rem;
+  border-radius: .5rem;
+  background: var(--c-accent);
+  color: #04111c;
+  font-weight: 700;
+  transition: top var(--dur-fast) var(--ease-out-expo);
+}
+.skip-link:focus { top: 1rem; }
+:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 3px; }
