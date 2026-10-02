@@ -38,6 +38,12 @@ export interface AirCalculationInput {
   heightCm: number;
   grossWeightKg: number;
   distanceKm: number;
+  /**
+   * Number of identical pieces in the consignment. Defaults to 1 so every
+   * existing single-piece call site keeps its exact behaviour. Volume,
+   * volumetric weight, chargeable weight, carbon and cost all scale with it.
+   */
+  pieces?: number;
   /** Omitted when the distance is set freehand and no corridor is selected. */
   seaLane?: SeaLaneBenchmark | null;
 }
@@ -56,17 +62,36 @@ export interface OceanComparison {
 }
 
 export interface AirCalculationOutput {
+  /** Echo of the piece count the totals below were computed for. */
+  pieces: number;
+  /** Total consignment volume across all pieces. */
   volumeCbm: number;
+  /** Total consignment volumetric weight across all pieces. */
   volumetricWeightKg: number;
+  /** Total consignment gross (scale) weight across all pieces. */
+  totalGrossWeightKg: number;
   chargeableWeightKg: number;
   billingBasis: BillingBasis;
   freightClass: FreightDensityClass;
   ratioActualToVolume: number;
+  /** Stowed density of the consignment in kg per cubic metre (167 is the IATA pivot). */
+  densityKgPerCbm: number;
   estimatedCo2Tonnes: number;
   /** Airport-to-airport block time. Excludes pickup, handling and delivery. */
   airportBlockHours: number;
   /** null when no sea lane was supplied, so no comparison is shown rather than invented. */
   oceanComparison: OceanComparison | null;
+}
+
+/**
+ * Approximate usable internal envelope of a ULD in centimetres.
+ * Published airline figures vary by a few cm between manufacturers; these are
+ * conservative planning values for the fit simulation, not stowage guarantees.
+ */
+export interface UldInternalEnvelopeCm {
+  lengthCm: number;
+  widthCm: number;
+  heightCm: number;
 }
 
 export interface ULDContainer {
@@ -89,6 +114,34 @@ export interface ULDContainer {
   descriptionAr: string;
   dimensionsEn: string;
   dimensionsAr: string;
+  /** Usable internal envelope used by the load-fit engine. */
+  internalCm: UldInternalEnvelopeCm;
+}
+
+/** Reasons a ULD can be excluded by the load-fit engine, in check order. */
+export type UldFitBlocker =
+  | 'NO_ACTIVE_COOLING' // cool-chain consignment in a passive unit
+  | 'PIECE_TOO_LARGE' // a single piece exceeds the internal envelope in every allowed orientation
+  | 'OVER_PAYLOAD' // total gross weight exceeds max gross minus tare
+  | 'OVER_VOLUME'; // total volume exceeds the practical stowage limit
+
+export interface UldFitAssessment {
+  uld: ULDContainer;
+  fits: boolean;
+  blockers: UldFitBlocker[];
+  /** Total consignment volume as % of the unit's rated internal volume (may exceed 100). */
+  volumeUtilizationPct: number;
+  /** Total gross weight as % of the unit's net payload (max gross − tare; may exceed 100). */
+  payloadUtilizationPct: number;
+  /** Net payload the unit can legally lift (max gross − tare), kg. */
+  netPayloadKg: number;
+}
+
+export interface UldRecommendation {
+  /** Every unit in the fleet, assessed, in fleet order. */
+  assessments: UldFitAssessment[];
+  /** The smallest fitting unit (ties broken by higher volume utilization), or null. */
+  best: UldFitAssessment | null;
 }
 
 export interface AirCorridor {

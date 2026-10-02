@@ -1,8 +1,8 @@
 import React, { useId, useState } from 'react';
 import { useLang } from '../lib/i18n';
-import { validateIataAwb, lookupAirlineByPrefix } from '../lib/air-math';
+import { validateIataAwb, lookupAirlineByPrefix, suggestAwbCorrection, computeAwbCheckDigit } from '../lib/air-math';
 import { useDialog } from '../lib/a11y';
-import { FileCheck, Search, CheckCircle2, AlertCircle, X, Sparkles } from 'lucide-react';
+import { FileCheck, Search, CheckCircle2, AlertCircle, X, Sparkles, Wand2 } from 'lucide-react';
 
 interface AwbModalAirProps {
   isOpen: boolean;
@@ -29,6 +29,14 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
   };
 
   const airline = lookupAirlineByPrefix(awbInput);
+  const suggestion = result === false ? suggestAwbCorrection(awbInput) : null;
+  const expectedCheckDigit = suggestion ? computeAwbCheckDigit(suggestion.replace('-', '').slice(3, 10)) : null;
+
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    setAwbInput(suggestion);
+    setResult(validateIataAwb(suggestion));
+  };
 
   return (
     <div
@@ -164,6 +172,28 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
                 </>
               )}
             </div>
+
+            {!result && suggestion && (
+              <div className="pt-2 border-t border-rose-500/20 space-y-2 text-[11px]">
+                <p className="text-muted">
+                  {isRtl
+                    ? `رقم التحقق الصحيح لهذا التسلسل هو ${expectedCheckDigit} (باقي قسمة التسلسل على 7).`
+                    : `The correct check digit for this serial is ${expectedCheckDigit} (serial mod 7).`}
+                </p>
+                <button
+                  type="button"
+                  onClick={applySuggestion}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 font-bold hover:bg-cyan-500/20 transition-colors"
+                >
+                  <Wand2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>
+                    {isRtl ? 'هل تقصد' : 'Did you mean'}{' '}
+                    <span dir="ltr" className="font-mono">{suggestion}</span>
+                    {isRtl ? '؟' : '?'}
+                  </span>
+                </button>
+              </div>
+            )}
 
             {result && (
               <div className="pt-2 border-t border-emerald-500/20 space-y-1.5 text-[11px] text-muted">

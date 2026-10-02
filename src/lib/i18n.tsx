@@ -100,6 +100,23 @@ export interface Dict {
     tradeoffDesc: string;
     transitAir: string;
     transitOcean: string;
+    pieces: string;
+    piecesUnit: string;
+    density: string;
+    densityPivotNote: string;
+    uldRecTitle: string;
+    uldRecBadge: string;
+    uldRecNone: string;
+    uldRecNoneHint: string;
+    uldRecVolumeUse: string;
+    uldRecPayloadUse: string;
+    uldRecNetPayload: string;
+    uldRecViewFleet: string;
+    uldRecStowageNote: string;
+    blockerCooling: string;
+    blockerTooLarge: string;
+    blockerPayload: string;
+    blockerVolume: string;
   };
   uld: {
     sectionBadge: string;
@@ -109,6 +126,8 @@ export interface Dict {
     tare: string;
     maxWeight: string;
     volume: string;
+    netPayload: string;
+    internalEnvelope: string;
     activeCoolingBadge: string;
     passiveBadge: string;
     aircraftSuitability: string;
@@ -352,6 +371,23 @@ export const DICTIONARY: Record<Language, Dict> = {
       tradeoffDesc: 'Air freight provides immediate time advantage for shelf-life critical and urgent goods while generating higher specific carbon per tonne-km.',
       transitAir: 'Airport-to-Airport Block Time',
       transitOcean: 'Sea Transit, Port to Port',
+      pieces: 'Piece Count (Identical Packages)',
+      piecesUnit: 'PCS',
+      density: 'Stowed Density',
+      densityPivotNote: '166.7 kg/m³ is the IATA pivot: lighter bills volumetric, denser bills gross.',
+      uldRecTitle: 'ULD Load-Fit Recommendation',
+      uldRecBadge: 'BUILD-UP PLANNER',
+      uldRecNone: 'No single unit in the fleet can take this consignment.',
+      uldRecNoneHint: 'Split across multiple units, reduce piece count, or check dimensions against the pallet envelope.',
+      uldRecVolumeUse: 'Volume Utilization',
+      uldRecPayloadUse: 'Payload Utilization',
+      uldRecNetPayload: 'Net Payload',
+      uldRecViewFleet: 'Inspect this unit in the ULD fleet',
+      uldRecStowageNote: 'Fit verdicts keep a 10% broken-stowage reserve; final build-up is governed by carrier stowage rules.',
+      blockerCooling: 'No active cooling (GDP cool-chain required)',
+      blockerTooLarge: 'Piece exceeds the internal envelope',
+      blockerPayload: 'Exceeds net payload (max gross − tare)',
+      blockerVolume: 'Exceeds practical stowage volume',
     },
     uld: {
       sectionBadge: 'Aircraft Unit Load Devices',
@@ -362,6 +398,8 @@ export const DICTIONARY: Record<Language, Dict> = {
       tare: 'Tare Weight',
       maxWeight: 'Max Gross Weight',
       volume: 'Internal Volume',
+      netPayload: 'Net Payload (Max − Tare)',
+      internalEnvelope: 'Usable Internal Envelope (Planning)',
       activeCoolingBadge: 'Active Climate Control',
       passiveBadge: 'Ambient Cargo Structure',
       aircraftSuitability: 'Compatible Aircraft Types',
@@ -626,6 +664,23 @@ export const DICTIONARY: Record<Language, Dict> = {
       tradeoffDesc: 'يوفر الشحن الجوي ميزة زمنية فورية للبضائع الحساسة والطارئة، في مقابل انبعاثات كربونية أعلى لكل طن/كم.',
       transitAir: 'زمن الطيران من مطار لمطار',
       transitOcean: 'زمن الإبحار من ميناء لميناء',
+      pieces: 'عدد الطرود المتماثلة',
+      piecesUnit: 'طرد',
+      density: 'الكثافة التستيفية',
+      densityPivotNote: '166.7 كجم/م³ هو محور معيار IATA: الأخف يُحسب حجمياً، والأثقل يُحسب على الوزن الفعلي.',
+      uldRecTitle: 'توصية حاوية التحميل (ULD) المناسبة',
+      uldRecBadge: 'مخطط بناء الحمولة',
+      uldRecNone: 'لا توجد وحدة واحدة في الأسطول تستوعب هذه الشحنة كاملة.',
+      uldRecNoneHint: 'قسّم الشحنة على عدة وحدات، أو قلّل عدد الطرود، أو راجع الأبعاد مقابل غلاف المنصة.',
+      uldRecVolumeUse: 'نسبة استغلال الحجم',
+      uldRecPayloadUse: 'نسبة استغلال الحمولة',
+      uldRecNetPayload: 'صافي الحمولة',
+      uldRecViewFleet: 'استعرض هذه الوحدة في أسطول الحاويات',
+      uldRecStowageNote: 'أحكام الملاءمة تحتفظ باحتياطي تستيف 10٪؛ البناء النهائي تحكمه قواعد التستيف لدى الناقل.',
+      blockerCooling: 'لا يوجد تبريد نشط (الشحنة تتطلب سلسلة تبريد GDP)',
+      blockerTooLarge: 'أبعاد الطرد تتجاوز الغلاف الداخلي للوحدة',
+      blockerPayload: 'الوزن يتجاوز صافي الحمولة (الإجمالي − وزن الوحدة فارغة)',
+      blockerVolume: 'الحجم يتجاوز سعة التستيف العملية',
     },
     uld: {
       sectionBadge: 'حاويات ومنصات الطائرات القياسية',
@@ -636,6 +691,8 @@ export const DICTIONARY: Record<Language, Dict> = {
       tare: 'وزن الحاوية فارغة',
       maxWeight: 'أقصى وزن إجمالي مسموح',
       volume: 'السعة الداخلية',
+      netPayload: 'صافي الحمولة (الإجمالي − الفارغ)',
+      internalEnvelope: 'الغلاف الداخلي الصالح للتحميل (تخطيطي)',
       activeCoolingBadge: 'تبريد نشط إلكتروني',
       passiveBadge: 'شحن بدرجات الحرارة العادية',
       aircraftSuitability: 'الطائرات المتوافقة',
