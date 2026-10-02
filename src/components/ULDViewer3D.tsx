@@ -56,6 +56,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   const [isExploded, setIsExploded] = useState(false);
   const [customModelNotice, setCustomModelNotice] = useState(false);
   const [stats, setStats] = useState<SceneStats | null>(null);
+  const [contextLost, setContextLost] = useState(false);
 
   // Hotspot overlay elements — written by the scene's projection, never by React state.
   const tempHotspotRef = useRef<HTMLDivElement | null>(null);
@@ -81,6 +82,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
     }
     sceneRef.current = scene;
     scene.onStats(setStats);
+    scene.onContextChange(setContextLost);
     scene.setModel(toUldCode(uld.code));
     scene.setAutoRotate(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -287,6 +289,28 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           aria-label={`Interactive WebGL digital twin of ${uld.code} air cargo container`}
           className="block h-full w-full touch-none"
         />
+
+        {/* GPU-reset recovery: the context can drop mid-session (driver
+            reset, thermal throttling, a backgrounded mobile tab reclaiming
+            VRAM) and restore a moment later. Rather than leaving a frozen
+            last frame with no explanation, say so — the scene itself pauses
+            its loop and resumes automatically once the browser restores. */}
+        {contextLost && !webGlFailed && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="absolute inset-0 z-20 grid place-items-center bg-[#060b14]/90 backdrop-blur-sm"
+          >
+            <div className="flex items-center gap-2.5 rounded-full border border-amber-400/30 bg-black/60 px-4 py-2 font-mono text-[11px] text-amber-200">
+              <Cpu className="h-3.5 w-3.5 animate-pulse" />
+              <span>
+                {isRtl
+                  ? 'انقطع عارض الرسوميات مؤقتاً — جارٍ إعادة الاتصال تلقائياً…'
+                  : 'Graphics context lost — reconnecting the 3D renderer…'}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* DOM hotspot beacons — projection-synced by the scene each frame. */}
         {!webGlFailed && (

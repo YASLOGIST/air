@@ -22,7 +22,7 @@
 ────────────────────────────────────────────────────────────────────────── */
 
 import * as THREE from 'three';
-import { createAirRenderer, releaseWebGL } from '../gl';
+import { createAirRenderer, releaseWebGL, watchContextLoss } from '../gl';
 import { damp, dampAngle } from '../easing';
 import {
   arcApexHeight,
@@ -285,6 +285,17 @@ export class CorridorGlobeScene {
   private statsAccumulator = 0;
   private lastStatTime = 0;
 
+  /* GPU reset recovery. Every geometry here is a plain typed-array
+     BufferGeometry and every material a ShaderMaterial with scalar/color
+     uniforms — three.js re-uploads all of that automatically once the
+     context is restored (see gl.ts `watchContextLoss`). The only thing
+     this scene owns that three.js can't fix on its own is the rAF loop
+     (it would otherwise keep ticking into a no-op renderer) and the user
+     not knowing the globe went dark. */
+  private contextLost = false;
+  private contextCallback: ((lost: boolean) => void) | null = null;
+  private readonly stopWatchingContext: () => void;
+
   constructor(canvas: HTMLCanvasElement, corridors: GlobeCorridor[], hubs: GlobeHub[]) {
     this.canvas = canvas;
     // Alpha context: the section's CSS radial backdrop shows through the void.
@@ -302,10 +313,34 @@ export class CorridorGlobeScene {
     this.refreshSun(true);
 
     this.attachPointer(canvas);
+    this.stopWatchingContext = watchContextLoss(canvas, {
+      onLost: () => this.handleContextLost(),
+      onRestored: () => this.handleContextRestored(),
+    });
     const host = canvas.parentElement ?? canvas;
     this.resizeObserver = new ResizeObserver(() => this.applySize());
     this.resizeObserver.observe(host);
     this.applySize();
+  }
+
+  /** Subscribe to GPU-reset state; see UldScene.onContextChange for the
+   *  same contract. */
+  onContextChange(callback: (lost: boolean) => void): void {
+    this.contextCallback = callback;
+  }
+
+  private handleContextLost(): void {
+    this.contextLost = true;
+    if (this.rafId !== 0) cancelAnimationFrame(this.rafId);
+    this.rafId = 0;
+    this.contextCallback?.(true);
+  }
+
+  private handleContextRestored(): void {
+    this.contextLost = false;
+    this.contextCallback?.(false);
+    this.renderOnce();
+    this.wake();
   }
 
   /* 1 — the planet shell: a Fibonacci lattice classified against the
@@ -590,7 +625,7 @@ export class CorridorGlobeScene {
 
   /* ── Loop: damped spin/tilt/zoom + three uniforms + camera. The frame. ── */
   private wake(): void {
-    if (this.disposed || this.reducedMotion || !this.visible) return;
+    if (this.disposed || this.reducedMotion || !this.visible || this.contextLost) return;
     if (this.rafId === 0) {
       this.lastTime = performance.now();
       this.rafId = requestAnimationFrame(this.tick);
@@ -598,7 +633,7 @@ export class CorridorGlobeScene {
   }
 
   private renderOnce(): void {
-    if (this.disposed || !this.visible || this.rafId !== 0) return;
+    if (this.disposed || !this.visible || this.contextLost || this.rafId !== 0) return;
     this.draw(performance.now());
   }
 
@@ -710,6 +745,7 @@ export class CorridorGlobeScene {
     if (this.rafId !== 0) cancelAnimationFrame(this.rafId);
     this.rafId = 0;
     this.resizeObserver.disconnect();
+    this.stopWatchingContext();
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
     this.canvas.removeEventListener('wheel', this.onWheel);
     window.removeEventListener('pointermove', this.onPointerMove);

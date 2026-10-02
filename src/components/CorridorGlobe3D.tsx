@@ -53,6 +53,7 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
   const sceneRef = useRef<CorridorGlobeScene | null>(null);
   const [webGlFailed, setWebGlFailed] = useState(false);
   const [stats, setStats] = useState<{ fps: number; draws: number; dpr: number } | null>(null);
+  const [contextLost, setContextLost] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -70,6 +71,7 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
     }
     sceneRef.current = scene;
     scene.onStats(setStats);
+    scene.onContextChange(setContextLost);
 
     const host = hostRef.current;
     let observer: IntersectionObserver | null = null;
@@ -168,6 +170,26 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
                 ? 'متصفحك حظر WebGL — الممرات الجوية المجدولة متاحة في البطاقات أدناه.'
                 : 'WebGL is unavailable — the scheduled corridors remain fully browsable in the cards below.'}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* GPU-reset recovery — see ULDViewer3D for the identical contract.
+          The globe pauses its loop the instant the context drops and
+          resumes on its own once the browser restores it. */}
+      {contextLost && !webGlFailed && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute inset-0 z-20 grid place-items-center bg-[#02060c]/85 backdrop-blur-sm"
+        >
+          <div className="flex items-center gap-2.5 rounded-full border border-amber-400/30 bg-black/60 px-4 py-2 font-mono text-[11px] text-amber-200">
+            <Compass className="h-3.5 w-3.5 animate-pulse" />
+            <span>
+              {isRtl
+                ? 'انقطع عارض الرسوميات مؤقتاً — جارٍ إعادة الاتصال تلقائياً…'
+                : 'Graphics context lost — reconnecting the 3D renderer…'}
+            </span>
           </div>
         </div>
       )}
