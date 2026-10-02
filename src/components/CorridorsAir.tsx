@@ -3,6 +3,7 @@ import { useLang } from '../lib/i18n';
 import type { AirCorridor } from '../types/air-freight';
 import { AIR_CORRIDORS } from '../lib/corridors';
 import { ModelBadge } from './ModelBadge';
+import { CorridorGlobe3D } from './CorridorGlobe3D';
 import {
   PlaneTakeoff,
   Globe2,
@@ -43,8 +44,8 @@ export const CorridorsAir: React.FC = () => {
 
       {/* Corridors Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left 5 Cols: Interactive Route Cards */}
-        <div className="lg:col-span-5 space-y-3">
+        {/* Left 4 Cols: Interactive Route Cards */}
+        <div className="lg:col-span-4 space-y-3">
           {AIR_CORRIDORS.map((corridor) => {
             const isSelected = selectedCorridor.id === corridor.id;
 
@@ -87,8 +88,22 @@ export const CorridorsAir: React.FC = () => {
           })}
         </div>
 
-        {/* Right 7 Cols: Detailed Route Intelligence Panel */}
-        <div className="lg:col-span-7 glass-panel rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
+        {/* Right 8 Cols: Live Network Globe + Detailed Route Intelligence */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* WebGL great-circle globe: selecting a card ignites its arc and
+              rotates the corridor midpoint to face the camera. */}
+          <div className="glass-panel rounded-3xl p-3 sm:p-4 shadow-xl">
+            <div className="flex items-center justify-between px-2 pb-3 font-mono text-[10px] tracking-wider text-muted" dir="ltr">
+              <span className="flex items-center gap-1.5">
+                <Globe2 className="h-3.5 w-3.5 text-cyan-500" />
+                {isRtl ? 'شبكة الممرات فوق الكرة — دوائر عظمى فعلية' : 'GREAT-CIRCLE NETWORK STATE'}
+              </span>
+              <span className="text-cyan-500/70">WEBGL · 6 DRAWS</span>
+            </div>
+            <CorridorGlobe3D activeCorridorId={selectedCorridor.id} />
+          </div>
+
+          <div className="glass-panel rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--glass-brd)] pb-4 gap-3">
             <div>
               <div className="flex items-center gap-3">
@@ -160,6 +175,7 @@ export const CorridorsAir: React.FC = () => {
             <p className="text-xs sm:text-sm text-muted leading-relaxed font-sans">
               {isRtl ? selectedCorridor.primaryCargoAr : selectedCorridor.primaryCargoEn}
             </p>
+          </div>
           </div>
         </div>
       </div>

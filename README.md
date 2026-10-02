@@ -53,9 +53,9 @@ flowchart TD
     Boundary --> Lazy["React.lazy + Suspense\nfeature sections"]
 
     Lazy --> Sim["CargoSimAir\n(volumetric + CO2 engine)"]
-    Lazy --> ULD["ULDSelector → ULDViewer3D\n(canvas pseudo-3D renderer)"]
+    Lazy --> ULD["ULDSelector → ULDViewer3D\n(AIRGL WebGL digital twin — PBR + GLSL)"]
     Lazy --> Village["CargoVillageFlow\n(4-stage release timeline)"]
-    Lazy --> Corridors["CorridorsAir\n(air ⇄ sea benchmark browser)"]
+    Lazy --> Corridors["CorridorsAir → CorridorGlobe3D\n(AIRGL great-circle network globe)"]
     Lazy --> Tracker["ConsignmentTracker\n(local sample lookup only)"]
     Lazy --> Stats["StatsAir · MissionAir · StanceAir"]
     Lazy --> Handshake["HandshakeAirToLand\n→ land.yaslogist.com"]
@@ -199,6 +199,16 @@ The hero scroll scrubber follows the same rule: its easing loop stops as soon as
 
 ---
 
+## WebGL · AIRGL Engine
+
+Both spatial views run on a shared engine layer at `src/three/airgl/` (three r186, isolated into a dedicated `vendor-three-*.js` chunk by `vite.config.ts`). The engine replaces the previous 2D canvas projections with real WebGL2 pipelines:
+
+- **ULD digital twin** (`uld/scene.ts`, `uld/model.ts`, `uld/shaders.ts`) — procedural IATA unit shop (AKE/PMC/RKN/RAP) with wall-thickness geometry, hinge/curtain door rigs driven by a critically damped spring, IBL lighting from a procedural PMREM studio environment (zero external HDR assets — CSP-clean), and three inspection modes: PBR material, a hand-written GLSL **thermal ramp** (door-leak aware, branch-free `mix`/`smoothstep` chains), and a **fresnel X-ray** with a sweeping scan aperture. Payload crates and rivet belts are single-draw-call `InstancedMesh`es; all static edge highlights merge into one `LineSegments`; cold-air particles animate entirely in the vertex shader (one `THREE.Points` draw, zero CPU math).
+- **Corridor globe** (`globe/scene.ts`) — the scheduled airway network rendered as true great circles on a Fibonacci dot-shell. Six draw calls steady-state; aircraft traffic rides arcs via in-shader slerp; card selection ignites the matching arc (shader uniform) and eases the globe so the corridor midpoint faces the camera (`facingYawFor`).
+- **Frame-budget contract** — `devicePixelRatio` hard-capped at 2 (fill-rate guard against high-DPI thermal throttling), ACES filmic tone mapping, no allocation inside any render loop (pre-allocated scratch vectors), loops suspended off-screen (IntersectionObserver) and under `prefers-reduced-motion`, and a zero-leak teardown: every geometry/material/texture/render-target is disposed explicitly on unit swap and unmount (see `releaseWebGL` in `gl.ts`). Live `FPS · DRAWS · DPR` chips beneath each canvas report steady-state GPU cost.
+
+Bundle budgets are two-tier (`scripts/check-bundle.mjs`): the app tier stays gated at its historical strictness, while the engine lives in a separately measured vendor tier.
+
 ## Quickstart
 
 **Requirements:** Node.js 22, npm 10+. No environment variables are required — see [`.env.example`](.env.example).
@@ -230,7 +240,7 @@ npm run preview -- --host 0.0.0.0
 |---|---|
 | `npm run typecheck` | Strict TypeScript across app code and tests — zero `any`-shaped drift between `air-math.ts` and the UI. |
 | `npm test` | Vitest suite covering the calculation engine, AWB checksum, modal accessibility, keyboard interaction, and the tracker's fail-closed behavior. |
-| `npm run check:bundle` | Enforces per-chunk (280 KB JS / 115 KB CSS) **and** total (470 KB JS) raw-byte budgets against `dist/assets`, printing gzip sizes alongside. |
+| `npm run check:bundle` | Enforces per-chunk (280 KB JS / 115 KB CSS) **and** app-total (512 KB JS, vendor-three tracked in its own tier) raw-byte budgets against `dist/assets`, printing gzip sizes alongside. |
 | `npm run audit` | `npm audit --omit=dev --audit-level=high` — zero tolerance for high/critical production vulnerabilities. |
 | `.github/workflows/quality.yml` | Runs all four gates above on every push and pull request. |
 
