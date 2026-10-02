@@ -1,6 +1,8 @@
-import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useLang } from '../lib/i18n';
-import { runSceneLoop } from '../lib/scene-loop';
+import { isWebGLSupported } from '../three/airgl/gl';
+import { UldScene, type CameraPreset, type RenderMode, type SceneStats, type HotspotSpec } from '../three/airgl/uld/scene';
+import type { UldCode } from '../three/airgl/uld/model';
 import type { ULDContainer } from '../types/air-freight';
 import {
   RotateCcw,
@@ -20,1069 +22,162 @@ import {
   Box,
   Maximize2,
   PanelsTopLeft,
+  Cpu,
+  Globe2,
 } from 'lucide-react';
 
 interface ULDViewer3DProps {
   uld: ULDContainer;
 }
 
-// 3D Point & Projection helpers
-interface Point3D {
-  x: number;
-  y: number;
-  z: number;
+function toUldCode(code: string): UldCode {
+  return code === 'PMC' ? 'PMC' : code === 'RAP' ? 'RAP' : code === 'RKN' ? 'RKN' : 'AKE';
 }
 
-interface ProjectedPoint {
-  x: number;
-  y: number;
-  z: number; // depth
-}
-
-interface PolygonFace {
-  pts: Point3D[];
-  color: string;
-  strokeColor?: string;
-  lineWidth?: number;
-  isWireframe?: boolean;
-  normalZ?: number;
-  label?: string;
-  isHotspot?: boolean;
-  hotspotType?: 'temp' | 'cargo' | 'power' | 'acid';
-}
-
+/**
+ * WebGL ULD digital twin. All 3D state lives in the imperative UldScene; React
+ * owns only UI truth (mode flags, overlay labels) and forwards intents. The
+ * canvas is driven at the monitor's cadence with no per-frame React renders.
+ */
 export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   const { isRtl } = useLang();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const [isViewportVisible, setIsViewportVisible] = useState(true);
-  const prefersReducedMotion = useMemo(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    [],
+  const sceneRef = useRef<UldScene | null>(null);
+  const [webGlFailed, setWebGlFailed] = useState(false);
+
+  // UI truth mirrored to the scene.
+  const [isAutoRotate, setIsAutoRotate] = useState(
+    () => typeof window !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
-
-  // Viewer state
-  const [rotationX, setRotationX] = useState<number>(0.35); // Pitch
-  const [rotationY, setRotationY] = useState<number>(-0.65); // Yaw
-  const [zoom, setZoom] = useState<number>(1.0);
-  const [isAutoRotate, setIsAutoRotate] = useState<boolean>(true);
-  const [isDoorOpen, setIsDoorOpen] = useState<boolean>(false);
-  const [doorProgress, setDoorProgress] = useState<number>(0); // 0 (closed) to 1 (fully open)
-  const [isInsideView, setIsInsideView] = useState<boolean>(false);
-  const [customModelNotice, setCustomModelNotice] = useState<boolean>(false);
-  const [renderMode, setRenderMode] = useState<'material' | 'thermal' | 'xray'>('material');
+  const [isDoorOpen, setIsDoorOpen] = useState(false);
+  const [isInsideView, setIsInsideView] = useState(false);
+  const [renderMode, setRenderMode] = useState<RenderMode>('material');
   const [isExploded, setIsExploded] = useState(false);
-  const [explosion, setExplosion] = useState(0);
+  const [customModelNotice, setCustomModelNotice] = useState(false);
+  const [stats, setStats] = useState<SceneStats | null>(null);
 
-  // Drag interaction
-  const isDraggingRef = useRef<boolean>(false);
-  const lastMousePos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const orbitVelocity = useRef({ x: 0, y: 0 });
-  const inertiaFrame = useRef<number | null>(null);
+  // Hotspot overlay elements — written by the scene's projection, never by React state.
+  const tempHotspotRef = useRef<HTMLDivElement | null>(null);
+  const cargoHotspotRef = useRef<HTMLDivElement | null>(null);
+  const acidHotspotRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => () => {
-    if (inertiaFrame.current !== null) cancelAnimationFrame(inertiaFrame.current);
-  }, []);
-
-  // Suspend the continuous renderer when the model is off-screen.
+  /* Boot the twin once. StrictMode mounts twice: the first scene is fully
+     released (geometry, materials, render targets, context) before the
+     second boots, so the tab's context budget stays clean. */
   useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(([entry]) => setIsViewportVisible(entry.isIntersecting), { rootMargin: '200px' });
-    observer.observe(viewport);
-    return () => observer.disconnect();
-  }, []);
-
-  // Smooth exploded assembly inspection without changing the source geometry.
-  useEffect(() => {
-    if (prefersReducedMotion) {
-      setExplosion(isExploded ? 1 : 0);
-      return;
-    }
-    let frame = 0;
-    const target = isExploded ? 1 : 0;
-    let position = explosion;
-    const animate = () => {
-      position += (target - position) * 0.12;
-      const complete = Math.abs(target - position) < 0.004;
-      setExplosion(complete ? target : position);
-      if (!complete) frame = requestAnimationFrame(animate);
-    };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
-  }, [isExploded, prefersReducedMotion]);
-
-  // Critically damped hinge motion gives the insulated door believable mass.
-  useEffect(() => {
-    if (prefersReducedMotion) {
-      setDoorProgress(isDoorOpen ? 1 : 0);
-      return;
-    }
-    let animId = 0;
-    let position = doorProgress;
-    let velocity = 0;
-    const target = isDoorOpen ? 1 : 0;
-    let previous = performance.now();
-    const animateDoor = (time: number) => {
-      const dt = Math.min(0.034, Math.max(0.001, (time - previous) / 1000));
-      previous = time;
-      const force = (target - position) * 42;
-      velocity = (velocity + force * dt) * Math.pow(0.0008, dt);
-      position += velocity * dt;
-      if (Math.abs(target - position) < 0.001 && Math.abs(velocity) < 0.001) {
-        setDoorProgress(target);
-        return;
-      }
-      setDoorProgress(Math.max(0, Math.min(1, position)));
-      animId = requestAnimationFrame(animateDoor);
-    };
-    animId = requestAnimationFrame(animateDoor);
-    return () => cancelAnimationFrame(animId);
-    // doorProgress is deliberately sampled only when a new target is selected.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDoorOpen, prefersReducedMotion]);
-
-  // Auto rotation loop
-  useEffect(() => {
-    if (!isAutoRotate || isInsideView || prefersReducedMotion) return;
-    let animId: number;
-    const loop = () => {
-      setRotationY((prev) => prev + 0.006);
-      animId = requestAnimationFrame(loop);
-    };
-    animId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animId);
-  }, [isAutoRotate, isInsideView, prefersReducedMotion]);
-
-  // Reset camera when switching containers
-  useEffect(() => {
-    if (isInsideView) {
-      setIsInsideView(false);
-    }
-  }, [uld.id]);
-
-  // Camera Presets
-  const setPresetView = (view: 'iso' | 'front' | 'side' | 'top' | 'inside') => {
-    setIsAutoRotate(false);
-    if (view === 'iso') {
-      setIsInsideView(false);
-      setRotationX(0.35);
-      setRotationY(-0.65);
-      setZoom(1.0);
-    } else if (view === 'front') {
-      setIsInsideView(false);
-      setRotationX(0.05);
-      setRotationY(0.0);
-      setZoom(1.1);
-    } else if (view === 'side') {
-      setIsInsideView(false);
-      setRotationX(0.05);
-      setRotationY(Math.PI / 2);
-      setZoom(1.1);
-    } else if (view === 'top') {
-      setIsInsideView(false);
-      setRotationX(Math.PI / 2 - 0.1);
-      setRotationY(0);
-      setZoom(0.9);
-    } else if (view === 'inside') {
-      setIsInsideView(true);
-      setIsDoorOpen(true);
-      setRotationX(0.08);
-      setRotationY(0.02);
-      setZoom(2.1);
-    }
-  };
-
-  // Mouse / Touch interaction handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (inertiaFrame.current !== null) cancelAnimationFrame(inertiaFrame.current);
-    inertiaFrame.current = null;
-    orbitVelocity.current = { x: 0, y: 0 };
-    isDraggingRef.current = true;
-    lastMousePos.current = { x: e.clientX, y: e.clientY };
-    setIsAutoRotate(false);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current) return;
-    const dx = e.clientX - lastMousePos.current.x;
-    const dy = e.clientY - lastMousePos.current.y;
-    lastMousePos.current = { x: e.clientX, y: e.clientY };
-
-    orbitVelocity.current = { x: dx * 0.008, y: dy * 0.008 };
-    setRotationY((prev) => prev + orbitVelocity.current.x);
-    setRotationX((prev) => Math.max(-1.2, Math.min(1.2, prev + orbitVelocity.current.y)));
-  };
-
-  const beginInertia = () => {
-    if (inertiaFrame.current !== null) cancelAnimationFrame(inertiaFrame.current);
-    const coast = () => {
-      orbitVelocity.current.x *= 0.92;
-      orbitVelocity.current.y *= 0.92;
-      if (Math.abs(orbitVelocity.current.x) + Math.abs(orbitVelocity.current.y) < 0.0004) {
-        inertiaFrame.current = null;
-        return;
-      }
-      setRotationY((prev) => prev + orbitVelocity.current.x);
-      setRotationX((prev) => Math.max(-1.2, Math.min(1.2, prev + orbitVelocity.current.y)));
-      inertiaFrame.current = requestAnimationFrame(coast);
-    };
-    inertiaFrame.current = requestAnimationFrame(coast);
-  };
-
-  const handleMouseUp = () => {
-    if (isDraggingRef.current) beginInertia();
-    isDraggingRef.current = false;
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    setZoom((prev) => Math.max(0.6, Math.min(2.8, prev - e.deltaY * 0.0015)));
-  };
-
-  // Touch handlers for mobile
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 1) {
-      if (inertiaFrame.current !== null) cancelAnimationFrame(inertiaFrame.current);
-      inertiaFrame.current = null;
-      orbitVelocity.current = { x: 0, y: 0 };
-      isDraggingRef.current = true;
-      lastMousePos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      setIsAutoRotate(false);
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDraggingRef.current || e.touches.length !== 1) return;
-    const dx = e.touches[0].clientX - lastMousePos.current.x;
-    const dy = e.touches[0].clientY - lastMousePos.current.y;
-    lastMousePos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-
-    orbitVelocity.current = { x: dx * 0.008, y: dy * 0.008 };
-    setRotationY((prev) => prev + orbitVelocity.current.x);
-    setRotationX((prev) => Math.max(-1.2, Math.min(1.2, prev + orbitVelocity.current.y)));
-  };
-
-  const handleTouchEnd = () => {
-    if (isDraggingRef.current) beginInertia();
-    isDraggingRef.current = false;
-  };
-
-  // 3D Geometry Generation for each ULD Type
-  const faces = useMemo(() => {
-    const list: PolygonFace[] = [];
-    const dp = doorProgress; // 0 to 1
-
-    const addCrate = (x: number, y: number, z: number, w: number, h: number, d: number, label?: string) => {
-      const colors = ['#0f766e', '#115e59', '#134e4a'];
-      list.push(
-        { pts: [{ x, y, z: z + d }, { x: x + w, y, z: z + d }, { x: x + w, y: y + h, z: z + d }, { x, y: y + h, z: z + d }], color: colors[0], strokeColor: '#5eead4', lineWidth: 1, label },
-        { pts: [{ x, y, z }, { x, y, z: z + d }, { x, y: y + h, z: z + d }, { x, y: y + h, z }], color: colors[1], strokeColor: '#2dd4bf', lineWidth: 0.8 },
-        { pts: [{ x, y, z }, { x: x + w, y, z }, { x: x + w, y, z: z + d }, { x, y, z: z + d }], color: colors[2], strokeColor: '#99f6e4', lineWidth: 0.8 },
-      );
-    };
-
-    if (uld.code === 'AKE') {
-      // AKE / LD3: Contoured half-width lower belly container
-      // Dimensions normalized: W=1.8, H=1.6, D=1.6
-      // Contoured lower right side
-      const w = 0.9;
-      const h = 0.8;
-      const d = 0.8;
-      const ch = 0.45; // chamfer offset
-
-      // Exterior shell faces
-      // Back face
-      list.push({
-        pts: [
-          { x: -w, y: -h, z: -d },
-          { x: w, y: -h, z: -d },
-          { x: w, y: h - ch, z: -d },
-          { x: w - ch, y: h, z: -d },
-          { x: -w, y: h, z: -d },
-        ],
-        color: '#1a2736',
-        strokeColor: '#38bdf8',
-        lineWidth: 1.5,
-      });
-
-      // Left wall (vertical)
-      list.push({
-        pts: [
-          { x: -w, y: -h, z: -d },
-          { x: -w, y: -h, z: d },
-          { x: -w, y: h, z: d },
-          { x: -w, y: h, z: -d },
-        ],
-        color: '#162230',
-        strokeColor: '#0ea5e9',
-        lineWidth: 1.2,
-      });
-
-      // Right wall (upper vertical)
-      list.push({
-        pts: [
-          { x: w, y: -h, z: -d },
-          { x: w, y: h - ch, z: -d },
-          { x: w, y: h - ch, z: d },
-          { x: w, y: -h, z: d },
-        ],
-        color: '#1e2d3d',
-        strokeColor: '#38bdf8',
-        lineWidth: 1.2,
-      });
-
-      // Chamfer slope (Belly lobe contour)
-      list.push({
-        pts: [
-          { x: w, y: h - ch, z: -d },
-          { x: w - ch, y: h, z: -d },
-          { x: w - ch, y: h, z: d },
-          { x: w, y: h - ch, z: d },
-        ],
-        color: '#0f1722',
-        strokeColor: '#22d3ee',
-        lineWidth: 1.5,
-      });
-
-      // Top roof
-      list.push({
-        pts: [
-          { x: -w, y: -h, z: -d },
-          { x: w, y: -h, z: -d },
-          { x: w, y: -h, z: d },
-          { x: -w, y: -h, z: d },
-        ],
-        color: '#243447',
-        strokeColor: '#38bdf8',
-        lineWidth: 1.5,
-      });
-
-      // Bottom base floor
-      list.push({
-        pts: [
-          { x: -w, y: h, z: -d },
-          { x: w - ch, y: h, z: -d },
-          { x: w - ch, y: h, z: d },
-          { x: -w, y: h, z: d },
-        ],
-        color: '#0a0f16',
-        strokeColor: '#0284c7',
-        lineWidth: 1.5,
-      });
-
-      // Inside Cargo: Boxes stacked on the floor
-      const cargoY = h - 0.05;
-      list.push({
-        pts: [
-          { x: -0.6, y: cargoY - 0.45, z: -0.4 },
-          { x: 0.2, y: cargoY - 0.45, z: -0.4 },
-          { x: 0.2, y: cargoY - 0.45, z: 0.3 },
-          { x: -0.6, y: cargoY - 0.45, z: 0.3 },
-        ],
-        color: '#b45309',
-        strokeColor: '#f59e0b',
-        lineWidth: 1.5,
-        label: 'CARGO',
-      });
-      list.push({
-        pts: [
-          { x: -0.6, y: cargoY, z: 0.3 },
-          { x: 0.2, y: cargoY, z: 0.3 },
-          { x: 0.2, y: cargoY - 0.45, z: 0.3 },
-          { x: -0.6, y: cargoY - 0.45, z: 0.3 },
-        ],
-        color: '#d97706',
-        strokeColor: '#f59e0b',
-        lineWidth: 1.2,
-      });
-
-      // Roll-up Curtain Door (Animated: rolls up towards the top as dp increases)
-      const curtainH = (h * 2 - ch) * (1 - dp);
-      if (curtainH > 0.05) {
-        list.push({
-          pts: [
-            { x: -w, y: -h, z: d },
-            { x: w, y: -h, z: d },
-            { x: w, y: -h + curtainH, z: d },
-            { x: -w, y: -h + curtainH, z: d },
-          ],
-          color: '#0284c7',
-          strokeColor: '#38bdf8',
-          lineWidth: 2,
-          label: dp < 0.1 ? 'AKE ROLL CURTAIN' : 'CURTAIN ROLLING UP',
-        });
-      }
-    } else if (uld.code === 'PMC') {
-      // PMC: Heavy Duty 125x96 aircraft flat pallet with loaded cargo & netting
-      const w = 1.35;
-      const d = 1.05;
-
-      // Base Pallet Plate
-      list.push({
-        pts: [
-          { x: -w, y: 0.6, z: -d },
-          { x: w, y: 0.6, z: -d },
-          { x: w, y: 0.6, z: d },
-          { x: -w, y: 0.6, z: d },
-        ],
-        color: '#334155',
-        strokeColor: '#94a3b8',
-        lineWidth: 2,
-      });
-
-      // Cargo load stacked high
-      const loadH = 0.85;
-      const loadY = 0.6 - loadH;
-      list.push({
-        pts: [
-          { x: -w + 0.15, y: loadY, z: -d + 0.15 },
-          { x: w - 0.15, y: loadY, z: -d + 0.15 },
-          { x: w - 0.15, y: loadY, z: d - 0.15 },
-          { x: -w + 0.15, y: loadY, z: d - 0.15 },
-        ],
-        color: dp > 0.5 ? '#0284c7' : '#0369a1',
-        strokeColor: '#38bdf8',
-        lineWidth: 1.5,
-        label: 'HEAVY INDUSTRIAL CARGO',
-      });
-      // Front cargo face
-      list.push({
-        pts: [
-          { x: -w + 0.15, y: 0.6, z: d - 0.15 },
-          { x: w - 0.15, y: 0.6, z: d - 0.15 },
-          { x: w - 0.15, y: loadY, z: d - 0.15 },
-          { x: -w + 0.15, y: loadY, z: d - 0.15 },
-        ],
-        color: '#075985',
-        strokeColor: '#38bdf8',
-        lineWidth: 1.2,
-      });
-
-      // Restraint Netting / Straps (Wireframe diamonds overlay)
-      if (dp < 0.8) {
-        list.push({
-          pts: [
-            { x: -w + 0.1, y: loadY - 0.02, z: d - 0.1 },
-            { x: w - 0.1, y: loadY - 0.02, z: d - 0.1 },
-            { x: w - 0.1, y: 0.6, z: d - 0.1 },
-            { x: -w + 0.1, y: 0.6, z: d - 0.1 },
-          ],
-          color: 'rgba(56, 189, 248, 0.15)',
-          strokeColor: '#f59e0b',
-          lineWidth: 2,
-          isWireframe: true,
-          label: 'IATA CERTIFIED RESTRAINT NET',
-        });
-      }
-    } else if (uld.code === 'RKN') {
-      // RKN Envirotainer e1: Active cold-chain biopharma container
-      const w = 0.85;
-      const h = 0.8;
-      const d = 0.85;
-
-      // Outer Shell
-      // Back
-      list.push({
-        pts: [
-          { x: -w, y: -h, z: -d },
-          { x: w, y: -h, z: -d },
-          { x: w, y: h, z: -d },
-          { x: -w, y: h, z: -d },
-        ],
-        color: '#0f1f2e',
-        strokeColor: '#14b8a6',
-        lineWidth: 1.5,
-      });
-      // Left Wall
-      list.push({
-        pts: [
-          { x: -w, y: -h, z: -d },
-          { x: -w, y: -h, z: d },
-          { x: -w, y: h, z: d },
-          { x: -w, y: h, z: -d },
-        ],
-        color: '#0d2836',
-        strokeColor: '#0d9488',
-        lineWidth: 1.5,
-      });
-      // Right Wall
-      list.push({
-        pts: [
-          { x: w, y: -h, z: -d },
-          { x: w, y: -h, z: d },
-          { x: w, y: h, z: d },
-          { x: w, y: h, z: -d },
-        ],
-        color: '#132e3d',
-        strokeColor: '#14b8a6',
-        lineWidth: 1.5,
-      });
-      // Top with Compressor Cooling Vent Block
-      list.push({
-        pts: [
-          { x: -w, y: -h, z: -d },
-          { x: w, y: -h, z: -d },
-          { x: w, y: -h, z: d },
-          { x: -w, y: -h, z: d },
-        ],
-        color: '#115e59',
-        strokeColor: '#2dd4bf',
-        lineWidth: 2,
-        label: 'ACTIVE COMPRESSOR UNIT',
-      });
-      // Floor
-      list.push({
-        pts: [
-          { x: -w, y: h, z: -d },
-          { x: w, y: h, z: -d },
-          { x: w, y: h, z: d },
-          { x: -w, y: h, z: d },
-        ],
-        color: '#042f2e',
-        strokeColor: '#0f766e',
-        lineWidth: 1.5,
-      });
-
-      // Inside: Euro Pallet holding Pharma Vaccines Boxes
-      list.push({
-        pts: [
-          { x: -0.5, y: h - 0.45, z: -0.3 },
-          { x: 0.5, y: h - 0.45, z: -0.3 },
-          { x: 0.5, y: h - 0.45, z: 0.4 },
-          { x: -0.5, y: h - 0.45, z: 0.4 },
-        ],
-        color: '#0f766e',
-        strokeColor: '#2dd4bf',
-        lineWidth: 1.5,
-        label: 'BIOPHARMA PALLET (+4.2°C)',
-      });
-
-      // Individually modeled thermal shippers with visible depth and stacking.
-      addCrate(-0.48, 0.18, -0.28, 0.43, 0.34, 0.34, 'BIO-01');
-      addCrate(0.03, 0.18, -0.28, 0.43, 0.34, 0.34, 'BIO-02');
-      addCrate(-0.22, -0.18, -0.2, 0.43, 0.34, 0.34, 'BIO-03');
-
-      // Raised airflow floor rails preserve circulation below the pallet.
-      for (const railX of [-0.58, -0.2, 0.18, 0.56]) {
-        list.push({
-          pts: [
-            { x: railX - 0.035, y: h - 0.05, z: -0.68 },
-            { x: railX + 0.035, y: h - 0.05, z: -0.68 },
-            { x: railX + 0.035, y: h - 0.05, z: 0.68 },
-            { x: railX - 0.035, y: h - 0.05, z: 0.68 },
-          ],
-          color: '#64748b', strokeColor: '#cbd5e1', lineWidth: 0.7,
-        });
-      }
-
-      // Hinged Insulated Door (Swings open on left hinge around Y axis)
-      const doorAngle = dp * 1.8; // 0 to ~103 degrees
-      const doorW = w * 1.8;
-      const doorEndX = -w + Math.cos(doorAngle) * doorW;
-      const doorEndZ = d + Math.sin(doorAngle) * doorW;
-
-      list.push({
-        pts: [
-          { x: -w, y: -h + 0.1, z: d },
-          { x: doorEndX, y: -h + 0.1, z: doorEndZ },
-          { x: doorEndX, y: h - 0.05, z: doorEndZ },
-          { x: -w, y: h - 0.05, z: d },
-        ],
-        color: '#14b8a6',
-        strokeColor: '#5eead4',
-        lineWidth: 2,
-        label: dp < 0.1 ? 'RKN SEALED DOOR (+4°C)' : 'DOOR OPEN',
-      });
-      // Inner vacuum-insulated door liner adds physical thickness and gasket contrast.
-      list.push({
-        pts: [
-          { x: -w + 0.025, y: -h + 0.15, z: d - 0.025 },
-          { x: doorEndX - 0.025, y: -h + 0.15, z: doorEndZ - 0.025 },
-          { x: doorEndX - 0.025, y: h - 0.1, z: doorEndZ - 0.025 },
-          { x: -w + 0.025, y: h - 0.1, z: d - 0.025 },
-        ],
-        color: '#dbeafe', strokeColor: '#0f172a', lineWidth: 2,
-      });
-    } else {
-      // RAP: Multi-Pallet Mega Active Reefer Container
-      const w = 1.35;
-      const h = 0.85;
-      const d = 0.95;
-
-      // Outer Shell
-      list.push({
-        pts: [
-          { x: -w, y: -h, z: -d },
-          { x: w, y: -h, z: -d },
-          { x: w, y: h, z: -d },
-          { x: -w, y: h, z: -d },
-        ],
-        color: '#0c1a24',
-        strokeColor: '#0284c7',
-        lineWidth: 1.5,
-      });
-      list.push({
-        pts: [
-          { x: -w, y: -h, z: -d },
-          { x: -w, y: -h, z: d },
-          { x: -w, y: h, z: d },
-          { x: -w, y: h, z: -d },
-        ],
-        color: '#071824',
-        strokeColor: '#38bdf8',
-        lineWidth: 1.5,
-      });
-      list.push({
-        pts: [
-          { x: w, y: -h, z: -d },
-          { x: w, y: -h, z: d },
-          { x: w, y: h, z: d },
-          { x: w, y: h, z: -d },
-        ],
-        color: '#0d2232',
-        strokeColor: '#38bdf8',
-        lineWidth: 1.5,
-      });
-      list.push({
-        pts: [
-          { x: -w, y: -h, z: -d },
-          { x: w, y: -h, z: -d },
-          { x: w, y: -h, z: d },
-          { x: -w, y: -h, z: d },
-        ],
-        color: '#0369a1',
-        strokeColor: '#38bdf8',
-        lineWidth: 2,
-        label: 'DUAL REDUNDANT REEFER UNIT',
-      });
-      list.push({
-        pts: [
-          { x: -w, y: h, z: -d },
-          { x: w, y: h, z: -d },
-          { x: w, y: h, z: d },
-          { x: -w, y: h, z: d },
-        ],
-        color: '#05131d',
-        strokeColor: '#0284c7',
-        lineWidth: 1.5,
-      });
-
-      // Inside: 5 Euro-pallets rows
-      list.push({
-        pts: [
-          { x: -1.0, y: h - 0.4, z: -0.5 },
-          { x: 1.0, y: h - 0.4, z: -0.5 },
-          { x: 1.0, y: h - 0.4, z: 0.5 },
-          { x: -1.0, y: h - 0.4, z: 0.5 },
-        ],
-        color: '#0f766e',
-        strokeColor: '#2dd4bf',
-        lineWidth: 1.5,
-        label: '5x EURO PALLET BAYS',
-      });
-
-      // Bi-fold Double Doors
-      const doorAngle = dp * 1.6;
-      const halfW = w * 0.95;
-      // Left Door
-      const lDoorEndX = -w + Math.cos(doorAngle) * halfW;
-      const lDoorEndZ = d + Math.sin(doorAngle) * halfW;
-      list.push({
-        pts: [
-          { x: -w, y: -h + 0.1, z: d },
-          { x: lDoorEndX, y: -h + 0.1, z: lDoorEndZ },
-          { x: lDoorEndX, y: h - 0.05, z: lDoorEndZ },
-          { x: -w, y: h - 0.05, z: d },
-        ],
-        color: '#0284c7',
-        strokeColor: '#38bdf8',
-        lineWidth: 2,
-      });
-      // Right Door
-      const rDoorEndX = w - Math.cos(doorAngle) * halfW;
-      const rDoorEndZ = d + Math.sin(doorAngle) * halfW;
-      list.push({
-        pts: [
-          { x: w, y: -h + 0.1, z: d },
-          { x: rDoorEndX, y: -h + 0.1, z: rDoorEndZ },
-          { x: rDoorEndX, y: h - 0.05, z: rDoorEndZ },
-          { x: w, y: h - 0.05, z: d },
-        ],
-        color: '#0284c7',
-        strokeColor: '#38bdf8',
-        lineWidth: 2,
-        label: dp < 0.1 ? 'RAP DUAL BI-FOLD DOORS' : 'DOORS OPEN',
-      });
-    }
-
-    return list;
-  }, [uld.code, doorProgress]);
-
-  // Render loop onto Canvas
-  const render = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!isWebGLSupported()) {
+      setWebGlFailed(true);
+      return;
+    }
+    let scene: UldScene | null = null;
+    try {
+      scene = new UldScene(canvas);
+    } catch {
+      setWebGlFailed(true);
+      return;
+    }
+    sceneRef.current = scene;
+    scene.onStats(setStats);
+    scene.setModel(toUldCode(uld.code));
+    scene.setAutoRotate(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-    const width = canvas.width;
-    const height = canvas.height;
-    ctx.clearRect(0, 0, width, height);
-    const now = performance.now();
-    const motionTime = prefersReducedMotion ? 0 : now;
+    const host = viewportRef.current;
+    let observer: IntersectionObserver | null = null;
+    if (host && typeof IntersectionObserver !== 'undefined') {
+      observer = new IntersectionObserver(([entry]) => scene?.setVisible(entry.isIntersecting), { rootMargin: '200px' });
+      observer.observe(host);
+    } else {
+      scene.setVisible(true);
+    }
 
-    // Deep studio environment with a soft overhead key light.
-    const backdrop = ctx.createRadialGradient(width * 0.5, height * 0.36, 10, width * 0.5, height * 0.48, width * 0.72);
-    backdrop.addColorStop(0, uld.code === 'RKN' ? '#10303a' : '#102638');
-    backdrop.addColorStop(0.48, '#07121f');
-    backdrop.addColorStop(1, '#02060c');
-    ctx.fillStyle = backdrop;
-    ctx.fillRect(0, 0, width, height);
-
-    // Camera transformation matrices
-    const cx = width / 2;
-    const cy = height / 2 + (isInsideView ? 30 : 10);
-    const scale = Math.min(width, height) * 0.42 * zoom;
-
-    const cosY = Math.cos(rotationY);
-    const sinY = Math.sin(rotationY);
-    const cosX = Math.cos(rotationX);
-    const sinX = Math.sin(rotationX);
-
-    // Project 3D point to 2D
-    const project = (p: Point3D): ProjectedPoint => {
-      // 1. Rotate Y (Yaw)
-      let x1 = p.x * cosY - p.z * sinY;
-      let z1 = p.x * sinY + p.z * cosY;
-      let y1 = p.y;
-
-      // 2. Rotate X (Pitch)
-      let y2 = y1 * cosX - z1 * sinX;
-      let z2 = y1 * sinX + z1 * cosX;
-      let x2 = x1;
-
-      // 3. Perspective division
-      const cameraDistance = isInsideView ? 2.5 : 4.0;
-      const depth = cameraDistance + z2;
-      const fovFactor = cameraDistance / Math.max(0.5, depth);
-
-      return {
-        x: cx + x2 * scale * fovFactor,
-        y: cy + y2 * scale * fovFactor,
-        z: depth,
-      };
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onMotionChange = () => {
+      scene?.setReducedMotion(reducedMotionQuery.matches);
+      if (reducedMotionQuery.matches) scene?.setAutoRotate(false);
     };
+    reducedMotionQuery.addEventListener?.('change', onMotionChange);
+    onMotionChange();
 
-    // Calculate face depth for Painter's algorithm (Back to Front)
-    const sortedFaces = faces
-      .map((face) => {
-        const center = face.pts.reduce((sum, point) => ({ x: sum.x + point.x / face.pts.length, y: sum.y + point.y / face.pts.length, z: sum.z + point.z / face.pts.length }), { x: 0, y: 0, z: 0 });
-        const separation = explosion * 0.28;
-        const proj = face.pts.map((point) => project({
-          x: point.x + center.x * separation,
-          y: point.y + center.y * separation,
-          z: point.z + center.z * separation,
-        }));
-        const avgZ = proj.reduce((sum, p) => sum + p.z, 0) / proj.length;
+    return () => {
+      observer?.disconnect();
+      reducedMotionQuery.removeEventListener?.('change', onMotionChange);
+      scene?.dispose();
+      sceneRef.current = null;
+    };
+    // The boot is identity-stable; model/mode intents flow through the
+    // forwarding effects below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-        // Calculate normal for lighting/culling
-        const v1x = proj[1].x - proj[0].x;
-        const v1y = proj[1].y - proj[0].y;
-        const v2x = proj[2].x - proj[0].x;
-        const v2y = proj[2].y - proj[0].y;
-        const crossZ = v1x * v2y - v1y * v2x;
-
-        return {
-          ...face,
-          projected: proj,
-          depth: avgZ,
-          normalZ: crossZ,
-        };
-      })
-      .sort((a, b) => b.depth - a.depth);
-
-    // Contact shadow anchors the container to the loading-bay floor.
-    const shadow = ctx.createRadialGradient(cx, cy + height * 0.24, 8, cx, cy + height * 0.24, width * 0.28 * zoom);
-    shadow.addColorStop(0, 'rgba(0,0,0,.78)');
-    shadow.addColorStop(0.55, 'rgba(3,105,161,.12)');
-    shadow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = shadow;
-    ctx.fillRect(0, cy, width, height - cy);
-
-    // Draw grid floor in 3D
-    const floorY = 0.85;
-    const gridSize = 2.0;
-    const gridLines = 8;
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
-
-    for (let i = -gridLines; i <= gridLines; i++) {
-      const p1 = project({ x: (i / gridLines) * gridSize, y: floorY, z: -gridSize });
-      const p2 = project({ x: (i / gridLines) * gridSize, y: floorY, z: gridSize });
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.stroke();
-
-      const p3 = project({ x: -gridSize, y: floorY, z: (i / gridLines) * gridSize });
-      const p4 = project({ x: gridSize, y: floorY, z: (i / gridLines) * gridSize });
-      ctx.beginPath();
-      ctx.moveTo(p3.x, p3.y);
-      ctx.lineTo(p4.x, p4.y);
-      ctx.stroke();
-    }
-
-    // Draw 3D polygon faces
-    sortedFaces.forEach((face) => {
-      const pts = face.projected;
-      if (pts.length < 3) return;
-
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) {
-        ctx.lineTo(pts[i].x, pts[i].y);
-      }
-      ctx.closePath();
-
-      if (!face.isWireframe) {
-        const bounds = pts.reduce(
-          (acc, point) => ({ minX: Math.min(acc.minX, point.x), maxX: Math.max(acc.maxX, point.x), minY: Math.min(acc.minY, point.y), maxY: Math.max(acc.maxY, point.y) }),
-          { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
-        );
-        const metal = ctx.createLinearGradient(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY);
-        if (renderMode === 'thermal') {
-          metal.addColorStop(0, '#312e81');
-          metal.addColorStop(0.35, '#0891b2');
-          metal.addColorStop(0.62, '#14b8a6');
-          metal.addColorStop(0.82, '#f59e0b');
-          metal.addColorStop(1, '#ef4444');
-        } else {
-          metal.addColorStop(0, face.color);
-          metal.addColorStop(0.42, face.color);
-          metal.addColorStop(0.52, uld.code === 'RKN' ? 'rgba(45,212,191,.34)' : 'rgba(125,211,252,.22)');
-          metal.addColorStop(0.62, face.color);
-          metal.addColorStop(1, '#06111b');
-        }
-        ctx.save();
-        if (renderMode === 'xray') ctx.globalAlpha = 0.18;
-        ctx.fillStyle = metal;
-        ctx.fill();
-        ctx.restore();
-
-        // Fine brushed-metal highlight without image assets.
-        ctx.save();
-        ctx.clip();
-        ctx.globalAlpha = renderMode === 'material' ? 0.08 : 0.14;
-        ctx.strokeStyle = renderMode === 'thermal' ? '#fef08a' : '#ffffff';
-        ctx.lineWidth = 0.5;
-        for (let x = bounds.minX; x < bounds.maxX; x += 7) {
-          ctx.beginPath();
-          ctx.moveTo(x, bounds.minY);
-          ctx.lineTo(x + 22, bounds.maxY);
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
-
-      if (face.strokeColor) {
-        ctx.strokeStyle = renderMode === 'xray' ? 'rgba(103,232,249,.9)' : renderMode === 'thermal' ? 'rgba(254,240,138,.72)' : face.strokeColor;
-        ctx.lineWidth = renderMode === 'xray' ? 1.1 : face.lineWidth || 1;
-        ctx.setLineDash(renderMode === 'xray' ? [4, 3] : []);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      // Render face label if available and face is facing camera
-      if (face.label && face.normalZ !== undefined && face.normalZ < 0) {
-        const center = pts.reduce(
-          (acc, p) => ({ x: acc.x + p.x / pts.length, y: acc.y + p.y / pts.length }),
-          { x: 0, y: 0 }
-        );
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 9px "IBM Plex Mono", monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(face.label, center.x, center.y);
-      }
-    });
-
-    // Envirotainer-specific industrial detail: controller, vents, hinges and fasteners.
-    if (uld.code === 'RKN') {
-      const panelCorners = [
-        project({ x: 0.22, y: -0.48, z: 0.86 }), project({ x: 0.72, y: -0.48, z: 0.86 }),
-        project({ x: 0.72, y: -0.12, z: 0.86 }), project({ x: 0.22, y: -0.12, z: 0.86 }),
-      ];
-      ctx.beginPath();
-      ctx.moveTo(panelCorners[0].x, panelCorners[0].y);
-      panelCorners.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
-      ctx.closePath();
-      const panelGlow = ctx.createLinearGradient(panelCorners[0].x, panelCorners[0].y, panelCorners[2].x, panelCorners[2].y);
-      panelGlow.addColorStop(0, '#071018');
-      panelGlow.addColorStop(1, '#123540');
-      ctx.fillStyle = panelGlow;
-      ctx.fill();
-      ctx.strokeStyle = '#5eead4';
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
-
-      const screen = project({ x: 0.47, y: -0.31, z: 0.88 });
-      ctx.shadowColor = '#2dd4bf';
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = '#34d399';
-      ctx.font = 'bold 11px "IBM Plex Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('+4.2°C', screen.x, screen.y);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#99f6e4';
-      ctx.font = '6px "IBM Plex Mono", monospace';
-      ctx.fillText('ACTIVE SETPOINT', screen.x, screen.y + 10);
-
-      // Compressor vent slots follow the roof perspective.
-      for (let index = 0; index < 7; index++) {
-        const a = project({ x: -0.56 + index * 0.17, y: -0.815, z: -0.35 });
-        const b = project({ x: -0.56 + index * 0.17, y: -0.815, z: 0.22 });
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = index % 2 ? 'rgba(94,234,212,.65)' : 'rgba(8,47,73,.9)';
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
-      }
-
-      // Animated condenser fan and status LED communicate active cooling.
-      const fan = project({ x: -0.5, y: -0.83, z: 0.18 });
-      ctx.save();
-      ctx.translate(fan.x, fan.y);
-      ctx.rotate(motionTime * 0.004);
-      ctx.strokeStyle = 'rgba(153,246,228,.8)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(0, 0, 11, 0, Math.PI * 2);
-      ctx.stroke();
-      for (let blade = 0; blade < 5; blade++) {
-        ctx.rotate((Math.PI * 2) / 5);
-        ctx.beginPath();
-        ctx.ellipse(0, -5, 2.2, 6.5, 0.35, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(45,212,191,.42)';
-        ctx.fill();
-      }
-      ctx.restore();
-      ctx.beginPath();
-      ctx.arc(fan.x + 16, fan.y - 5, 2, 0, Math.PI * 2);
-      ctx.fillStyle = Math.sin(motionTime * 0.006) > -0.35 ? '#34d399' : '#064e3b';
-      ctx.shadowColor = '#34d399';
-      ctx.shadowBlur = 8;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // Cargo restraint bands visibly wrap the thermal shippers.
-      for (const x of [-0.28, 0.24]) {
-        const top = project({ x, y: -0.2, z: 0.16 });
-        const bottom = project({ x, y: 0.56, z: 0.48 });
-        ctx.beginPath();
-        ctx.moveTo(top.x, top.y);
-        ctx.lineTo(bottom.x, bottom.y);
-        ctx.strokeStyle = '#fbbf24';
-        ctx.lineWidth = 2.2;
-        ctx.stroke();
-      }
-
-      // Stainless fasteners around the front frame.
-      const rivets: Point3D[] = [];
-      for (const x of [-0.78, 0.78]) for (let y = -0.66; y <= 0.66; y += 0.22) rivets.push({ x, y, z: 0.865 });
-      for (const y of [-0.7, 0.7]) for (let x = -0.56; x <= 0.56; x += 0.22) rivets.push({ x, y, z: 0.865 });
-      rivets.forEach((point) => {
-        const rivet = project(point);
-        ctx.beginPath();
-        ctx.arc(rivet.x, rivet.y, 1.25, 0, Math.PI * 2);
-        ctx.fillStyle = '#d7f9ff';
-        ctx.fill();
-      });
-
-      // Visible cold-air circulation when the insulated door is open.
-      if (doorProgress > 0.15) {
-        for (let index = 0; index < 12; index++) {
-          const phase = (motionTime * 0.00018 + index / 12) % 1;
-          const particle = project({
-            x: -0.5 + (index % 4) * 0.32 + Math.sin(motionTime * 0.001 + index) * 0.04,
-            y: 0.52 - phase * 1.05,
-            z: 0.48 + phase * 0.62,
-          });
-          ctx.beginPath();
-          ctx.arc(particle.x, particle.y, 1.5 + phase * 2, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(103,232,249,${(1 - phase) * doorProgress * 0.55})`;
-          ctx.fill();
-        }
-      }
-    }
-
-    // Draw Active Sensor Hotspot Beacons in 3D
-    const hotspots = [
+  // Hotspot pill projection targets (registered once elements exist).
+  useEffect(() => {
+    const specs: HotspotSpec[] = [
       {
         id: 'temp',
-        label: uld.activeCooling ? '+4.2°C · SIM' : 'AMBIENT HOLD',
-        pos: { x: 0, y: -0.1, z: 0.1 },
         color: uld.activeCooling ? '#2dd4bf' : '#38bdf8',
+        label: uld.activeCooling ? '+4.2°C · SIM' : 'AMBIENT HOLD',
+        element: tempHotspotRef.current,
       },
       {
         id: 'cargo',
-        label: `${uld.volumeCbm} CBM · ${(uld.maxGrossWeightKg - uld.tareWeightKg).toLocaleString()} KG`,
-        pos: { x: -0.2, y: 0.35, z: -0.1 },
         color: '#f59e0b',
+        label: `${uld.volumeCbm} CBM · ${(uld.maxGrossWeightKg - uld.tareWeightKg).toLocaleString()} KG`,
+        element: cargoHotspotRef.current,
       },
       {
         id: 'acid',
-        label: 'ACID REF · DEMO',
-        pos: { x: 0.3, y: 0.35, z: 0.2 },
         color: '#34d399',
+        label: 'ACID REF · DEMO',
+        element: acidHotspotRef.current,
       },
     ];
+    sceneRef.current?.setHotspots(specs);
+    return () => sceneRef.current?.setHotspots([]);
+  }, [uld.activeCooling, uld.volumeCbm, uld.maxGrossWeightKg, uld.tareWeightKg, webGlFailed]);
 
-    hotspots.forEach((h) => {
-      const p = project(h.pos);
-      // Beacon ping
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = h.color;
-      ctx.fill();
+  /* Intent forwarding — every knob below maps to exactly one scene method. */
+  useEffect(() => {
+    sceneRef.current?.setModel(toUldCode(uld.code));
+  }, [uld.code]);
+  useEffect(() => {
+    sceneRef.current?.setRenderMode(renderMode);
+  }, [renderMode]);
+  useEffect(() => {
+    sceneRef.current?.setDoorOpen(isDoorOpen);
+  }, [isDoorOpen]);
+  useEffect(() => {
+    sceneRef.current?.setExploded(isExploded);
+  }, [isExploded]);
+  useEffect(() => {
+    sceneRef.current?.setAutoRotate(isAutoRotate);
+  }, [isAutoRotate]);
 
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 9 + Math.sin(motionTime * 0.004 + h.pos.x * 4) * 3, 0, Math.PI * 2);
-      ctx.strokeStyle = h.color;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Tooltip pill in 3D space
-      ctx.fillStyle = 'rgba(6, 11, 18, 0.85)';
-      ctx.strokeStyle = h.color;
-      ctx.lineWidth = 1;
-      const textW = ctx.measureText(h.label).width + 16;
-      ctx.roundRect(p.x - textW / 2, p.y - 28, textW, 18, 9);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 9px "IBM Plex Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(h.label, p.x, p.y - 19);
-    });
-  }, [faces, rotationX, rotationY, zoom, isInsideView, uld.activeCooling, uld.volumeCbm, uld.maxGrossWeightKg, uld.tareWeightKg, prefersReducedMotion, doorProgress, renderMode, explosion]);
+  const setPresetView = (view: CameraPreset) => {
+    setIsAutoRotate(false);
+    const inside = view === 'inside';
+    setIsInsideView(inside);
+    if (inside) setIsDoorOpen(true);
+    sceneRef.current?.setPreset(view);
+  };
 
   const handleViewerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     const step = event.shiftKey ? 0.18 : 0.08;
+    const scene = sceneRef.current;
+    if (!scene) return;
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
       setIsAutoRotate(false);
-      setRotationY((value) => value + (event.key === 'ArrowLeft' ? -step : step));
+      scene.orbitBy(event.key === 'ArrowLeft' ? -step : step, 0);
     } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
       event.preventDefault();
-      setRotationX((value) => Math.max(-1.2, Math.min(1.2, value + (event.key === 'ArrowUp' ? -step : step))));
+      scene.orbitBy(0, event.key === 'ArrowUp' ? -step : step);
     } else if (event.key === '+' || event.key === '=') {
-      setZoom((value) => Math.min(2.8, value + 0.15));
+      scene.zoomBy(-0.5);
     } else if (event.key === '-') {
-      setZoom((value) => Math.max(0.6, value - 0.15));
+      scene.zoomBy(0.5);
     } else if (event.key.toLowerCase() === 'e') {
       setIsExploded((value) => !value);
     } else if (event.key.toLowerCase() === 'd') {
@@ -1097,29 +192,6 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
       // Fullscreen can be blocked by embedding/browser policy; normal view remains.
     }
   };
-
-  /* The loop below must always call the newest renderer, but restarting it on
-     every state change would also reset the ambient pacing, so the renderer is
-     handed over through a ref and its identity doubles as the state token. */
-  const renderRef = useRef(render);
-  useEffect(() => {
-    renderRef.current = render;
-  }, [render]);
-
-  /* Scene painting policy (see lib/scene-loop.ts):
-       · camera/door/explosion/mode changes  → painted on the very next frame;
-       · ambient detail (fan, LED, particles, hotspot pulse) → ~30 fps;
-       · reduced motion freezes `motionTime`, so nothing ambient needs painting;
-       · off-screen or unmounted            → no painting at all.
-     Previously this redrew the whole scene 60×/s even when nothing moved. */
-  useEffect(() => {
-    if (!isViewportVisible) return;
-    return runSceneLoop({
-      draw: () => renderRef.current(),
-      getStateToken: () => renderRef.current,
-      isAmbientAnimated: () => !prefersReducedMotion,
-    });
-  }, [isViewportVisible, prefersReducedMotion]);
 
   return (
     <div className="relative rounded-3xl border border-cyan-500/30 bg-[#060b14] overflow-hidden shadow-2xl flex flex-col">
@@ -1137,19 +209,24 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
                 {isInsideView ? (isRtl ? 'وضع الاستكشاف الداخلي' : 'INSIDE VIEW') : (isRtl ? 'المظهر الخارجي' : 'ORBIT')}
               </span>
+              <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-400/10 text-emerald-300 border border-emerald-400/25">
+                <Cpu className="w-3 h-3" />
+                WEBGL
+              </span>
             </div>
             <span className="text-[11px] text-slate-400 font-mono block">
-              {isRtl ? 'اسحب للتدوير · حرّك العجلة للتكبير · افتح الباب لرؤية البضائع' : 'Drag to rotate · Scroll to zoom · Open door to inspect payload'}
+              {isRtl
+                ? 'اسحب للتدوير · حرّك العجلة للتكبير · افتح الباب لرؤية البضائع'
+                : 'Drag to rotate · Scroll to zoom · Open door to inspect payload'}
             </span>
           </div>
         </div>
 
         {/* View mode actions */}
         <div className="flex items-center gap-1.5 font-mono text-xs">
-          {/* Open/Close Door Button */}
           <button
             type="button"
-            onClick={() => setIsDoorOpen(!isDoorOpen)}
+            onClick={() => setIsDoorOpen((value) => !value)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold transition-all shadow-md active:scale-95 ${
               isDoorOpen
                 ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-amber-500/10'
@@ -1160,7 +237,6 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
             <span>{isDoorOpen ? (isRtl ? 'إغلاق الباب' : 'Close Door') : (isRtl ? 'فتح الباب / الستار' : 'Open Door')}</span>
           </button>
 
-          {/* Step Inside Button */}
           <button
             type="button"
             onClick={() => setPresetView(isInsideView ? 'iso' : 'inside')}
@@ -1174,17 +250,15 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
             <span>{isInsideView ? (isRtl ? 'الخروج للمظهر العام' : 'Exit to Orbit') : (isRtl ? 'الدخول للحاوية' : 'Step Inside')}</span>
           </button>
 
-          {/* Auto Rotate Toggle */}
           <button
             type="button"
-            onClick={() => setIsAutoRotate(!isAutoRotate)}
+            onClick={() => setIsAutoRotate((value) => !value)}
             title={isAutoRotate ? 'إيقاف الدوران' : 'تشغيل الدوران'}
             className="p-2 rounded-xl glass-subcard border-white/10 text-slate-300 hover:text-white hover:border-cyan-400"
           >
             {isAutoRotate ? <Pause className="w-4 h-4 text-cyan-400" /> : <Play className="w-4 h-4" />}
           </button>
 
-          {/* Reset Camera */}
           <button
             type="button"
             onClick={() => setPresetView('iso')}
@@ -1196,7 +270,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         </div>
       </div>
 
-      {/* Main Canvas Viewport with Touch/Mouse Interaction */}
+      {/* Main WebGL Viewport */}
       <div
         ref={viewportRef}
         tabIndex={0}
@@ -1205,28 +279,70 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         className="uld-studio relative h-[420px] sm:h-[500px] w-full cursor-grab active:cursor-grabbing select-none overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300"
       >
         <div className="uld-studio-beam absolute inset-0 pointer-events-none" aria-hidden="true" />
-        <div className="absolute left-3 top-3 h-8 w-8 border-l border-t border-cyan-300/40 pointer-events-none" aria-hidden="true" />
-        <div className="absolute right-3 top-3 h-8 w-8 border-r border-t border-cyan-300/40 pointer-events-none" aria-hidden="true" />
+        <div className="absolute left-3 top-3 h-8 w-8 border-l border-t border-cyan-300/40 pointer-events-none z-10" aria-hidden="true" />
+        <div className="absolute right-3 top-3 h-8 w-8 border-r border-t border-cyan-300/40 pointer-events-none z-10" aria-hidden="true" />
+
         <canvas
           ref={canvasRef}
-          width={800}
-          height={480}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          aria-label={`Interactive simulated 3D digital twin of ${uld.code} air cargo container`}
-          className="w-full h-full object-cover"
+          aria-label={`Interactive WebGL digital twin of ${uld.code} air cargo container`}
+          className="block h-full w-full touch-none"
         />
-        {uld.code === 'RKN' && (
+
+        {/* DOM hotspot beacons — projection-synced by the scene each frame. */}
+        {!webGlFailed && (
+          <div className="pointer-events-none absolute inset-0 z-10" aria-hidden="true" dir="ltr">
+            {([
+              { ref: tempHotspotRef, color: uld.activeCooling ? '#2dd4bf' : '#38bdf8' },
+              { ref: cargoHotspotRef, color: '#f59e0b' },
+              { ref: acidHotspotRef, color: '#34d399' },
+            ] as const).map(({ ref, color }, i) => (
+              <div key={i} ref={ref} className="absolute left-0 top-0" style={{ display: 'none', willChange: 'transform' }}>
+                <div className="flex flex-col items-center gap-1.5">
+                  <span
+                    className="whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[8px] font-bold tracking-wider text-white backdrop-blur-md"
+                    style={{ borderColor: color, background: 'rgba(6,11,18,.82)', color }}
+                  >
+                    {i === 0
+                      ? uld.activeCooling
+                        ? '+4.2°C · SIM'
+                        : 'AMBIENT HOLD'
+                      : i === 1
+                        ? `${uld.volumeCbm} CBM · ${(uld.maxGrossWeightKg - uld.tareWeightKg).toLocaleString()} KG`
+                        : 'ACID REF · DEMO'}
+                  </span>
+                  <span
+                    className="h-2 w-2 rounded-full animate-ping-pulse"
+                    style={{ background: color, boxShadow: `0 0 8px ${color}` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Graceful WebGL-unavailable state: the twin's data, minus the GPU. */}
+        {webGlFailed && (
+          <div className="absolute inset-0 grid place-items-center bg-[#0a121e] p-6 text-center">
+            <div className="max-w-sm space-y-2">
+              <Globe2 className="mx-auto h-6 w-6 text-cyan-400" />
+              <p className="font-mono text-xs text-slate-300">
+                {isRtl
+                  ? 'متصفحك حظر WebGL — يتم عرض بيانات الوحدة النصية.'
+                  : 'WebGL is unavailable in this browser — showing the unit specification summary.'}
+              </p>
+              <p className="font-mono text-[10px] text-slate-500" dir="ltr">
+                {uld.code} · {uld.internalCm.lengthCm}×{uld.internalCm.widthCm}×{uld.internalCm.heightCm} CM ·{' '}
+                {uld.volumeCbm} CBM · {(uld.maxGrossWeightKg - uld.tareWeightKg).toLocaleString()} KG NET
+              </p>
+            </div>
+          </div>
+        )}
+
+        {uld.code === 'RKN' && !webGlFailed && (
           <>
             <div className="pointer-events-none absolute right-4 top-4 hidden text-right font-mono sm:block" dir="ltr">
               <span className="block text-[9px] tracking-[.22em] text-teal-300/70">ENVIROTAINER · ACTIVE UNIT</span>
-              <span className="mt-1 block text-[8px] text-slate-500">INSULATED SHELL / REDUNDANT COOLING / SIMULATION</span>
+              <span className="mt-1 block text-[8px] text-slate-500">PBR SHELL · IBL STUDIO / SIMULATION</span>
             </div>
             <div className="pointer-events-none absolute inset-x-[18%] bottom-14 hidden items-center font-mono text-[8px] text-cyan-200/60 sm:flex" dir="ltr">
               <span className="h-2 border-l border-cyan-300/40" />
@@ -1257,40 +373,48 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
             </button>
           ))}
           <span className="mx-0.5 h-4 w-px bg-white/15" />
-          <button type="button" aria-pressed={isExploded} onClick={() => setIsExploded((value) => !value)} className={`flex items-center gap-1 rounded-lg px-2 py-1.5 transition ${isExploded ? 'bg-amber-300 text-slate-950' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`} title="Exploded assembly view (E)">
-            <PanelsTopLeft className="h-3 w-3" /><span className="hidden lg:inline">EXPLODE</span>
+          <button
+            type="button"
+            aria-pressed={isExploded}
+            onClick={() => setIsExploded((value) => !value)}
+            className={`flex items-center gap-1 rounded-lg px-2 py-1.5 transition ${isExploded ? 'bg-amber-300 text-slate-950' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}
+            title="Exploded assembly view (E)"
+          >
+            <PanelsTopLeft className="h-3 w-3" />
+            <span className="hidden lg:inline">EXPLODE</span>
           </button>
-          <button type="button" onClick={openFullscreen} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white" title="Fullscreen inspection">
+          <button
+            type="button"
+            onClick={openFullscreen}
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
+            title="Fullscreen inspection"
+          >
             <Maximize2 className="h-3 w-3" />
           </button>
         </div>
 
         {isExploded && (
           <div className="pointer-events-none absolute left-1/2 top-16 z-20 -translate-x-1/2 rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 font-mono text-[8px] tracking-[.16em] text-amber-200 backdrop-blur" dir="ltr">
-            ASSEMBLY SEPARATION {Math.round(explosion * 100)}% · E TO COLLAPSE
+            ASSEMBLY SEPARATION · E TO COLLAPSE
           </div>
         )}
 
         {renderMode === 'thermal' && (
           <div className="pointer-events-none absolute right-4 top-20 z-20 hidden rounded-xl border border-white/10 bg-black/55 p-2 font-mono text-[8px] text-white backdrop-blur sm:block" dir="ltr">
-            <span className="block mb-1 tracking-wider">SURFACE THERMAL MAP · SIM</span>
+            <span className="block mb-1 tracking-wider">SURFACE THERMAL MAP · GLSL</span>
             <div className="h-2 w-28 rounded-full bg-gradient-to-r from-indigo-800 via-cyan-500 to-red-500" />
             <div className="mt-1 flex justify-between text-slate-400"><span>2°C</span><span>8°C</span><span>24°C</span></div>
           </div>
         )}
 
         {renderMode === 'xray' && (
-          <>
-            <div className="xray-scan-plane pointer-events-none absolute inset-y-12 z-10 w-20 bg-gradient-to-r from-transparent via-cyan-200/15 to-transparent" aria-hidden="true" />
-            <div className="pointer-events-none absolute right-4 top-20 z-20 hidden rounded-xl border border-cyan-300/20 bg-cyan-950/30 px-3 py-2 font-mono text-[8px] tracking-wider text-cyan-200 backdrop-blur sm:block" dir="ltr">
-              SHELL OPACITY 18% · PAYLOAD / AIRFLOW VISIBLE
-            </div>
-          </>
+          <div className="pointer-events-none absolute right-4 top-20 z-20 hidden rounded-xl border border-cyan-300/20 bg-cyan-950/30 px-3 py-2 font-mono text-[8px] tracking-wider text-cyan-200 backdrop-blur sm:block" dir="ltr">
+            FRESNEL SHELL TRANSPARENCY · SCAN APERTURE SWEEPING
+          </div>
         )}
 
-        {/* Floating Telemetry & Information HUD on Canvas */}
+        {/* Floating Telemetry & Information HUD */}
         <div className="absolute top-4 left-4 rtl:left-auto rtl:right-4 z-10 pointer-events-none space-y-2">
-          {/* Live Sensor Capsule */}
           <div className="glass-panel p-3 rounded-2xl border border-cyan-500/30 max-w-[230px] space-y-1.5 shadow-lg backdrop-blur-xl">
             <div className="flex items-center justify-between text-[10px] font-mono text-cyan-400 font-bold">
               <span className="flex items-center gap-1.5">
@@ -1318,6 +442,18 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
             </div>
           </div>
         </div>
+
+        {/* GPU load verifier — emitted by the render loop at 2 Hz. */}
+        {stats && (
+          <div
+            className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 font-mono text-[8px] tracking-wider text-slate-400 backdrop-blur"
+            dir="ltr"
+            data-scene-fps={stats.fps}
+            data-scene-draws={stats.draws}
+          >
+            {stats.fps} FPS · {stats.draws} DRAWS · DPR ×{stats.dpr}
+          </div>
+        )}
 
         {/* Camera Preset Quick Buttons (Bottom Left) */}
         <div className="absolute bottom-4 left-4 rtl:left-auto rtl:right-4 z-10 flex items-center gap-1.5 font-mono text-[10px] pointer-events-auto">
@@ -1356,7 +492,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         <div className="absolute bottom-4 right-4 rtl:right-auto rtl:left-4 z-10 flex items-center gap-1 font-mono pointer-events-auto">
           <button
             type="button"
-            onClick={() => setZoom((prev) => Math.min(2.8, prev + 0.2))}
+            onClick={() => sceneRef.current?.zoomBy(-0.55)}
             title="تكبير"
             className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white backdrop-blur-md"
           >
@@ -1364,7 +500,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           </button>
           <button
             type="button"
-            onClick={() => setZoom((prev) => Math.max(0.6, prev - 0.2))}
+            onClick={() => sceneRef.current?.zoomBy(0.55)}
             title="تصغير"
             className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white backdrop-blur-md"
           >
@@ -1379,14 +515,14 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
           <span>
             {isRtl
-              ? 'محرك عرض هندسي مبرمج بالأبعاد الواقعية لـ IATA TACT — مهيأ لدمج ملفات (.gltf / .obj)'
-              : 'Engineered IATA 3D projection twin — Ready for custom (.gltf / .obj) asset insertion'}
+              ? 'توأم رقمي WebGL حقيقي بخط أنابيب PBR وظلال GLSL — مهيأ لدمج ملفات (.gltf / .obj)'
+              : 'True WebGL digital twin · PBR pipeline + hand-written GLSL — ready for custom (.gltf / .obj) asset insertion'}
           </span>
         </div>
 
         <button
           type="button"
-          onClick={() => setCustomModelNotice(!customModelNotice)}
+          onClick={() => setCustomModelNotice((value) => !value)}
           className="text-cyan-400 hover:text-cyan-300 underline font-semibold flex items-center gap-1 shrink-0"
         >
           <FileCode className="w-3.5 h-3.5" />
@@ -1394,7 +530,6 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         </button>
       </div>
 
-      {/* Expandable Technical Modal / Guidance for Custom Model Integration */}
       {customModelNotice && (
         <div className="p-4 bg-[#0a1424] border-t border-cyan-500/30 text-xs font-mono text-slate-300 space-y-2">
           <div className="flex items-center justify-between font-bold text-cyan-300">
@@ -1409,8 +544,8 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           </div>
           <p className="leading-relaxed">
             {isRtl
-              ? 'تمت تهيئة كامل منظومة الإسقاط والتحكم والإضاءة والتدوير وفتح الأبواب. عندما تصنع أو تصدّر ملفات الحاويات (بصيغ GLTF أو OBJ أو Three.js JSON)، يمكنك ببساطة وضعها في مجلد assets/uld/ مع نفس مسميات الأكواد (ake.gltf, pmc.gltf, rkn.gltf, rap.gltf) وستتولى المنصة عرضها فوراً مع الحفاظ على كل وظائف التيليميتري الحية.'
-              : 'The camera orbit, turntable animation, door hinge kinematics, and telemetry HUD are completely configured. When you provide your custom 3D files (GLTF/OBJ), place them in assets/uld/ (ake.gltf, pmc.gltf, rkn.gltf, rap.gltf) to be automatically rendered seamlessly.'}
+              ? 'محرك العرض يعمل بنظام موارد صارم: كل وحدة تُبنى إجرائياً ثم تُحرر ذاكرتها بالكامل عند التبديل. عند تصدير ملفات الحاويات (GLTF أو OBJ)، ضعها في assets/uld/ بنفس مسميات الأكواد (ake.gltf, rkn.gltf) وسيحل مسرّع GLTFLoader على نفس المسارات — مع بقاء حرارة المفصلات والنماذج الحرارية والتيليميتري كما هي.'
+              : 'The engine enforces a strict resource policy: every unit builds procedurally and fully releases GPU memory on swap. When you export container files (GLTF/OBJ), drop them in assets/uld/ under matching code names (ake.gltf, rkn.gltf) — a GLTFLoader lane plugs into the same scene contract, and door kinematics, thermal/x-ray shaders and telemetry keep working.'}
           </p>
         </div>
       )}

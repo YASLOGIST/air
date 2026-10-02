@@ -5,20 +5,40 @@
  * rather than deferral), so the total matters as much as the largest file.
  * Budgets are ratchets: they sit just above the current measured size, so an
  * accidental regression fails CI instead of silently shipping.
+ *
+ * two-tier model (since the WebGL upgrade):
+ *   1. APP budget — unchanged and as strict as ever: per-file ≤ 280 KiB,
+ *      total ≤ 480 KiB raw, CSS ≤ 115 KiB. Application code regressions still
+ *      fail this gate.
+ *   2. VENDOR budget — exactly one chunk, `vendor-three-*.js`, holding the
+ *      three.js engine layer. It is a deliberate architectural addition
+ *      (real WebGL digital twin + corridor globe replacing a 2D painter),
+ *      isolated in vite.config.ts so it caches independently of app code and
+ *      is fetched in parallel with the two lazy sections that consume it.
+ *      Its limit is likewise a ratchet just above the measured size; raise it
+ *      only along with an intentional three version bump.
  */
 import { readdir, stat } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { readFile } from 'node:fs/promises';
 
 const perFileLimits = { js: 280_000, css: 115_000 };
-/* Total ratchet last moved for the ULD load-fit engine + multi-piece simulator
- * + AWB check-digit suggestions (~12 KiB raw / ~4 KiB gzip of feature code). */
-const totalLimits = { js: 480_000, css: 115_000 };
+/* App-total ratchet history:
+ *   · ULD load-fit engine + simulator + AWB check digits (~+12 KiB gzip 4 KiB)
+ *   · WebGL scenes' app-tier code: UldScene + procedural model shop + corridor
+ *     globe scene + scene-sharing glue, net of the deleted 2D painter
+ *     (measured 498.3 KiB raw / 165.1 KiB gzip; ratchet sits ~+2.7% above). */
+const totalLimits = { js: 512_000, css: 115_000 };
+
+/* three r186, minified. gzip ≈ 145 KiB (reported below, not gated). */
+const vendorThreePattern = /^vendor-three-[\w-]+\.js$/;
+const vendorThreeLimit = 625_000;
 
 const files = await readdir('dist/assets');
-const totals = { js: 0, css: 0 };
+const appTotals = { js: 0, css: 0 };
 const gzipTotals = { js: 0, css: 0 };
 let failed = false;
+let vendorSeen = 0;
 
 for (const file of files.sort()) {
   const extension = file.split('.').pop();
@@ -26,7 +46,20 @@ for (const file of files.sort()) {
   const path = `dist/assets/${file}`;
   const bytes = (await stat(path)).size;
   const gzipBytes = gzipSync(await readFile(path)).length;
-  totals[extension] += bytes;
+
+  if (vendorThreePattern.test(file)) {
+    vendorSeen += 1;
+    const over = bytes > vendorThreeLimit;
+    if (over) failed = true;
+    console.log(
+      `${over ? 'FAIL' : 'ok  '} ${file}: ${(bytes / 1024).toFixed(1)} KiB` +
+        ` (gzip ${(gzipBytes / 1024).toFixed(1)} KiB) / ${(vendorThreeLimit / 1024).toFixed(1)} KiB` +
+        ' · vendor tier (three.js engine, cached separately)',
+    );
+    continue;
+  }
+
+  appTotals[extension] += bytes;
   gzipTotals[extension] += gzipBytes;
   const over = bytes > perFileLimits[extension];
   if (over) failed = true;
@@ -37,12 +70,21 @@ for (const file of files.sort()) {
 }
 
 for (const [extension, limit] of Object.entries(totalLimits)) {
-  const over = totals[extension] > limit;
+  const over = appTotals[extension] > limit;
   if (over) failed = true;
   console.log(
-    `${over ? 'FAIL' : 'ok  '} TOTAL ${extension}: ${(totals[extension] / 1024).toFixed(1)} KiB` +
+    `${over ? 'FAIL' : 'ok  '} APP TOTAL ${extension}: ${(appTotals[extension] / 1024).toFixed(1)} KiB` +
       ` (gzip ${(gzipTotals[extension] / 1024).toFixed(1)} KiB) / ${(limit / 1024).toFixed(1)} KiB`,
   );
+}
+
+/* Exactly one engine chunk must exist — a missing chunk would silently punt
+   three into the app budget, a duplicated one would ship it twice. */
+if (vendorSeen !== 1) {
+  failed = true;
+  console.error(`FAIL expected exactly one vendor-three-* chunk, found ${vendorSeen}`);
+} else {
+  console.log(`ok   vendor tier: exactly one vendor-three chunk present`);
 }
 
 if (failed) {

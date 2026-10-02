@@ -5,7 +5,7 @@
 # YASLOGIST AIR
 ### Air Freight Intelligence Suite — Technical Whitepaper
 
-**A bilingual (EN/AR), simulation-grade air-freight cockpit**: IATA-checksum AWB tooling, a volumetric/chargeable-weight and carbon engine, a canvas-rendered ULD digital twin, a corridor intelligence browser, and a Cairo Cargo Village hand-off model — built on React 19, TypeScript, Vite 6, and Tailwind CSS 4.
+**A bilingual (EN/AR), simulation-grade air-freight cockpit**: IATA-checksum AWB tooling, a volumetric/chargeable-weight and carbon engine, a WebGL (PBR + GLSL) ULD digital twin and a great-circle network globe, a corridor intelligence browser, and a Cairo Cargo Village hand-off model — built on React 19, TypeScript, Vite 6, and Tailwind CSS 4.
 
 [![Quality Gate](https://img.shields.io/github/actions/workflow/status/YASLOGIST/air/quality.yml?branch=main&label=quality%20gate&style=for-the-badge&logo=githubactions&logoColor=white)](.github/workflows/quality.yml)
 [![React](https://img.shields.io/badge/React-19-38bdf8?style=for-the-badge&logo=react&logoColor=white)](package.json)
@@ -53,9 +53,9 @@ flowchart TD
     Boundary --> Lazy["React.lazy + Suspense\nfeature sections"]
 
     Lazy --> Sim["CargoSimAir\n(volumetric + CO2 engine)"]
-    Lazy --> ULD["ULDSelector → ULDViewer3D\n(canvas pseudo-3D renderer)"]
+    Lazy --> ULD["ULDSelector → ULDViewer3D\n(AIRGL WebGL digital twin — PBR + GLSL)"]
     Lazy --> Village["CargoVillageFlow\n(4-stage release timeline)"]
-    Lazy --> Corridors["CorridorsAir\n(air ⇄ sea benchmark browser)"]
+    Lazy --> Corridors["CorridorsAir → CorridorGlobe3D\n(AIRGL great-circle network globe)"]
     Lazy --> Tracker["ConsignmentTracker\n(local sample lookup only)"]
     Lazy --> Stats["StatsAir · MissionAir · StanceAir"]
     Lazy --> Handshake["HandshakeAirToLand\n→ land.yaslogist.com"]
@@ -90,7 +90,7 @@ flowchart TD
 | **Carbon intensity comparison** | `CargoSimAir.tsx` → `air-math.ts` | Estimates tonnes CO₂e for the chargeable weight over the flown distance (GLEC/EN 16258 freighter factor) and benchmarks it against an equivalent container-vessel sailing. | Mode-comparison average, not a shipment-specific certified figure. |
 | **Indicative air-freight cost model** | `air-math.ts: estimateAirFreightCost` | Benchmarks base rate (by corridor), fuel/security surcharges, Cairo Cargo Village terminal handling, and a Nafeza pre-validation fee into a total USD estimate. | Explicitly indicative — not a quoted or contractual rate. |
 | **IATA AWB Mod-7 checksum validator & corrector** | `AwbModalAir.tsx` → `air-math.ts` | Validates the 11-digit AWB structure (`serial % 7 === checkDigit`), resolves the 3-digit carrier prefix to an airline/hub directory, and on failure computes the expected check digit and offers a one-click "did you mean" correction. | Structural validity only — never asserts booking, customs, or shipment status. |
-| **ULD digital twin** | `ULDSelector.tsx` + `ULDViewer3D.tsx` → `uld-fleet.ts` | Browsable fleet of 4 Unit Load Devices (AKE/LD3, PMC pallet, RKN & RAP active cold-chain) with tare/max-gross/volume/net-payload specs and usable internal envelopes, rendered as an interactive canvas pseudo-3D model (rotate, zoom, open/close door, X-ray mode). Fleet data is a single shared constant also consumed by the simulator's load-fit planner. | Spec sheet + visualization — not a live loading manifest. |
+| **ULD digital twin** | `ULDSelector.tsx` + `ULDViewer3D.tsx` → `uld-fleet.ts` | Browsable fleet of 4 Unit Load Devices (AKE/LD3, PMC pallet, RKN & RAP active cold-chain) with tare/max-gross/volume/net-payload specs and usable internal envelopes, rendered as a real-time WebGL digital twin on the AIRGL engine (orbit/zoom, damped door hinge, exploded assembly, GLSL thermal and X-ray modes, instanced payloads). Fleet data is a single shared constant also consumed by the simulator's load-fit planner. | Spec sheet + visualization — not a live loading manifest. |
 | **Cargo Village release timeline** | `CargoVillageFlow.tsx` | Four-stage narrative from touchdown → tarmac cold-chain transfer → digital e-AWB/ACID pre-clearance → reefer-truck gate-out, each stage tagged with a target time window and the compliance reference it maps to (IATA AHM 905, WHO GDP, Egypt Customs Law 207 / Nafeza). | Illustrative process model, not a live customs integration. |
 | **Corridor intelligence browser** | `CorridorsAir.tsx` → `corridors.ts` | Four strategic lanes into Cairo (FRA, DXB, AMS, PVG) with distance, block time, weekly frequency, primary commodity mix, and a matched sea-freight benchmark (different port pair, real sailing distance — not derived from the air route). | Reference dataset, single source of truth shared with the calculator. |
 | **Consignment tracker** | `ConsignmentTracker.tsx` | Looks up one of 5 bundled demo shipments by AWB/keyword and renders a 5-stage milestone timeline with temperature, ULD, and e-AWB status. | Unknown identifiers return **not found** — the baseline behavior of fabricating plausible telemetry for unknown AWBs was removed and is now a regression test. |
@@ -199,6 +199,16 @@ The hero scroll scrubber follows the same rule: its easing loop stops as soon as
 
 ---
 
+## WebGL · AIRGL Engine
+
+Both spatial views run on a shared engine layer at `src/three/airgl/` (three r186, isolated into a dedicated `vendor-three-*.js` chunk by `vite.config.ts`). The engine replaces the previous 2D canvas projections with real WebGL2 pipelines:
+
+- **ULD digital twin** (`uld/scene.ts`, `uld/model.ts`, `uld/shaders.ts`) — procedural IATA unit shop (AKE/PMC/RKN/RAP) with wall-thickness geometry, hinge/curtain door rigs driven by a critically damped spring, IBL lighting from a procedural PMREM studio environment (zero external HDR assets — CSP-clean), and three inspection modes: PBR material, a hand-written GLSL **thermal ramp** (door-leak aware, branch-free `mix`/`smoothstep` chains), and a **fresnel X-ray** with a sweeping scan aperture. Payload crates and rivet belts are single-draw-call `InstancedMesh`es; all static edge highlights merge into one `LineSegments`; cold-air particles animate entirely in the vertex shader (one `THREE.Points` draw, zero CPU math).
+- **Corridor globe** (`globe/scene.ts`) — the scheduled airway network rendered as true great circles on a Fibonacci dot-shell. Six draw calls steady-state; aircraft traffic rides arcs via in-shader slerp; card selection ignites the matching arc (shader uniform) and eases the globe so the corridor midpoint faces the camera (`facingYawFor`).
+- **Frame-budget contract** — `devicePixelRatio` hard-capped at 2 (fill-rate guard against high-DPI thermal throttling), ACES filmic tone mapping, no allocation inside any render loop (pre-allocated scratch vectors), loops suspended off-screen (IntersectionObserver) and under `prefers-reduced-motion`, and a zero-leak teardown: every geometry/material/texture/render-target is disposed explicitly on unit swap and unmount (see `releaseWebGL` in `gl.ts`). Live `FPS · DRAWS · DPR` chips beneath each canvas report steady-state GPU cost.
+
+Bundle budgets are two-tier (`scripts/check-bundle.mjs`): the app tier stays gated at its historical strictness, while the engine lives in a separately measured vendor tier.
+
 ## Quickstart
 
 **Requirements:** Node.js 22, npm 10+. No environment variables are required — see [`.env.example`](.env.example).
@@ -230,7 +240,7 @@ npm run preview -- --host 0.0.0.0
 |---|---|
 | `npm run typecheck` | Strict TypeScript across app code and tests — zero `any`-shaped drift between `air-math.ts` and the UI. |
 | `npm test` | Vitest suite covering the calculation engine, AWB checksum, modal accessibility, keyboard interaction, and the tracker's fail-closed behavior. |
-| `npm run check:bundle` | Enforces per-chunk (280 KB JS / 115 KB CSS) **and** total (470 KB JS) raw-byte budgets against `dist/assets`, printing gzip sizes alongside. |
+| `npm run check:bundle` | Enforces per-chunk (280 KB JS / 115 KB CSS) **and** app-total (512 KB JS, vendor-three tracked in its own tier) raw-byte budgets against `dist/assets`, printing gzip sizes alongside. |
 | `npm run audit` | `npm audit --omit=dev --audit-level=high` — zero tolerance for high/critical production vulnerabilities. |
 | `.github/workflows/quality.yml` | Runs all four gates above on every push and pull request. |
 
