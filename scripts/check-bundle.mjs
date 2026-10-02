@@ -27,8 +27,11 @@ const perFileLimits = { js: 280_000, css: 115_000 };
  *   · ULD load-fit engine + simulator + AWB check digits (~+12 KiB gzip 4 KiB)
  *   · WebGL scenes' app-tier code: UldScene + procedural model shop + corridor
  *     globe scene + scene-sharing glue, net of the deleted 2D painter
- *     (measured 498.3 KiB raw / 165.1 KiB gzip; ratchet sits ~+2.7% above). */
-const totalLimits = { js: 512_000, css: 115_000 };
+ *     (measured 498.3 KiB raw / 165.1 KiB gzip; ratchet sat ~+2.7% above).
+ *   · Geography-aware globe + twin hardening: embedded landmask (continents,
+ *     enclosed seas), solar terminator, globe zoom/tilt, hotspot occlusion
+ *     and the quiescent ULD loop (measured 507.6 KiB raw / 168.8 KiB gzip). */
+const totalLimits = { js: 524_000, css: 115_000 };
 
 /* three r186, minified. gzip ≈ 145 KiB (reported below, not gated). */
 const vendorThreePattern = /^vendor-three-[\w-]+\.js$/;
