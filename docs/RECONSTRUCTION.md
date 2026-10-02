@@ -203,3 +203,24 @@ Repaint and timer counts are derived from the scheduling code and the determinis
 ## Behaviour deliberately preserved
 
 The visual design, motion language, bilingual/RTL behaviour, simulation disclaimers, routes, storage keys, public URLs and the `dist/`-tracked deployment contract are unchanged. The only user-visible behaviour changes are: the inactive theme's hero reel now loads on first theme switch rather than at page load (poster shown meanwhile), and a section that fails to load no longer takes the rest of the page with it.
+
+---
+
+# Capability pass — multi-piece planning, ULD load-fit, AWB correction, shareable scenarios
+
+**Baseline for this pass:** commit `d23ef19`, re-verified locally before any change: `npm run typecheck && npm test && npm run build && npm run check:bundle` all green (19 tests / 7 files).
+
+Earlier passes made the artifact truthful, fast and tested; this pass makes the tools genuinely more capable while keeping the simulation boundary intact (everything below remains pure math over bundled constants — no network, no storage beyond the URL itself).
+
+| # | Upgrade | Where | Notes |
+|---|---|---|---|
+| 1 | Multi-piece consignments: identical-piece count scales volume, volumetric/gross/chargeable weight, carbon and cost; stowed density (kg/m³) reported against the 166.7 IATA pivot with an in-UI density gauge | `air-math.ts`, `CargoSimAir.tsx` | `pieces` defaults to 1 — every existing call site keeps exact behaviour; non-integer piece counts are rejected |
+| 2 | ULD fleet data moved out of `ULDSelector.tsx` into `src/lib/uld-fleet.ts` (same consolidation already done for corridors) and extended with conservative usable internal envelopes | `uld-fleet.ts`, `ULDSelector.tsx` | ULD browser now also shows net payload (max gross − tare) and the planning envelope |
+| 3 | ULD load-fit engine: dimensional fit (horizontal rotation only — air cargo is built "this way up"), net-payload check, 10% broken-stowage volume reserve, GDP cool-chain matching; recommends the smallest fitting unit and explains every exclusion | `uld-fleet.ts: assessUldFit / recommendUld`, planner card in `CargoSimAir.tsx` | Verdicts are planning heuristics, labeled as such in-UI |
+| 4 | AWB Mod-7 corrector: when validation fails on parseable input, the expected check digit (serial mod 7) is computed and a one-click "did you mean" correction offered; unparseable input gets no suggestion | `air-math.ts: computeAwbCheckDigit / formatAwb / suggestAwbCorrection`, `AwbModalAir.tsx` | Still asserts structure only — never booking/customs status |
+| 5 | Shareable scenario deep links: simulator state serialized to `?sim=1&l=…` query params and restored on load with range clamping and corridor-distance pinning; copy-link button beside the manifest export | `sim-link.ts`, `CargoSimAir.tsx` | The URL is the only carrier; corridor ids are validated against the bundled dataset |
+| 6 | Manifest export (text/modal/print) extended with pieces, total gross, density and the recommended ULD | `CargoSimAir.tsx` | |
+
+**Verification:** `typecheck` 0 errors · 40 tests / 11 files (was 19 / 7), including an end-to-end deep-link restore test under a fresh module graph and jsdom component tests for the planner card and the AWB correction flow · build + bundle gate green (total-JS ratchet consciously moved 470,000 → 480,000 bytes for ~12 KiB raw / ~4 KiB gzip of feature code; the ratchet philosophy in `scripts/check-bundle.mjs` is unchanged) · tracked `dist/` rebuilt to match source.
+
+**Boundary unchanged:** no live data, no fabricated telemetry, bilingual EN/AR coverage added for every new string.

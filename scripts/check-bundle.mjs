@@ -11,7 +11,9 @@ import { gzipSync } from 'node:zlib';
 import { readFile } from 'node:fs/promises';
 
 const perFileLimits = { js: 280_000, css: 115_000 };
-const totalLimits = { js: 470_000, css: 115_000 };
+/* Total ratchet last moved for the ULD load-fit engine + multi-piece simulator
+ * + AWB check-digit suggestions (~12 KiB raw / ~4 KiB gzip of feature code). */
+const totalLimits = { js: 480_000, css: 115_000 };
 
 const files = await readdir('dist/assets');
 const totals = { js: 0, css: 0 };

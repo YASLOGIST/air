@@ -35,30 +35,43 @@ function tonnesCo2(chargeableWeightKg: number, distanceKm: number, kgPerTonneKm:
 
 export function calculateAirFreight(input: AirCalculationInput): AirCalculationOutput {
   const { lengthCm, widthCm, heightCm, grossWeightKg, distanceKm, seaLane } = input;
-  const numericInputs = { lengthCm, widthCm, heightCm, grossWeightKg, distanceKm };
+  const pieces = input.pieces ?? 1;
+  const numericInputs = { lengthCm, widthCm, heightCm, grossWeightKg, distanceKm, pieces };
   for (const [name, value] of Object.entries(numericInputs)) {
     if (!Number.isFinite(value) || value <= 0) {
       throw new RangeError(`${name} must be a finite number greater than zero`);
     }
   }
+  if (!Number.isInteger(pieces)) {
+    throw new RangeError('pieces must be a whole number of packages');
+  }
 
-  // 1. Volume calculation in Cubic Meters (CBM)
-  const rawVolumeCbm = (lengthCm * widthCm * heightCm) / 1_000_000;
+  // 1. Volume calculation in Cubic Meters (CBM), across all pieces
+  const rawVolumeCbm = (pieces * lengthCm * widthCm * heightCm) / 1_000_000;
   const volumeCbm = Number(rawVolumeCbm.toFixed(3));
 
   // 2. Volumetric Weight according to IATA standard divisor (6,000 cm³/kg)
-  const rawVolumetricWeight = (lengthCm * widthCm * heightCm) / 6000;
+  const rawVolumetricWeight = (pieces * lengthCm * widthCm * heightCm) / 6000;
   const volumetricWeightKg = Number(rawVolumetricWeight.toFixed(1));
 
+  // Total scale weight across all pieces
+  const totalGrossWeightKg = Number((pieces * grossWeightKg).toFixed(1));
+
   // 3. Chargeable Weight Determination (Higher of Gross vs Volumetric)
-  const chargeableWeightKg = Number(Math.max(grossWeightKg, volumetricWeightKg).toFixed(1));
-  const billingBasis = grossWeightKg >= volumetricWeightKg ? 'GROSS_WEIGHT' : 'VOLUMETRIC_WEIGHT';
-  const freightClass = grossWeightKg >= volumetricWeightKg ? 'DENSE_HEAVY' : 'VOLUMINOUS_LIGHT';
+  const chargeableWeightKg = Number(Math.max(totalGrossWeightKg, volumetricWeightKg).toFixed(1));
+  const billingBasis = totalGrossWeightKg >= volumetricWeightKg ? 'GROSS_WEIGHT' : 'VOLUMETRIC_WEIGHT';
+  const freightClass = totalGrossWeightKg >= volumetricWeightKg ? 'DENSE_HEAVY' : 'VOLUMINOUS_LIGHT';
 
   // Ratio of actual weight to volumetric weight
   const ratioActualToVolume = volumetricWeightKg > 0
-    ? Number((grossWeightKg / volumetricWeightKg).toFixed(2))
+    ? Number((totalGrossWeightKg / volumetricWeightKg).toFixed(2))
     : 1;
+
+  // Stowed density in kg/m³. The IATA 1:6000 divisor makes 166.67 kg/m³ the
+  // pivot: below it the shipment bills volumetric, above it gross.
+  const densityKgPerCbm = rawVolumeCbm > 0
+    ? Number((totalGrossWeightKg / rawVolumeCbm).toFixed(1))
+    : 0;
 
   // 4. Air carbon over the flown distance.
   const estimatedCo2Tonnes = tonnesCo2(
@@ -92,12 +105,15 @@ export function calculateAirFreight(input: AirCalculationInput): AirCalculationO
     : null;
 
   return {
+    pieces,
     volumeCbm,
     volumetricWeightKg,
+    totalGrossWeightKg,
     chargeableWeightKg,
     billingBasis,
     freightClass,
     ratioActualToVolume,
+    densityKgPerCbm,
     estimatedCo2Tonnes,
     airportBlockHours,
     oceanComparison,
@@ -114,6 +130,41 @@ export function validateIataAwb(awbNumber: string): boolean {
   const serialPart = Number(clean.slice(3, 10));
   const checkDigit = Number(clean.slice(10));
   return serialPart % 7 === checkDigit;
+}
+
+/**
+ * Computes the Mod-7 check digit for a 7-digit AWB serial.
+ * Returns null when the serial is not exactly 7 digits.
+ */
+export function computeAwbCheckDigit(serial: string): number | null {
+  const clean = serial.replace(/[\s-]/g, '');
+  if (!/^\d{7}$/.test(clean)) return null;
+  return Number(clean) % 7;
+}
+
+/** Formats an 11-digit AWB as the canonical `XXX-XXXXXXXC`; echoes input it cannot parse. */
+export function formatAwb(awbNumber: string): string {
+  const clean = awbNumber.replace(/[\s-]/g, '');
+  if (!/^\d{11}$/.test(clean)) return awbNumber;
+  return `${clean.slice(0, 3)}-${clean.slice(3)}`;
+}
+
+/**
+ * When an AWB fails the Mod-7 checksum but is structurally parseable
+ * (3-digit prefix + 7-digit serial, with or without a wrong check digit),
+ * returns the corrected, canonically formatted AWB. Returns null when the
+ * input is already valid or too malformed to correct without guessing.
+ */
+export function suggestAwbCorrection(awbNumber: string): string | null {
+  const clean = awbNumber.replace(/[\s-]/g, '');
+  // Either prefix+serial (10 digits, check digit omitted) or a full 11 digits.
+  if (!/^\d{10,11}$/.test(clean)) return null;
+  if (clean.length === 11 && validateIataAwb(clean)) return null;
+  const prefix = clean.slice(0, 3);
+  const serial = clean.slice(3, 10);
+  const check = computeAwbCheckDigit(serial);
+  if (check === null) return null;
+  return `${prefix}-${serial}${check}`;
 }
 
 export interface AirlinePrefixInfo {

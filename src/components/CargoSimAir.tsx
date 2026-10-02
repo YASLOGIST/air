@@ -2,6 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { useLang } from '../lib/i18n';
 import { calculateAirFreight, estimateAirFreightCost } from '../lib/air-math';
 import { DEFAULT_CORRIDOR_ID, findCorridor } from '../lib/corridors';
+import { recommendUld } from '../lib/uld-fleet';
+import { buildSimShareUrl, decodeSimState } from '../lib/sim-link';
+import type { UldFitBlocker } from '../types/air-freight';
 import { ModelBadge } from './ModelBadge';
 import { useDialog } from '../lib/a11y';
 import {
@@ -21,6 +24,10 @@ import {
   Check,
   Building2,
   Sparkles,
+  Boxes,
+  Container,
+  ArrowRight,
+  Link2,
 } from 'lucide-react';
 
 interface PresetCargo {
@@ -30,6 +37,7 @@ interface PresetCargo {
   widthCm: number;
   heightCm: number;
   grossWeightKg: number;
+  pieces: number;
   corridorId: string;
   isPharma: boolean;
 }
@@ -42,6 +50,7 @@ const PRESETS: PresetCargo[] = [
     widthCm: 50,
     heightCm: 45,
     grossWeightKg: 35,
+    pieces: 4,
     corridorId: 'corridor-fra-cai',
     isPharma: true,
   },
@@ -52,6 +61,7 @@ const PRESETS: PresetCargo[] = [
     widthCm: 60,
     heightCm: 50,
     grossWeightKg: 120,
+    pieces: 6,
     corridorId: 'corridor-fra-cai',
     isPharma: false,
   },
@@ -62,6 +72,7 @@ const PRESETS: PresetCargo[] = [
     widthCm: 90,
     heightCm: 80,
     grossWeightKg: 40,
+    pieces: 3,
     corridorId: 'corridor-dxb-cai',
     isPharma: false,
   },
@@ -72,30 +83,39 @@ const PRESETS: PresetCargo[] = [
     widthCm: 40,
     heightCm: 30,
     grossWeightKg: 18,
+    pieces: 10,
     corridorId: 'corridor-pvg-cai',
     isPharma: false,
   },
 ];
 
+/* A deep-linked scenario (?sim=1&l=…) is decoded once per page load and feeds
+   the initial slider state; invalid or absent params fall back to defaults. */
+const SHARED_SCENARIO = typeof window !== 'undefined' ? decodeSimState(window.location.search) : null;
+
 export const CargoSimAir: React.FC = () => {
   const { dict, isRtl } = useLang();
 
   // State inputs
-  const [lengthCm, setLengthCm] = useState<number>(80);
-  const [widthCm, setWidthCm] = useState<number>(60);
-  const [heightCm, setHeightCm] = useState<number>(50);
-  const [grossWeightKg, setGrossWeightKg] = useState<number>(45);
-  const [isPharmaColdChain, setIsPharmaColdChain] = useState<boolean>(true);
-  const [urgencyMode, setUrgencyMode] = useState<'STANDARD' | 'PRIORITY'>('STANDARD');
+  const [lengthCm, setLengthCm] = useState<number>(SHARED_SCENARIO?.lengthCm ?? 80);
+  const [widthCm, setWidthCm] = useState<number>(SHARED_SCENARIO?.widthCm ?? 60);
+  const [heightCm, setHeightCm] = useState<number>(SHARED_SCENARIO?.heightCm ?? 50);
+  const [grossWeightKg, setGrossWeightKg] = useState<number>(SHARED_SCENARIO?.grossWeightKg ?? 45);
+  const [pieces, setPieces] = useState<number>(SHARED_SCENARIO?.pieces ?? 1);
+  const [isPharmaColdChain, setIsPharmaColdChain] = useState<boolean>(SHARED_SCENARIO?.isPharmaColdChain ?? true);
+  const [urgencyMode, setUrgencyMode] = useState<'STANDARD' | 'PRIORITY'>(SHARED_SCENARIO?.priority ? 'PRIORITY' : 'STANDARD');
   const [manifestModalOpen, setManifestModalOpen] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const [linkCopied, setLinkCopied] = useState<boolean>(false);
   const manifestDialogRef = useDialog<HTMLDivElement>(manifestModalOpen, () => setManifestModalOpen(false));
 
   /* The active corridor, or null once the distance is dragged off a scheduled lane */
-  const [corridorId, setCorridorId] = useState<string | null>(DEFAULT_CORRIDOR_ID);
+  const [corridorId, setCorridorId] = useState<string | null>(
+    SHARED_SCENARIO ? SHARED_SCENARIO.corridorId : DEFAULT_CORRIDOR_ID,
+  );
   const corridor = findCorridor(corridorId);
   const [distanceKm, setDistanceKm] = useState<number>(
-    findCorridor(DEFAULT_CORRIDOR_ID)?.distanceKm ?? 2910,
+    SHARED_SCENARIO?.distanceKm ?? findCorridor(DEFAULT_CORRIDOR_ID)?.distanceKm ?? 2910,
   );
 
   // Derived calculations using IATA standard math engine
@@ -105,10 +125,11 @@ export const CargoSimAir: React.FC = () => {
       widthCm,
       heightCm,
       grossWeightKg,
+      pieces,
       distanceKm,
       seaLane: corridor?.seaLane ?? null,
     });
-  }, [lengthCm, widthCm, heightCm, grossWeightKg, distanceKm, corridor]);
+  }, [lengthCm, widthCm, heightCm, grossWeightKg, pieces, distanceKm, corridor]);
 
   // Derived tariff & financial breakdown
   const cost = useMemo(() => {
@@ -120,11 +141,24 @@ export const CargoSimAir: React.FC = () => {
     );
   }, [calc.chargeableWeightKg, corridor?.code, isPharmaColdChain, urgencyMode]);
 
+  // ULD load-fit recommendation sharing the exact fleet the ULD browser renders
+  const uldRec = useMemo(() => {
+    return recommendUld({
+      lengthCm,
+      widthCm,
+      heightCm,
+      grossWeightKg,
+      pieces,
+      requiresCoolChain: isPharmaColdChain,
+    });
+  }, [lengthCm, widthCm, heightCm, grossWeightKg, pieces, isPharmaColdChain]);
+
   const applyPreset = (preset: PresetCargo) => {
     setLengthCm(preset.lengthCm);
     setWidthCm(preset.widthCm);
     setHeightCm(preset.heightCm);
     setGrossWeightKg(preset.grossWeightKg);
+    setPieces(preset.pieces);
     setCorridorId(preset.corridorId);
     setIsPharmaColdChain(preset.isPharma);
     setDistanceKm(findCorridor(preset.corridorId)?.distanceKm ?? distanceKm);
@@ -135,13 +169,29 @@ export const CargoSimAir: React.FC = () => {
     setCorridorId(null);
   };
 
+  const blockerLabel = (blocker: UldFitBlocker | undefined): string => {
+    switch (blocker) {
+      case 'NO_ACTIVE_COOLING':
+        return dict.simulator.blockerCooling;
+      case 'PIECE_TOO_LARGE':
+        return dict.simulator.blockerTooLarge;
+      case 'OVER_PAYLOAD':
+        return dict.simulator.blockerPayload;
+      case 'OVER_VOLUME':
+        return dict.simulator.blockerVolume;
+      default:
+        return '';
+    }
+  };
+
   const manifestSummary = () => `=== YASLOGIST AIR — CONSIGNMENT MANIFEST (SIMULATION DEMO) ===
 Corridor: ${corridor?.code ?? 'Charter/Unscheduled'} (${distanceKm} km)
-Dimensions: ${lengthCm} × ${widthCm} × ${heightCm} cm
-Volume: ${calc.volumeCbm} CBM
-Gross Weight: ${grossWeightKg} kg
+Pieces: ${pieces} × ${lengthCm} × ${widthCm} × ${heightCm} cm
+Total Volume: ${calc.volumeCbm} CBM · Stowed Density: ${calc.densityKgPerCbm} kg/m³
+Total Gross Weight: ${calc.totalGrossWeightKg} kg
 Volumetric Weight (IATA 1:6000): ${calc.volumetricWeightKg} kg
 Chargeable Weight: ${calc.chargeableWeightKg} kg (${calc.billingBasis})
+Recommended ULD: ${uldRec.best ? `${uldRec.best.uld.code} — ${uldRec.best.uld.nameEn} (volume ${uldRec.best.volumeUtilizationPct}% / payload ${uldRec.best.payloadUtilizationPct}%)` : 'None — requires multi-unit build-up'}
 Estimated Block Time: ${calc.airportBlockHours} Hours
 Cold-Chain: ${isPharmaColdChain ? 'Active GDP Cold-Chain (+4°C)' : 'Controlled Ambient'}
 Total Estimated Tariff: $${cost.totalEstimatedUsd} USD
@@ -174,6 +224,30 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
       anchor.remove();
       URL.revokeObjectURL(url);
     }, 0);
+  };
+
+  const handleCopyShareLink = async () => {
+    const url = buildSimShareUrl(
+      {
+        lengthCm,
+        widthCm,
+        heightCm,
+        grossWeightKg,
+        pieces,
+        distanceKm,
+        corridorId,
+        isPharmaColdChain,
+        priority: urgencyMode === 'PRIORITY',
+      },
+      window.location,
+    );
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    } catch {
+      setLinkCopied(false);
+    }
   };
 
   const isGrossBilled = calc.billingBasis === 'GROSS_WEIGHT';
@@ -221,7 +295,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 {isRtl ? preset.nameAr : preset.nameEn}
               </span>
               <span className="text-[10px] font-mono text-muted mt-1" dir="ltr">
-                {preset.lengthCm}×{preset.widthCm}×{preset.heightCm} cm · {preset.grossWeightKg} kg
+                {preset.pieces}× {preset.lengthCm}×{preset.widthCm}×{preset.heightCm} cm · {preset.grossWeightKg} kg
               </span>
             </button>
           ))}
@@ -315,6 +389,32 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               aria-label={dict.simulator.grossWeight}
               className="w-full accent-amber-500 cursor-pointer h-2 bg-slate-200 dark:bg-slate-800 rounded-lg"
             />
+          </div>
+
+          {/* Piece Count */}
+          <div className="pt-2 space-y-1.5">
+            <div className="flex justify-between text-xs font-mono">
+              <span className="text-title flex items-center gap-1.5">
+                <Boxes className="w-3.5 h-3.5 text-violet-500" />
+                <span>{dict.simulator.pieces}</span>
+              </span>
+              <span className="font-bold text-violet-600 dark:text-violet-300 tabular" dir="ltr">
+                {pieces} {dict.simulator.piecesUnit}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="20"
+              step="1"
+              value={pieces}
+              onChange={(e) => setPieces(Number(e.target.value))}
+              aria-label={dict.simulator.pieces}
+              className="w-full accent-violet-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
+            />
+            <span className="block text-[11px] font-mono text-muted pt-0.5" dir="ltr">
+              {pieces} × {grossWeightKg} kg = {calc.totalGrossWeightKg.toLocaleString()} kg · {calc.volumeCbm} CBM
+            </span>
           </div>
 
           {/* Sector Distance */}
@@ -419,19 +519,47 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
             </div>
 
             {/* Comparison Metrics Bar */}
-            <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl glass-subcard mb-4 font-mono text-xs">
+            <div className="grid grid-cols-3 gap-3 p-3.5 rounded-2xl glass-subcard mb-4 font-mono text-xs">
               <div>
                 <span className="block text-muted text-[11px]">{dict.simulator.actualWeight}</span>
                 <span className="text-base font-bold text-amber-600 dark:text-amber-300 tabular block mt-0.5" dir="ltr">
-                  {grossWeightKg} kg
+                  {calc.totalGrossWeightKg.toLocaleString()} kg
                 </span>
+                {pieces > 1 && (
+                  <span className="block text-[10px] text-muted mt-0.5" dir="ltr">
+                    {pieces} × {grossWeightKg} kg
+                  </span>
+                )}
               </div>
               <div>
                 <span className="block text-muted text-[11px]">{dict.simulator.volumetricWeight}</span>
                 <span className="text-base font-bold text-cyan-600 dark:text-cyan-300 tabular block mt-0.5" dir="ltr">
-                  {calc.volumetricWeightKg} kg
+                  {calc.volumetricWeightKg.toLocaleString()} kg
                 </span>
               </div>
+              <div>
+                <span className="block text-muted text-[11px]">{dict.simulator.density}</span>
+                <span className="text-base font-bold text-violet-600 dark:text-violet-300 tabular block mt-0.5" dir="ltr">
+                  {calc.densityKgPerCbm} <span className="text-[10px] font-normal">kg/m³</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Density position vs the IATA 166.7 kg/m³ billing pivot */}
+            <div className="mb-4 px-1" aria-hidden="true">
+              <div className="relative h-1.5 rounded-full bg-gradient-to-r from-cyan-500/60 via-slate-400/40 to-amber-500/60">
+                <span
+                  className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-white dark:border-slate-900 bg-[var(--c-card-solid)] shadow transition-[left] duration-300"
+                  style={{ left: `${Math.min(100, Math.max(0, (calc.densityKgPerCbm / 333.4) * 100))}%`, backgroundColor: isGrossBilled ? '#f59e0b' : '#06b6d4' }}
+                />
+                <span className="absolute top-1/2 left-1/2 h-3 w-px -translate-y-1/2 bg-slate-500/70" />
+              </div>
+              <div className="flex justify-between text-[9px] font-mono text-muted mt-1" dir="ltr">
+                <span>0</span>
+                <span className="font-semibold">166.7 kg/m³ · IATA PIVOT</span>
+                <span>≥333</span>
+              </div>
+              <p className="text-[10px] text-muted mt-1">{dict.simulator.densityPivotNote}</p>
             </div>
 
             {/* Profile Classification Notice */}
@@ -447,6 +575,145 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 </span>
                 <span className="text-muted">{isGrossBilled ? dict.simulator.denseDesc : dict.simulator.voluminousDesc}</span>
               </div>
+            </div>
+          </div>
+
+          {/* ULD Load-Fit Recommendation — shares the fleet rendered in the ULD browser */}
+          <div className="glass-panel rounded-3xl p-5 shadow-xl border border-violet-400/25">
+            <div className="flex items-center justify-between border-b border-[var(--glass-brd)] pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Container className="w-4 h-4 text-violet-400" />
+                <h4 className="font-bold text-xs uppercase tracking-wider text-title font-mono">
+                  {dict.simulator.uldRecTitle}
+                </h4>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-violet-500/10 text-violet-500 dark:text-violet-300 border border-violet-500/20">
+                {dict.simulator.uldRecBadge}
+              </span>
+            </div>
+
+            {uldRec.best ? (
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-lg bg-violet-500/15 border border-violet-500/30 text-violet-600 dark:text-violet-300 font-mono font-black text-sm" dir="ltr">
+                        {uldRec.best.uld.code}
+                      </span>
+                      {uldRec.best.uld.activeCooling && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-teal-500/10 text-teal-600 dark:text-teal-300 border border-teal-500/25">
+                          GDP COOL-CHAIN
+                        </span>
+                      )}
+                    </span>
+                    <span className="block text-xs font-semibold text-title mt-1.5">
+                      {isRtl ? uldRec.best.uld.nameAr : uldRec.best.uld.nameEn}
+                    </span>
+                    <span className="block text-[10px] font-mono text-muted mt-0.5" dir="ltr">
+                      {isRtl ? uldRec.best.uld.dimensionsAr : uldRec.best.uld.dimensionsEn}
+                    </span>
+                  </div>
+                  <div className="text-right rtl:text-left shrink-0 font-mono">
+                    <span className="block text-[10px] text-muted uppercase">{dict.simulator.uldRecNetPayload}</span>
+                    <span className="text-sm font-bold text-title tabular" dir="ltr">
+                      {uldRec.best.netPayloadKg.toLocaleString()} kg
+                    </span>
+                  </div>
+                </div>
+
+                {/* Utilization bars */}
+                <div className="space-y-2 font-mono text-[11px]">
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-muted">{dict.simulator.uldRecVolumeUse}</span>
+                      <span className="font-bold text-violet-600 dark:text-violet-300 tabular" dir="ltr">{uldRec.best.volumeUtilizationPct}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400 transition-[width] duration-500"
+                        style={{ width: `${Math.min(100, uldRec.best.volumeUtilizationPct)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-muted">{dict.simulator.uldRecPayloadUse}</span>
+                      <span className="font-bold text-amber-600 dark:text-amber-300 tabular" dir="ltr">{uldRec.best.payloadUtilizationPct}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400 transition-[width] duration-500"
+                        style={{ width: `${Math.min(100, uldRec.best.payloadUtilizationPct)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs font-mono text-rose-700 dark:text-rose-300 flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block">{dict.simulator.uldRecNone}</span>
+                  <span className="text-[11px] opacity-80">{dict.simulator.uldRecNoneHint}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Full-fleet verdict chips */}
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              {uldRec.assessments.map((a) => {
+                const isBest = uldRec.best?.uld.id === a.uld.id;
+                return (
+                  <div
+                    key={a.uld.id}
+                    title={a.fits ? undefined : blockerLabel(a.blockers[0])}
+                    className={`rounded-xl px-2 py-2 text-center font-mono text-[10px] border transition-colors ${
+                      isBest
+                        ? 'bg-violet-500/15 border-violet-500/40 text-violet-600 dark:text-violet-300'
+                        : a.fits
+                          ? 'glass-subcard text-title'
+                          : 'glass-subcard opacity-50 text-muted'
+                    }`}
+                  >
+                    <span className="block font-bold" dir="ltr">{a.uld.code}</span>
+                    {a.fits ? (
+                      <span className="inline-flex items-center gap-0.5 mt-0.5 text-emerald-600 dark:text-emerald-400" dir="ltr">
+                        <Check className="w-3 h-3" /> {a.volumeUtilizationPct}%
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-0.5 mt-0.5" dir="ltr">
+                        <X className="w-3 h-3" aria-hidden="true" />
+                        <span className="sr-only">{blockerLabel(a.blockers[0])}</span>
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Reasons the non-fitting units are excluded */}
+            {uldRec.assessments.some((a) => !a.fits) && (
+              <ul className="mt-3 space-y-1 text-[10px] font-mono text-muted">
+                {uldRec.assessments
+                  .filter((a) => !a.fits)
+                  .map((a) => (
+                    <li key={a.uld.id} className="flex items-baseline gap-1.5">
+                      <span className="font-bold text-title" dir="ltr">{a.uld.code}:</span>
+                      <span>{blockerLabel(a.blockers[0])}</span>
+                    </li>
+                  ))}
+              </ul>
+            )}
+
+            <div className="mt-4 pt-3 border-t border-[var(--glass-brd)] flex items-center justify-between gap-3">
+              <span className="text-[10px] text-muted leading-tight">{dict.simulator.uldRecStowageNote}</span>
+              <a
+                href="#uld"
+                className="shrink-0 inline-flex items-center gap-1 text-[11px] font-mono font-bold text-violet-600 dark:text-violet-300 hover:text-violet-500 transition-colors"
+              >
+                <span>{dict.simulator.uldRecViewFleet}</span>
+                <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" aria-hidden="true" />
+              </a>
             </div>
           </div>
 
@@ -519,14 +786,24 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                   : 'Benchmark rates modeled on IATA TACT & Cairo operational standards (Simulation Demo).'}
               </span>
 
-              <button
-                type="button"
-                onClick={() => setManifestModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-bold bg-cyan-400 hover:bg-cyan-300 text-slate-950 transition-all shadow-md shadow-cyan-400/20 active:scale-95 shrink-0"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>{isRtl ? 'استخراج بيان الشحنة الفني' : 'Export Manifest'}</span>
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCopyShareLink}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold glass-subcard hover:border-cyan-400 text-title transition-all active:scale-95"
+                >
+                  {linkCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" /> : <Link2 className="w-3.5 h-3.5" aria-hidden="true" />}
+                  <span>{linkCopied ? (isRtl ? 'تم نسخ الرابط!' : 'Link Copied!') : (isRtl ? 'مشاركة السيناريو' : 'Share Scenario')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManifestModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-bold bg-cyan-400 hover:bg-cyan-300 text-slate-950 transition-all shadow-md shadow-cyan-400/20 active:scale-95"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>{isRtl ? 'استخراج بيان الشحنة الفني' : 'Export Manifest'}</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -644,8 +921,8 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
 
               <div className="grid grid-cols-3 gap-2 py-1">
                 <div>
-                  <span className="text-muted block text-[10px]">{isRtl ? 'الأبعاد' : 'DIMENSIONS'}</span>
-                  <span className="font-semibold" dir="ltr">{lengthCm}×{widthCm}×{heightCm} cm</span>
+                  <span className="text-muted block text-[10px]">{isRtl ? 'الطرود والأبعاد' : 'PIECES & DIMS'}</span>
+                  <span className="font-semibold" dir="ltr">{pieces} × {lengthCm}×{widthCm}×{heightCm} cm</span>
                 </div>
                 <div>
                   <span className="text-muted block text-[10px]">{isRtl ? 'الحجم الكلي' : 'TOTAL CBM'}</span>
