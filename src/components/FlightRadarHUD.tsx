@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLang } from '../lib/i18n';
+import { useInView } from '../lib/use-in-view';
 import { ModelBadge } from './ModelBadge';
 import {
   Plane,
@@ -160,6 +161,9 @@ const RADAR_FLIGHTS: RadarFlightVector[] = [
 
 export const FlightRadarHUD: React.FC = () => {
   const { dict, isRtl } = useLang();
+  /* The simulated telemetry below re-renders this whole section once a second.
+     Suspend it while the panel is scrolled away or the tab is backgrounded. */
+  const [sectionRef, isSectionActive] = useInView<HTMLElement>();
   const [selectedFlightId, setSelectedFlightId] = useState<string>('ms-552');
   const [isLiveActive, setIsLiveActive] = useState<boolean>(true);
 
@@ -187,9 +191,11 @@ export const FlightRadarHUD: React.FC = () => {
 
   // UTC clock is presentational simulation context, not a claim of live ADS-B data.
   useEffect(() => {
+    if (!isSectionActive) return;
+    setUtcTime(new Date()); // Resume on an accurate value, never a stale one.
     const timer = window.setInterval(() => setUtcTime(new Date()), 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [isSectionActive]);
 
   // Sync state whenever selected flight changes
   useEffect(() => {
@@ -201,7 +207,7 @@ export const FlightRadarHUD: React.FC = () => {
 
   // Subtle live jitter simulation for realistic avionics telemetry
   useEffect(() => {
-    if (!isLiveActive) return;
+    if (!isLiveActive || !isSectionActive) return;
     const interval = setInterval(() => {
       setCurrentSpeed(() => +(activeFlight.speedKts + (Math.random() * 3 - 1.5)).toFixed(0));
       setCurrentTemp(() => +(activeFlight.tempCelsius + (Math.random() * 0.08 - 0.04)).toFixed(1));
@@ -214,10 +220,10 @@ export const FlightRadarHUD: React.FC = () => {
     }, 2400);
 
     return () => clearInterval(interval);
-  }, [isLiveActive, activeFlight]);
+  }, [isLiveActive, isSectionActive, activeFlight]);
 
   return (
-    <section id="radar" className="scroll-mt-24 relative py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <section ref={sectionRef} id="radar" className="scroll-mt-24 relative py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* Section Header with ModelBadge */}
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 border-b border-[var(--glass-brd)] pb-6">
         <div>

@@ -48,7 +48,11 @@ export const CinematicStage: React.FC = () => {
     const measure = () => {
       const rect = track.getBoundingClientRect();
       const total = Math.max(1, track.offsetHeight - window.innerHeight);
-      targetRef.current = clamp01(-rect.top / total);
+      const next = clamp01(-rect.top / total);
+      if (next !== targetRef.current) {
+        targetRef.current = next;
+        start();
+      }
     };
 
     if (reduced) {
@@ -59,14 +63,27 @@ export const CinematicStage: React.FC = () => {
     }
 
     let raf = 0;
+    /* Frames the loop is allowed to keep spinning after the eased value has
+       settled, so a seek that was rejected because the media byte range was
+       not ready yet still gets retried instead of leaving a stale frame. */
+    let seekRetries = 0;
+    /* The easing loop used to run forever, so the hero kept burning a frame
+       callback (and a React render) for the whole session, including long
+       after the stage had been scrolled past. It now runs only while the
+       eased value is still catching up with the scroll position. */
+    const start = () => {
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
     const tick = () => {
       const target = targetRef.current;
       let current = currentRef.current;
       current += (target - current) * LERP;
-      if (Math.abs(target - current) < 0.00045) current = target;
+      const settled = Math.abs(target - current) < 0.00045;
+      if (settled) current = target;
       currentRef.current = current;
       setProgress(current);
 
+      let seekPending = false;
       const now = performance.now();
       if (now - lastSeekAtRef.current >= SEEK_INTERVAL_MS) {
         lastSeekAtRef.current = now;
@@ -83,23 +100,34 @@ export const CinematicStage: React.FC = () => {
             } catch {
               // A later animation frame retries after the media range is ready.
               lastApplied.current = -1;
+              seekPending = true;
             }
           }
+        } else if (video) {
+          seekPending = true;
         }
       }
 
+      seekRetries = settled && seekPending ? seekRetries + 1 : 0;
+      if (settled && (!seekPending || seekRetries > 90)) {
+        raf = 0;
+        return;
+      }
       raf = requestAnimationFrame(tick);
     };
 
-    measure();
-    window.addEventListener('scroll', measure, { passive: true });
-    window.addEventListener('resize', measure);
-    raf = requestAnimationFrame(tick);
+    const onScroll = () => measure();
+    const rect = track.getBoundingClientRect();
+    targetRef.current = clamp01(-rect.top / Math.max(1, track.offsetHeight - window.innerHeight));
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    start();
 
     return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('scroll', measure);
-      window.removeEventListener('resize', measure);
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
     };
   }, [isDark]);
 
@@ -138,6 +166,13 @@ export const CinematicStage: React.FC = () => {
   // Instant sync on theme change so the emerging video is already in lockstep
   useEffect(() => {
     const activeVideo = isDark ? videoNightRef.current : videoDayRef.current;
+    /* Only the theme that is actually on screen preloads (see `preload` below),
+       so the first switch has to kick off the newly visible reel itself. Until
+       its metadata lands the poster stays up, which is what the user already
+       sees during the crossfade. */
+    if (activeVideo && activeVideo.readyState === HTMLMediaElement.HAVE_NOTHING) {
+      activeVideo.load();
+    }
     if (activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA && Number.isFinite(activeVideo.duration)) {
       const targetTime = currentRef.current * Math.max(0, activeVideo.duration - 0.04);
       try {
@@ -209,7 +244,7 @@ export const CinematicStage: React.FC = () => {
             muted
             playsInline
             loop={false}
-            preload="metadata"
+            preload={isDark ? 'metadata' : 'none'}
             aria-hidden="true"
             className={`absolute inset-0 w-full h-full object-cover scale-105 filter brightness-90 contrast-110 transition-opacity duration-700 ease-in-out ${
               isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
@@ -224,7 +259,7 @@ export const CinematicStage: React.FC = () => {
             muted
             playsInline
             loop={false}
-            preload="metadata"
+            preload={isDark ? 'none' : 'metadata'}
             aria-hidden="true"
             className={`absolute inset-0 w-full h-full object-cover scale-105 filter brightness-100 contrast-105 transition-opacity duration-700 ease-in-out ${
               !isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'

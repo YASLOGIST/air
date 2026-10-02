@@ -23,7 +23,10 @@
     <meta name="twitter:image" content="https://air.yaslogist.com/assets/og-image-static.jpg" />
     <meta name="twitter:image:alt" content="YASLOGIST AIR — flight-corridor HUD showing an FRA to CAI air-freight route with live telemetry." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self'; connect-src 'self' https://vitals.vercel-insights.com;" />
+    <!-- Keep in exact sync with the Content-Security-Policy header in vercel.json
+         (frame-ancestors is header-only: browsers ignore it in a meta policy).
+         src/test/csp.test.ts fails the build if the two ever diverge. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; img-src 'self' data:; media-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self' https://vitals.vercel-insights.com; upgrade-insecure-requests" />
     <title>YASLOGIST AIR — Time-Critical Air Freight & Cold-Chain Telemetry</title>
     <script src="/theme-init.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

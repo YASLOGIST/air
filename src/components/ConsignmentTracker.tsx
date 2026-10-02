@@ -390,13 +390,15 @@ export const ConsignmentTracker: React.FC = () => {
 
 function Cell({ icon, k, v }: { icon: React.ReactNode; k: string; v: string }) {
   return (
+    /* A <dl> may only contain <dt>/<dd> pairs, optionally wrapped in a single
+       <div>. The icon used to sit in an extra <div> around the <dt>, which
+       broke that structure (axe: dlitem + definition-list, WCAG 1.3.1), so the
+       icon now lives inside the <dt> itself — identical visual result. */
     <div className="rounded-2xl border border-white/10 bg-[#070c14]/60 p-4">
-      <div className="flex items-center gap-2">
+      <dt className="mono flex items-center gap-2 text-[10px] tracking-[0.15em] text-[#9bb0bc] uppercase font-semibold">
         {icon}
-        <dt className="mono text-[10px] tracking-[0.15em] text-[#9bb0bc] uppercase font-semibold">
-          {k}
-        </dt>
-      </div>
+        <span>{k}</span>
+      </dt>
       <dd className="mono mt-2 text-sm text-slate-100 font-medium">{v}</dd>
     </div>
   );

@@ -164,8 +164,16 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = 'yaslogist-air-simulation.txt';
+    /* Firefox requires the anchor to be in the document, and revoking the
+       object URL in the same task can cancel the download before the browser
+       has read it — so both are deferred to the next task. */
+    anchor.style.display = 'none';
+    document.body.append(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    }, 0);
   };
 
   const isGrossBilled = calc.billingBasis === 'GROSS_WEIGHT';

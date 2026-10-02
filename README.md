@@ -162,6 +162,20 @@ sequenceDiagram
 - An unmatched tracker query always renders "not found" — it can never fall back to generated telemetry.
 - Dialogs trap focus, close on `Escape`/backdrop click, lock body scroll, and restore focus to the triggering element on close.
 - `prefers-reduced-motion` disables decorative animation across the hero and HUD.
+- Both Content-Security-Policy copies (`index.html` meta and the `vercel.json` header) declare identical directives, minus the header-only ones.
+- The whole page renders with zero axe violations (colour-contrast excluded: jsdom has no layout engine).
+- Every navbar anchor resolves to a section that actually mounts.
+
+**Rendering cost policy (`src/lib/scene-loop.ts`):**
+
+| Situation | Canvas repaints |
+|---|---|
+| ULD model off-screen or unmounted | none |
+| `prefers-reduced-motion` and no interaction | none (ambient detail is frozen anyway) |
+| Camera, door, explosion or mode change | the very next frame, unthrottled |
+| Ambient detail only (fan, LED, particles, hotspot pulse) | ~30/s instead of 60/s |
+
+The hero scroll scrubber follows the same rule: its easing loop stops as soon as the eased value reaches the scroll position and restarts on the next scroll, instead of holding a frame callback for the whole session. Simulated radar telemetry timers pause while the panel is off-screen or the tab is backgrounded.
 
 ---
 
@@ -173,11 +187,11 @@ sequenceDiagram
 | **Build tool** | Vite 6 | Sub-second HMR during development; Rollup-based production build with automatic code-splitting for every lazy section. |
 | **Styling** | Tailwind CSS 4 (CSS-first token architecture, `@tailwindcss/vite`) | Design tokens (`--c-heading`, `--c-text`, `--glass-brd`, …) drive both themes from one source, avoiding hard-coded `text-white` contrast bugs. |
 | **Icons** | `lucide-react` (ISC license) | Tree-shaken, consistent 1.5px-stroke geometric icon set matching the aviation HUD aesthetic. |
-| **Utility** | `clsx` + `tailwind-merge` | Deterministic conditional class composition without specificity fights. |
+| **Utility** | `clsx` | Conditional class composition. `tailwind-merge` was removed: it cost ~27 KB of entry-chunk JS to serve one call site whose callers never produce conflicting utilities (see `src/utils/cn.ts`). |
 | **Telemetry** | `@vercel/analytics` | Opt-in, activates only on Vercel deployments; no PII, no third-party trackers. |
 | **Testing** | Vitest 5, Testing Library (React/user-event), `jsdom`, `vitest-axe` | Unit tests for the math engine, component tests for modal a11y/keyboard flows, and automated accessibility assertions. |
 | **CI** | GitHub Actions (`.github/workflows/quality.yml`) | `typecheck → test → build → check:bundle → audit` on every push/PR — a red gate blocks merge, not a suggestion. |
-| **Bundle budget enforcement** | `scripts/check-bundle.mjs` | Fails the build if any JS chunk exceeds 300 KB or any CSS file exceeds 120 KB (raw bytes), keeping the 31-chunk lazy architecture honest over time. |
+| **Bundle budget enforcement** | `scripts/check-bundle.mjs` | Fails the build if any JS chunk exceeds 280 KB, any CSS file exceeds 115 KB, or total JS exceeds 470 KB (raw bytes). Budgets are ratchets set just above the measured size. |
 | **Deployment target** | Vercel (`vercel.json`) | Ships CSP, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and immutable long-cache headers for `/assets/*`. |
 | **Security policy** | External `theme-init.js` + single compatible CSP (`script-src 'self'`, no inline script exceptions) | Removed the baseline's duplicated/inconsistent CSP and inline-script carve-out entirely. |
 
@@ -214,7 +228,7 @@ npm run preview -- --host 0.0.0.0
 |---|---|
 | `npm run typecheck` | Strict TypeScript across app code and tests — zero `any`-shaped drift between `air-math.ts` and the UI. |
 | `npm test` | Vitest suite covering the calculation engine, AWB checksum, modal accessibility, keyboard interaction, and the tracker's fail-closed behavior. |
-| `npm run check:bundle` | Enforces the 300 KB JS / 120 KB CSS per-chunk budget against `dist/assets`. |
+| `npm run check:bundle` | Enforces per-chunk (280 KB JS / 115 KB CSS) **and** total (470 KB JS) raw-byte budgets against `dist/assets`, printing gzip sizes alongside. |
 | `npm run audit` | `npm audit --omit=dev --audit-level=high` — zero tolerance for high/critical production vulnerabilities. |
 | `.github/workflows/quality.yml` | Runs all four gates above on every push and pull request. |
 
