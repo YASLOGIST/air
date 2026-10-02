@@ -152,7 +152,14 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 5rem;
+  /* Single source of truth for where an in-page anchor lands: far enough
+     below the floating navbar to clear it with air to spare. Sections used to
+     *also* carry `scroll-mt-24`, which stacked on top of this and parked them
+     176px down — out of step with the two sections that had no such class and
+     with the navbar's section tracking. The per-section margins are gone;
+     SECTION_ANCHOR_OFFSET_PX in src/lib/use-active-section.ts is derived from
+     this value. */
+  scroll-padding-top: 7rem;
 }
 
 body {
@@ -199,7 +206,7 @@ body {
 .tabular {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-feature-settings: \"tnum\" 1;
+  font-feature-settings: "tnum" 1;
 }
 
 .telemetry-unit {
@@ -211,23 +218,23 @@ body {
 }
 
 /* Arabic typography harmony */
-[lang=\"ar\"] body,
-[lang=\"ar\"] .font-display,
-[lang=\"ar\"] .font-sans,
-[lang=\"ar\"] p,
-[lang=\"ar\"] span,
-[lang=\"ar\"] button,
-[lang=\"ar\"] a,
-[lang=\"ar\"] input {
+[lang="ar"] body,
+[lang="ar"] .font-display,
+[lang="ar"] .font-sans,
+[lang="ar"] p,
+[lang="ar"] span,
+[lang="ar"] button,
+[lang="ar"] a,
+[lang="ar"] input {
   font-family: var(--font-ar-tech);
 }
 
-[lang=\"ar\"] .h1-hero,
-[lang=\"ar\"] .h2-display,
-[lang=\"ar\"] h1,
-[lang=\"ar\"] h2,
-[lang=\"ar\"] h3,
-[lang=\"ar\"] .font-ruqaa {
+[lang="ar"] .h1-hero,
+[lang="ar"] .h2-display,
+[lang="ar"] h1,
+[lang="ar"] h2,
+[lang="ar"] h3,
+[lang="ar"] .font-ruqaa {
   font-family: var(--font-ruqaa);
   font-stretch: normal;
   font-weight: 700;
@@ -236,7 +243,7 @@ body {
 }
 
 /* Prevent letter-spacing in Arabic cursive joins */
-[lang=\"ar\"] [class*=\"tracking-\"] {
+[lang="ar"] [class*="tracking-"] {
   letter-spacing: 0 !important;
 }
 
@@ -348,11 +355,11 @@ select:focus-visible {
   font-weight: 700;
 }
 
-[data-theme=\"dark\"] .kicker {
+[data-theme="dark"] .kicker {
   color: #38bdf8;
 }
 
-[lang=\"ar\"] .kicker {
+[lang="ar"] .kicker {
   letter-spacing: 0.06em;
 }
 
@@ -362,7 +369,7 @@ select:focus-visible {
   color: var(--c-heading);
 }
 
-[lang=\"ar\"] .display {
+[lang="ar"] .display {
   font-family: var(--font-ruqaa);
   letter-spacing: 0 !important;
 }
@@ -370,7 +377,7 @@ select:focus-visible {
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-feature-settings: \"tnum\" 1;
+  font-feature-settings: "tnum" 1;
 }
 
 /* Dedicated Print Stylesheet for Official Consignment Manifest */

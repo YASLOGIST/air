@@ -3,13 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0A0F16" />
+    <!-- Static default matches `--c-bg` for the dark theme; /theme-init.js
+         swaps it to the light surface before first paint when that theme wins. -->
+    <meta name="theme-color" content="#070C14" />
     <meta
       name="description"
       content="YASLOGIST AIR — High-Velocity Critical Freight, e-AWB Pre-Clearance & Active Cold-Chain Telemetry directly integrated with Cairo International Airport (CAI) Cargo Village."
     />
     <link rel="canonical" href="https://air.yaslogist.com" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="YASLOGIST AIR" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="ar_EG" />
     <meta property="og:title" content="YASLOGIST AIR — Air Freight Intelligence" />
     <meta property="og:description" content="Interactive air-freight simulation, ULD digital twin, corridor intelligence and cold-chain tooling." />
     <meta property="og:url" content="https://air.yaslogist.com" />
@@ -43,6 +48,27 @@
   </head>
   <body class="bg-background text-foreground antialiased selection:bg-cyan-500/20 selection:text-cyan-300">
     <div id="root"></div>
+    <!-- The suite is a client-rendered simulation, so #root is empty without
+         JavaScript. Say so plainly rather than leaving a blank page, and keep
+         the operational boundary visible even here. Styles are inline because
+         this has to stand on its own if the stylesheet is the thing that
+         failed. -->
+    <noscript>
+      <div style="max-width:40rem;margin:6rem auto;padding:2rem;font-family:system-ui,sans-serif;color:#e2e8f0;background:#0f1724;border:1px solid rgba(155,176,188,.2);border-radius:1rem;line-height:1.6">
+        <h1 style="font-size:1.25rem;margin-bottom:.75rem">YASLOGIST AIR needs JavaScript</h1>
+        <p style="margin-bottom:1rem">
+          The air-freight cockpit — chargeable-weight simulator, ULD digital twin, corridor globe and
+          AWB checksum tool — runs entirely in the browser, so it cannot render without JavaScript enabled.
+        </p>
+        <p style="margin-bottom:1rem">
+          This is an interactive <strong>simulation</strong>. It is not connected to an airline, IATA,
+          Nafeza, an airport operator, or any live telemetry feed.
+        </p>
+        <p style="margin:0">
+          Air freight enquiries: <a href="mailto:contact@yaslogist.com" style="color:#38bdf8">contact@yaslogist.com</a>
+        </p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -23,8 +23,26 @@ function clamp01(n: number) {
   return Math.max(0, Math.min(1, n));
 }
 
+/**
+ * Whether this visitor should be served the scrubbable runway reels at all.
+ *
+ * The two reels are 8.0 MB and 6.0 MB. `preload="metadata"` keeps the initial
+ * request small, but the stage is 320vh of sticky scroll directly under the
+ * fold — scrubbing it walks the decoder through most of the active reel, so a
+ * visitor on a metered connection pays megabytes for decoration. When the
+ * browser reports a data-saving preference the `src` is withheld entirely and
+ * the `poster` still carries the shot, which is exactly what is already shown
+ * during the theme crossfade. Everyone else sees the stage unchanged.
+ */
+function prefersReducedData(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+  if (connection?.saveData) return true;
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-data: reduce)').matches;
+}
+
 export const CinematicStage: React.FC = () => {
-  const { dict } = useLang();
+  const { dict, isRtl } = useLang();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -33,6 +51,7 @@ export const CinematicStage: React.FC = () => {
   const videoDayRef = useRef<HTMLVideoElement>(null);
 
   const [progress, setProgress] = useState(0);
+  const [reelsEnabled] = useState(() => !prefersReducedData());
   const targetRef = useRef(0);
   const currentRef = useRef(0);
   const lastAppliedTimeNightRef = useRef(-1);
@@ -89,7 +108,7 @@ export const CinematicStage: React.FC = () => {
         lastSeekAtRef.current = now;
         // Metadata preload yields readyState 1. Seeking from metadata is valid and
         // lets the browser fetch only the byte range needed for the active theme.
-        const video = isDark ? videoNightRef.current : videoDayRef.current;
+        const video = reelsEnabled ? (isDark ? videoNightRef.current : videoDayRef.current) : null;
         const lastApplied = isDark ? lastAppliedTimeNightRef : lastAppliedTimeDayRef;
         if (video && video.readyState >= HTMLMediaElement.HAVE_METADATA && Number.isFinite(video.duration) && video.duration > 0) {
           const targetTime = current * Math.max(0, video.duration - 0.04);
@@ -129,7 +148,7 @@ export const CinematicStage: React.FC = () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
     };
-  }, [isDark]);
+  }, [isDark, reelsEnabled]);
 
   // Setup video event handlers for both videos
   useEffect(() => {
@@ -165,6 +184,7 @@ export const CinematicStage: React.FC = () => {
 
   // Instant sync on theme change so the emerging video is already in lockstep
   useEffect(() => {
+    if (!reelsEnabled) return;
     const activeVideo = isDark ? videoNightRef.current : videoDayRef.current;
     /* Only the theme that is actually on screen preloads (see `preload` below),
        so the first switch has to kick off the newly visible reel itself. Until
@@ -179,7 +199,7 @@ export const CinematicStage: React.FC = () => {
         activeVideo.currentTime = targetTime;
       } catch {}
     }
-  }, [isDark]);
+  }, [isDark, reelsEnabled]);
 
   const phases = useMemo(
     () => [
@@ -232,19 +252,19 @@ export const CinematicStage: React.FC = () => {
   const activeLabel = active.kicker.split('·').pop()?.trim() ?? active.kicker;
 
   return (
-    <section ref={trackRef} className="relative h-[320vh] bg-[var(--c-bg)]" aria-label="Arrival digital twin">
+    <section ref={trackRef} className="relative h-[320vh] bg-[var(--c-bg)]" aria-label={isRtl ? 'التوأم الرقمي لرحلة الوصول' : 'Arrival digital twin'}>
       <div className="sticky top-0 h-[100svh] overflow-hidden bg-[var(--c-bg)]">
         {/* Dual Cinematic Background: Night (Dark Mode) & Day (Light Mode) with buttery Crossfade */}
         <div className="absolute inset-0 overflow-hidden">
           {/* Night Runway Video (Dark Mode) */}
           <video
             ref={videoNightRef}
-            src="/assets/runway-scrub.mp4"
+            src={reelsEnabled ? '/assets/runway-scrub.mp4' : undefined}
             poster="/assets/runway-poster.jpg"
             muted
             playsInline
             loop={false}
-            preload={isDark ? 'metadata' : 'none'}
+            preload={reelsEnabled && isDark ? 'metadata' : 'none'}
             aria-hidden="true"
             className={`absolute inset-0 w-full h-full object-cover scale-105 filter brightness-90 contrast-110 transition-opacity duration-700 ease-in-out ${
               isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
@@ -254,12 +274,12 @@ export const CinematicStage: React.FC = () => {
           {/* Day Runway Video (Light Mode) */}
           <video
             ref={videoDayRef}
-            src="/assets/runway-scrub-day.mp4"
+            src={reelsEnabled ? '/assets/runway-scrub-day.mp4' : undefined}
             poster="/assets/runway-poster.jpg"
             muted
             playsInline
             loop={false}
-            preload={isDark ? 'none' : 'metadata'}
+            preload={reelsEnabled && !isDark ? 'metadata' : 'none'}
             aria-hidden="true"
             className={`absolute inset-0 w-full h-full object-cover scale-105 filter brightness-100 contrast-105 transition-opacity duration-700 ease-in-out ${
               !isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
@@ -286,10 +306,16 @@ export const CinematicStage: React.FC = () => {
 
         {/* Ergonomic & Symmetrical Cockpit HUD Deck */}
         <div className="absolute inset-x-0 top-16 bottom-6 z-30 mx-auto flex max-w-5xl flex-col justify-end px-4 sm:px-6 md:px-8">
-          <article
-            className="w-full rounded-2xl md:rounded-3xl border border-sky-300/20 bg-[linear-gradient(135deg,rgba(6,11,18,0.88),rgba(6,16,28,0.72))] p-4 sm:p-5 md:p-6 text-slate-100 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.95)] backdrop-blur-2xl"
-            aria-live="polite"
-          >
+          {/* The scrub percentage changes on every animation frame. With the
+              whole card marked `aria-live`, that meant a screen reader
+              re-announced the entire HUD — badge, counter, headline, body and
+              all four telemetry cards — continuously for the length of the
+              scroll. Only the phase transition is news, so only the phase is
+              announced, from a region whose text changes exactly three times. */}
+          <p className="sr-only" role="status">
+            {`${activeLabel} — ${active.title}`}
+          </p>
+          <article className="w-full rounded-2xl md:rounded-3xl border border-sky-300/20 bg-[linear-gradient(135deg,rgba(6,11,18,0.88),rgba(6,16,28,0.72))] p-4 sm:p-5 md:p-6 text-slate-100 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.95)] backdrop-blur-2xl">
             {/* Top Bar: Sequence Indicator + Active Phase Badge + Live Progress */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
@@ -317,7 +343,11 @@ export const CinematicStage: React.FC = () => {
                     aria-hidden="true"
                   />
                 ))}
-                <span className="font-mono text-[10px] sm:text-xs text-cyan-300 ml-1.5 rtl:ml-0 rtl:mr-1.5" dir="ltr">
+                <span
+                  className="font-mono text-[10px] sm:text-xs text-cyan-300 ms-1.5"
+                  dir="ltr"
+                  aria-hidden="true"
+                >
                   {Math.round(progress * 100)}%
                 </span>
               </div>

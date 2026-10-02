@@ -48,7 +48,7 @@ flowchart TD
     Providers --> Shell["App shell (src/App.tsx)"]
 
     Shell --> Nav["NavbarAir\n+ SUITE_URLS env-aware links"]
-    Shell --> Hero["CinematicStage + HeroAir\n(metadata-preload video, radar HUD)"]
+    Shell --> Hero["CinematicStage\n(scroll-scrubbed runway reel,\nposter-only under data-saver)"]
     Shell --> Boundary["ErrorBoundary"]
     Boundary --> Lazy["React.lazy + Suspense\nfeature sections"]
 
@@ -190,10 +190,11 @@ The hero scroll scrubber follows the same rule: its easing loop stops as soon as
 | **Styling** | Tailwind CSS 4 (CSS-first token architecture, `@tailwindcss/vite`) | Design tokens (`--c-heading`, `--c-text`, `--glass-brd`, …) drive both themes from one source, avoiding hard-coded `text-white` contrast bugs. |
 | **Icons** | `lucide-react` (ISC license) | Tree-shaken, consistent 1.5px-stroke geometric icon set matching the aviation HUD aesthetic. |
 | **Utility** | `clsx` | Conditional class composition. `tailwind-merge` was removed: it cost ~27 KB of entry-chunk JS to serve one call site whose callers never produce conflicting utilities (see `src/utils/cn.ts`). |
+| **Minifier** | `terser`, two compress passes | Measured 15.7 KB smaller raw / 3.8 KB smaller gzip across the app tier than Vite's default esbuild pass, and 3.3 KB smaller gzip on the three.js chunk. Build time only (~5s → ~12s), paid in CI rather than by a visitor. |
 | **Telemetry** | `@vercel/analytics` | Opt-in, activates only on Vercel deployments; no PII, no third-party trackers. |
 | **Testing** | Vitest 5, Testing Library (React/user-event), `jsdom`, `vitest-axe` | Unit tests for the math engine, component tests for modal a11y/keyboard flows, and automated accessibility assertions. |
 | **CI** | GitHub Actions (`.github/workflows/quality.yml`) | `typecheck → test → build → check:bundle → audit` on every push/PR — a red gate blocks merge, not a suggestion. |
-| **Bundle budget enforcement** | `scripts/check-bundle.mjs` | Fails the build if any JS chunk exceeds 280 KB, any CSS file exceeds 115 KB, or total JS exceeds 470 KB (raw bytes). Budgets are ratchets set just above the measured size. |
+| **Bundle budget enforcement** | `scripts/check-bundle.mjs` | Fails the build if any app JS chunk exceeds 270 KB, any CSS file exceeds 112 KB, app-total JS exceeds 515 KB, or the `vendor-three` chunk exceeds 592 KB (raw bytes). Budgets are ratchets set just above the measured size, and they tighten when a pass ships net savings. |
 | **Deployment target** | Vercel (`vercel.json`) | Ships CSP, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and immutable long-cache headers for `/assets/*`. |
 | **Security policy** | External `theme-init.js` + single compatible CSP (`script-src 'self'`, no inline script exceptions) | Removed the baseline's duplicated/inconsistent CSP and inline-script carve-out entirely. |
 
@@ -240,7 +241,7 @@ npm run preview -- --host 0.0.0.0
 |---|---|
 | `npm run typecheck` | Strict TypeScript across app code and tests — zero `any`-shaped drift between `air-math.ts` and the UI. |
 | `npm test` | Vitest suite covering the calculation engine, AWB checksum, modal accessibility, keyboard interaction, and the tracker's fail-closed behavior. |
-| `npm run check:bundle` | Enforces per-chunk (280 KB JS / 115 KB CSS) **and** app-total (512 KB JS, vendor-three tracked in its own tier) raw-byte budgets against `dist/assets`, printing gzip sizes alongside. |
+| `npm run check:bundle` | Enforces per-chunk (270 KB JS / 112 KB CSS) **and** app-total (515 KB JS, vendor-three tracked in its own 592 KB tier) raw-byte budgets against `dist/assets`, printing gzip sizes alongside. |
 | `npm run audit` | `npm audit --omit=dev --audit-level=high` — zero tolerance for high/critical production vulnerabilities. |
 | `.github/workflows/quality.yml` | Runs all four gates above on every push and pull request. |
 

@@ -224,3 +224,46 @@ Earlier passes made the artifact truthful, fast and tested; this pass makes the 
 **Verification:** `typecheck` 0 errors · 40 tests / 11 files (was 19 / 7), including an end-to-end deep-link restore test under a fresh module graph and jsdom component tests for the planner card and the AWB correction flow · build + bundle gate green (total-JS ratchet consciously moved 470,000 → 480,000 bytes for ~12 KiB raw / ~4 KiB gzip of feature code; the ratchet philosophy in `scripts/check-bundle.mjs` is unchanged) · tracked `dist/` rebuilt to match source.
 
 **Boundary unchanged:** no live data, no fabricated telemetry, bilingual EN/AR coverage added for every new string.
+
+---
+
+# Wayfinding, bilingual integrity, and payload pass
+
+**Baseline for this pass:** commit `adc4158`, re-verified locally before any change: `typecheck` 0 errors · 73 tests / 14 files · build green · `check:bundle` green at app-total JS 507.6 KiB (gzip 168.8) / 524.0 and CSS 111.6 KiB / 115.0 · `npm audit` 0 vulnerabilities.
+
+Previous passes bought truthfulness, runtime cost, structural a11y and capability. This pass targeted three things they left behind: a **silently dead stylesheet** that disabled Arabic typography in production, **no way to tell where you are** in a ten-section scroll, and a hero reel that **spent 14 MB on a data-saver connection**.
+
+| # | Upgrade | Where | Notes |
+|---|---|---|---|
+| 1 | **P0 — Arabic typography was dead in production.** Nine selectors were authored as `[lang='"ar"']`, `[class*='"tracking-"']`, `[data-theme='"dark"']` — quotes escaped *inside* the attribute value, so they matched nothing. `--font-ar-tech`, the Ruqaa display face, the cursive-join letter-spacing reset and the dark-mode kicker colour had never rendered. | `src/index.css` | Verified fixed by grepping the **built** stylesheet, not the source |
+| 2 | Scroll-spy wayfinding: six navbar anchors now track the reading position and expose `aria-current`, signalled by colour **and** an underline (not colour alone) | `src/lib/use-active-section.ts`, `NavbarAir.tsx` | Rect-based rather than `IntersectionObserver` — sections are lazy-mounted and taller than the viewport; rAF-coalesced with a `MutationObserver` on `<main>` so sections that mount later are picked up |
+| 3 | Anchor landing unified on one mechanism. Six sections carried `scroll-mt-24` *on top of* `scroll-padding-top: 5rem`, parking them 176px down while the two sections without the class landed at 80px. Per-section margins deleted; `scroll-padding-top: 7rem` is now the single source, and the spy's reading line is derived from it | `src/index.css`, six section components, `use-active-section.ts` | The derivation is pinned by a test, so the two values cannot drift apart |
+| 4 | Mobile drawer was a trap: no Escape, no outside-dismiss, no focus restore, and it stayed open when the viewport crossed into desktop. Icon-only ecosystem links had no accessible name (WCAG 2.4.4 / 4.1.2) — they escaped the axe gate because the existing test never opened the drawer | `NavbarAir.tsx`, `NavbarAir.test.tsx` | The active "Air" entry was an `<a href="#">`: announced as a link, jumped to top. Now a `<span aria-current="true">` |
+| 5 | **P0 a11y —** the hero wrapped a rAF-updated `{progress}%` readout in `aria-live`, re-announcing the entire HUD throughout a 320vh scrub. The `%` is now `aria-hidden`; one `sr-only role="status"` announces the phase, changing three times per scrub instead of continuously | `CinematicStage.tsx` | Test asserts exactly one live region and no `%` inside it |
+| 6 | Scroll-reveal had never worked. A one-shot `querySelectorAll` on mount ran before 13 `React.lazy` sections existed, so only the eager hero was ever revealed — a silent failure still shipping its CSS. Rewritten with a `MutationObserver`; the progress bar also moved from a per-frame React re-render to a direct ref write, stopped painting over modals (`z-10001` → `z-9500`), and gained an RTL-mirrored origin | `ExperienceLayer.tsx` | Regression test appends a section *after* mount, so it fails without the observer |
+| 7 | Data-saver respect: both scrub reels (8.0 MB + 6.0 MB) are withheld under `navigator.connection.saveData` or `prefers-reduced-data: reduce`, poster carrying the shot. `preload="metadata"` alone does not bound the cost, because the sticky scrub walks the decoder through most of the reel anyway | `CinematicStage.tsx` | |
+| 8 | `theme-color` was declared in three places that could drift; unified on an exported `THEME_COLORS` table and pinned to `--c-bg` by test. The pre-paint bootstrap now also sets `dir`/`lang` and the browser chrome colour before first paint | `theme.tsx`, `public/theme-init.js`, `index.html`, `theme-color.test.ts` | |
+| 9 | Per-section `ErrorBoundary` fallbacks were English-only. Now bilingual off `document.documentElement.lang` — deliberately **not** `useLang`, since a section can fail *because* of bad dictionary data and a fallback consuming the same context could throw and blank the page | `ErrorBoundary.tsx` | Same reasoning extended to the skip link, back-to-top control and hero landmark, which were English-only in Arabic sessions |
+| 10 | Dead code and missing basics: `HeroAir.tsx` (referenced by docs, imported by nothing) deleted; `robots.txt` added; `<noscript>` and OG locale alternates added to `index.html` | | `/assets/` is deliberately crawlable — Googlebot must fetch the bundle to render a CSR page, and the OG image lives there |
+| 11 | Minifier switched to terser with two compress passes | `vite.config.ts` | Measured below |
+
+## Verification: baseline → final (all executed locally)
+
+| Metric | Baseline `adc4158` | Final | Δ |
+|---|---|---|---|
+| Typecheck errors | 0 | 0 | — |
+| Tests / files | 73 / 14 | **100 / 19** | +27 / +5 |
+| App-total JS (raw) | 507.6 KiB | **492.4 KiB** | **−15.2 KiB** |
+| App-total JS (gzip) | 168.8 KiB | **165.0 KiB** | **−3.8 KiB** |
+| App CSS (raw) | 111.6 KiB | **107.2 KiB** | **−4.4 KiB** |
+| `vendor-three` (gzip) | 141.7 KiB | **138.4 KiB** | **−3.3 KiB** |
+| JS budget headroom used | 96.9% of 524 KB | 97.9% of **515 KB** | ratchet tightened |
+| `npm audit` | 0 vulnerabilities | 0 vulnerabilities | — |
+
+Every budget was ratcheted **down**, not up: the terser switch more than paid for the pass's own feature code, so the artifact ships smaller than it started despite the additions. Build time rose ~5s → ~12s, which is paid in CI, not by a visitor.
+
+Two earlier items are worth recording as *corrections to the record*: this pass's own first instinct was to raise the JS ratchet to absorb +4.2 KiB of new code, which would have been weakening a benchmark to flatter the result; and the CSS defect in row 1 had passed three prior reviews because the only tests over `index.css` were textual. Both the CSS contract and the anchor-offset derivation are now checked **behaviourally** — selectors are executed with `querySelector` against fixture markup, which is the only form of the test that would have caught the escaped quotes.
+
+**Externally blocked / deliberately out of scope:** no browser engine or `lighthouse` in the environment, so LCP/INP/CLS and real-device FPS remain unmeasured; no `ffmpeg`, so the 14 MB of hero MP4s could not be re-encoded (gating them was the available win). Splitting the 36.9 KB Arabic dictionary out of the entry chunk was considered and rejected — every delivery mechanism either serialises a request before first render or flashes English at Arabic readers, which is the wrong trade for a bilingual product.
+
+**Boundary unchanged:** no live data, no fabricated telemetry, no new network calls, no new storage keys, CSP unchanged, and every string added in this pass exists in both EN and AR.

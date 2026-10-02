@@ -1,0 +1,10 @@
+# YASLOGIST AIR — air.yaslogist.com
+# Single-page, client-rendered surface: everything indexable lives at /.
+#
+# /assets/ is deliberately NOT disallowed. Googlebot renders the page before
+# indexing it, so blocking the JS/CSS bundle would hide the entire site from
+# the index, and the Open Graph image lives there too — link previews would
+# break with it.
+
+User-agent: *
+Allow: /

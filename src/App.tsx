@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useState } from 'react';
 import { Analytics } from '@vercel/analytics/react';
+import { useLang } from './lib/i18n';
 import { NavbarAir } from './components/NavbarAir';
 import { CinematicStage } from './components/CinematicStage';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -38,6 +39,7 @@ function Section({ children }: { children: React.ReactNode }) {
 }
 
 export const App: React.FC = () => {
+  const { isRtl } = useLang();
   const [legalModalOpen, setLegalModalOpen] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState<LegalTab>('TERMS');
   const [awbModalOpen, setAwbModalOpen] = useState(false);
@@ -49,7 +51,9 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300">
-      <a href="#main-content" className="skip-link">Skip to main content</a>
+      <a href="#main-content" className="skip-link">
+        {isRtl ? 'تخطَّ إلى المحتوى الرئيسي' : 'Skip to main content'}
+      </a>
       <ExperienceLayer />
       <NavbarAir onOpenAwbModal={() => setAwbModalOpen(true)} />
       <main id="main-content" className="flex-grow" tabIndex={-1}>

@@ -10,6 +10,14 @@ export default defineConfig({
   build: {
     sourcemap: true,
     target: 'es2022',
+    /* esbuild (the Vite default) is fast but single-pass. Terser with two
+       compress passes measured 15.7 KiB smaller raw / 3.8 KiB smaller gzip
+       across the app tier, and 3.3 KiB smaller gzip on the three.js vendor
+       chunk — enough to absorb a feature pass and still tighten the budgets
+       in scripts/check-bundle.mjs. The cost is build time only (~5s → ~12s),
+       which is paid once in CI, never by a visitor. */
+    minify: 'terser',
+    terserOptions: { compress: { passes: 2 }, format: { comments: false } },
     /* The only chunk above 500 KiB is the deliberately isolated vendor-three
        engine chunk (see budget tiers in scripts/check-bundle.mjs). */
     chunkSizeWarningLimit: 640,

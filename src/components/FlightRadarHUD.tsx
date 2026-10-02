@@ -223,7 +223,7 @@ export const FlightRadarHUD: React.FC = () => {
   }, [isLiveActive, isSectionActive, activeFlight]);
 
   return (
-    <section ref={sectionRef} id="radar" className="scroll-mt-24 relative py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <section ref={sectionRef} id="radar" className="relative py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* Section Header with ModelBadge */}
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 border-b border-[var(--glass-brd)] pb-6">
         <div>

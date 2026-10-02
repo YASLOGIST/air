@@ -22,7 +22,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { readFile } from 'node:fs/promises';
 
-const perFileLimits = { js: 280_000, css: 115_000 };
+const perFileLimits = { js: 270_000, css: 112_000 };
 /* App-total ratchet history:
  *   · ULD load-fit engine + simulator + AWB check digits (~+12 KiB gzip 4 KiB)
  *   · WebGL scenes' app-tier code: UldScene + procedural model shop + corridor
@@ -30,12 +30,21 @@ const perFileLimits = { js: 280_000, css: 115_000 };
  *     (measured 498.3 KiB raw / 165.1 KiB gzip; ratchet sat ~+2.7% above).
  *   · Geography-aware globe + twin hardening: embedded landmask (continents,
  *     enclosed seas), solar terminator, globe zoom/tilt, hotspot occlusion
- *     and the quiescent ULD loop (measured 507.6 KiB raw / 168.8 KiB gzip). */
-const totalLimits = { js: 524_000, css: 115_000 };
+ *     and the quiescent ULD loop (measured 507.6 KiB raw / 168.8 KiB gzip).
+ *   · Wayfinding/a11y pass: section scroll spy, drawer dismissal + accessible
+ *     names, bilingual error states, mutation-aware section reveal, data-saver
+ *     media gate — about +4.2 KiB raw of app code, more than paid for by
+ *     switching the minifier to terser (two compress passes). Net measurement
+ *     is 492.3 KiB raw / 165.0 KiB gzip, i.e. BELOW the previous ceiling, so
+ *     this ratchet tightens rather than loosens. CSS fell to 107.2 KiB with
+ *     the removal of the dead HeroAir component's utility classes. */
+const totalLimits = { js: 515_000, css: 112_000 };
 
-/* three r186, minified. gzip ≈ 145 KiB (reported below, not gated). */
+/* three r186, minified by terser: raw is ~5 KiB larger than the esbuild output
+   but gzip — what the browser actually downloads — is ~3.3 KiB smaller
+   (measured 563.7 KiB raw / 138.4 KiB gzip). gzip is reported below, not gated. */
 const vendorThreePattern = /^vendor-three-[\w-]+\.js$/;
-const vendorThreeLimit = 625_000;
+const vendorThreeLimit = 592_000;
 
 const files = await readdir('dist/assets');
 const appTotals = { js: 0, css: 0 };
