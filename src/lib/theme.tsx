@@ -9,6 +9,11 @@ interface ThemeContextType {
 
 const STORAGE_KEY = 'yaslogist-air-theme';
 
+/* Browser-chrome colour per theme, matching `--c-bg` in src/index.css.
+   `public/theme-init.js` applies the same table before first paint; the two
+   copies are pinned together by src/test/theme-color.test.ts. */
+export const THEME_COLORS = { dark: '#070C14', light: '#F8FAFC' } as const;
+
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -39,6 +44,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.add('light');
       root.classList.remove('dark');
     }
+    /* Keep the mobile browser chrome on the same surface as the page. Without
+       this the address bar stayed at the dark value in the light theme. */
+    document
+      .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+      ?.setAttribute('content', THEME_COLORS[theme]);
     try {
       localStorage.setItem(STORAGE_KEY, theme);
     } catch (e) {

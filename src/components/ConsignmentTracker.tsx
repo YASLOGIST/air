@@ -196,7 +196,7 @@ export const ConsignmentTracker: React.FC = () => {
   };
 
   return (
-    <section id="tracker" className="scroll-mt-24 mx-auto max-w-[1440px] px-4 py-16 md:px-8">
+    <section id="tracker" className="mx-auto max-w-[1440px] px-4 py-16 md:px-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[var(--glass-brd)] pb-6 mb-8">
         <div className="max-w-2xl">
           <div className="flex flex-wrap items-center gap-2 mb-2">
