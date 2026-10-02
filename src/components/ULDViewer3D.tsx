@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useLang } from '../lib/i18n';
+import { runSceneLoop } from '../lib/scene-loop';
 import type { ULDContainer } from '../types/air-freight';
 import {
   RotateCcw,
@@ -1097,17 +1098,28 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
     }
   };
 
-  // Request Animation Frame on render dependency change
+  /* The loop below must always call the newest renderer, but restarting it on
+     every state change would also reset the ambient pacing, so the renderer is
+     handed over through a ref and its identity doubles as the state token. */
+  const renderRef = useRef(render);
+  useEffect(() => {
+    renderRef.current = render;
+  }, [render]);
+
+  /* Scene painting policy (see lib/scene-loop.ts):
+       · camera/door/explosion/mode changes  → painted on the very next frame;
+       · ambient detail (fan, LED, particles, hotspot pulse) → ~30 fps;
+       · reduced motion freezes `motionTime`, so nothing ambient needs painting;
+       · off-screen or unmounted            → no painting at all.
+     Previously this redrew the whole scene 60×/s even when nothing moved. */
   useEffect(() => {
     if (!isViewportVisible) return;
-    let animId: number;
-    const update = () => {
-      render();
-      animId = requestAnimationFrame(update);
-    };
-    animId = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(animId);
-  }, [render, isViewportVisible]);
+    return runSceneLoop({
+      draw: () => renderRef.current(),
+      getStateToken: () => renderRef.current,
+      isAmbientAnimated: () => !prefersReducedMotion,
+    });
+  }, [isViewportVisible, prefersReducedMotion]);
 
   return (
     <div className="relative rounded-3xl border border-cyan-500/30 bg-[#060b14] overflow-hidden shadow-2xl flex flex-col">

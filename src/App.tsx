@@ -25,6 +25,18 @@ function SectionFallback() {
   return <div className="mx-auto my-8 h-40 max-w-7xl animate-pulse rounded-3xl bg-[var(--c-card)]" aria-hidden="true" />;
 }
 
+/* One boundary + one Suspense per section. A single shared boundary meant a
+   failure in any one tool (or one chunk that failed to download) replaced all
+   ten sections with the error card, and a single shared Suspense held every
+   loaded section back until the slowest chunk arrived. */
+function Section({ children }: { children: React.ReactNode }) {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<SectionFallback />}>{children}</Suspense>
+    </ErrorBoundary>
+  );
+}
+
 export const App: React.FC = () => {
   const [legalModalOpen, setLegalModalOpen] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState<LegalTab>('TERMS');
@@ -42,23 +54,21 @@ export const App: React.FC = () => {
       <NavbarAir onOpenAwbModal={() => setAwbModalOpen(true)} />
       <main id="main-content" className="flex-grow" tabIndex={-1}>
         <CinematicStage />
-        <ErrorBoundary>
-          <Suspense fallback={<SectionFallback />}>
-            <StatsAir />
-            <MissionAir />
-            <CargoVillageFlow />
-            <FlightRadarHUD />
-            <ULDSelector />
-            <CargoSimAir />
-            <CorridorsAir />
-            <ConsignmentTracker />
-            <HandshakeAirToLand />
-            <StanceAir />
-          </Suspense>
-        </ErrorBoundary>
+        <Section><StatsAir /></Section>
+        <Section><MissionAir /></Section>
+        <Section><CargoVillageFlow /></Section>
+        <Section><FlightRadarHUD /></Section>
+        <Section><ULDSelector /></Section>
+        <Section><CargoSimAir /></Section>
+        <Section><CorridorsAir /></Section>
+        <Section><ConsignmentTracker /></Section>
+        <Section><HandshakeAirToLand /></Section>
+        <Section><StanceAir /></Section>
       </main>
       <Suspense fallback={null}>
-        <FooterAir onOpenLegal={openLegal} />
+        <ErrorBoundary>
+          <FooterAir onOpenLegal={openLegal} />
+        </ErrorBoundary>
         {legalModalOpen && <LegalModalAir isOpen onClose={() => setLegalModalOpen(false)} initialTab={legalModalTab} />}
         {awbModalOpen && <AwbModalAir isOpen onClose={() => setAwbModalOpen(false)} />}
       </Suspense>
