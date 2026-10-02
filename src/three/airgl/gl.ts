@@ -114,6 +114,43 @@ export function disposeObjectGraph(root: THREE.Object3D): void {
 }
 
 /**
+ * Wires the two events every long-lived WebGL surface needs to survive a
+ * GPU reset — driver crash, OS sleep/resume, thermal shutdown, too many
+ * contexts open across tabs, or a mobile browser reclaiming VRAM from a
+ * backgrounded tab. `WebGLRenderer` already calls `preventDefault()` on its
+ * own internal 'webglcontextlost' listener (that is what tells the browser
+ * to *attempt* restoration instead of killing the canvas forever), and on
+ * restore it builds a brand-new internal resource registry so geometries,
+ * standard textures and shader programs are re-uploaded automatically from
+ * the JS-side data on the next `render()` call — most scenes need nothing
+ * further. Three things it cannot do for you:
+ *   1. your rAF loop keeps ticking into a context that silently no-ops
+ *      every draw call — wasted CPU and a frozen frame with no explanation;
+ *   2. the user is never told the canvas has gone dark;
+ *   3. GPU-only artifacts with no source image (e.g. a PMREMGenerator
+ *      environment baked from a procedural scene) have nothing to
+ *      re-derive from and stay blank until something re-bakes them.
+ * This hook exists to close exactly those three gaps; call sites decide
+ * what "paused" and "rebuilt" mean for their scene.
+ */
+export function watchContextLoss(
+  canvas: HTMLCanvasElement,
+  handlers: { onLost: () => void; onRestored: () => void },
+): () => void {
+  const onLost = (event: Event): void => {
+    event.preventDefault();
+    handlers.onLost();
+  };
+  const onRestored = (): void => handlers.onRestored();
+  canvas.addEventListener('webglcontextlost', onLost, false);
+  canvas.addEventListener('webglcontextrestored', onRestored, false);
+  return () => {
+    canvas.removeEventListener('webglcontextlost', onLost, false);
+    canvas.removeEventListener('webglcontextrestored', onRestored, false);
+  };
+}
+
+/**
  * Full teardown for a scene instance. Order matters: graph first (while the
  * context is still alive so commands flush), then renderer internals.
  *

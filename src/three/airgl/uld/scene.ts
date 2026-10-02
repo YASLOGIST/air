@@ -19,7 +19,7 @@
 
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { createAirRenderer, disposeObjectGraph, releaseWebGL } from '../gl';
+import { createAirRenderer, disposeObjectGraph, releaseWebGL, watchContextLoss } from '../gl';
 import { damp, dampAngle, isSpringSettled, stepSpring, type SpringState } from '../easing';
 import {
   buildUldModel,
@@ -145,6 +145,14 @@ export class UldScene {
 
   private disposed = false;
 
+  /* GPU reset recovery. See gl.ts `watchContextLoss` for why this is the
+     one place three.js's own recovery is incomplete: the environment map
+     is GPU-only (baked by PMREMGenerator, no source image), so it stays
+     blank after a restore unless we re-bake it. */
+  private contextLost = false;
+  private contextCallback: ((lost: boolean) => void) | null = null;
+  private readonly stopWatchingContext: () => void;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.renderer = createAirRenderer(canvas);
@@ -152,18 +160,8 @@ export class UldScene {
 
     this.scene.background = new THREE.Color(0x04070d);
     this.scene.fog = new THREE.Fog(0x04070d, 8.5, 16);
-
-    /* IBL from a procedural studio environment — physically motivated
-       reflections without a single external HDR asset (CSP-clean, 0 network).
-       The RT (not only its texture) and the room scene are both released in
-       dispose(): the generator uploads the room's geometry during conversion
-       and a naive boot/dispose cycle would strand it. */
-    this.pmrem = new THREE.PMREMGenerator(this.renderer);
-    const roomEnvironment = new RoomEnvironment();
-    this.envRenderTarget = this.pmrem.fromScene(roomEnvironment, 0.06);
-    this.scene.environment = this.envRenderTarget.texture;
     this.scene.environmentIntensity = 0.55;
-    disposeObjectGraph(roomEnvironment);
+    this.buildEnvironment();
 
     const key = new THREE.DirectionalLight(0xd6ecff, 1.35);
     key.position.set(3.2, 5.4, 2.6);
@@ -173,11 +171,59 @@ export class UldScene {
 
     this.buildFloor();
     this.attachPointer(canvas);
+    this.stopWatchingContext = watchContextLoss(canvas, {
+      onLost: () => this.handleContextLost(),
+      onRestored: () => this.handleContextRestored(),
+    });
 
     this.resizeObserver = new ResizeObserver(() => this.applySize());
     const host = canvas.parentElement ?? canvas;
     this.resizeObserver.observe(host);
     this.applySize();
+  }
+
+  /* IBL from a procedural studio environment — physically motivated
+     reflections without a single external HDR asset (CSP-clean, 0 network).
+     Both the render target and the generator are rebuildable: the generator
+     holds its own small GL programs that die with the context, and the
+     render target's filtered mip chain is pixels that existed only on the
+     GPU, so a restore has nothing to re-upload it from — the only fix is to
+     bake it again. The room scene is disposed every time; only the RT and
+     generator persist as instance state. */
+  private buildEnvironment(): void {
+    this.pmrem?.dispose();
+    this.pmrem = new THREE.PMREMGenerator(this.renderer);
+    const roomEnvironment = new RoomEnvironment();
+    const previousTarget = this.envRenderTarget;
+    this.envRenderTarget = this.pmrem.fromScene(roomEnvironment, 0.06);
+    this.scene.environment = this.envRenderTarget.texture;
+    disposeObjectGraph(roomEnvironment);
+    previousTarget?.dispose();
+  }
+
+  /** Subscribe to GPU-reset state. `true` while the canvas is dark and the
+   *  loop is paused; `false` once rendering has resumed with fresh GPU
+   *  resources. Fires immediately only on transitions, never on boot. */
+  onContextChange(callback: (lost: boolean) => void): void {
+    this.contextCallback = callback;
+  }
+
+  private handleContextLost(): void {
+    this.contextLost = true;
+    if (this.rafId !== 0) cancelAnimationFrame(this.rafId);
+    this.rafId = 0;
+    this.contextCallback?.(true);
+  }
+
+  private handleContextRestored(): void {
+    this.contextLost = false;
+    // Geometries, standard textures and programs re-upload themselves on
+    // the next render() — three.js starts every object as "unseen" after
+    // a restore. Only the GPU-only environment bake needs a manual redo.
+    this.buildEnvironment();
+    this.contextCallback?.(false);
+    this.renderOnce();
+    this.wake();
   }
 
   /* ── Studio floor: merged grid (1 call) + radial contact shadow (1 call) ── */
@@ -564,7 +610,7 @@ export class UldScene {
   }
 
   private wake(): void {
-    if (this.disposed || this.reducedMotion || !this.visible) return;
+    if (this.disposed || this.reducedMotion || !this.visible || this.contextLost) return;
     if (this.rafId === 0) {
       this.lastTime = performance.now();
       this.rafId = requestAnimationFrame(this.tick);
@@ -572,7 +618,7 @@ export class UldScene {
   }
 
   private renderOnce(): void {
-    if (this.disposed || !this.visible) return;
+    if (this.disposed || !this.visible || this.contextLost) return;
     if (this.rafId === 0) {
       this.draw(performance.now());
     }
@@ -730,6 +776,7 @@ export class UldScene {
     if (this.rafId !== 0) cancelAnimationFrame(this.rafId);
     this.rafId = 0;
     this.resizeObserver.disconnect();
+    this.stopWatchingContext();
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
     this.canvas.removeEventListener('wheel', this.onWheel);
     window.removeEventListener('pointermove', this.onPointerMove);

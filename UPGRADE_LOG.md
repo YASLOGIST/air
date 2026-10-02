@@ -94,3 +94,65 @@ Additional checks: all built chunks parse as ESM (`node --check`); production pr
 
 - No browser engine or lighthouse → LCP, INP, CLS and real-device FPS are **UNMEASURED**. Nothing in this log claims them.
 - No ffmpeg → the 14 MB of hero MP4s could not be re-encoded; gating them was the available win.
+
+---
+
+# Pass 2 — WebGL context-loss recovery
+
+**Mode:** UPGRADE · **Autonomy:** FULL · **Date:** 2026-10-02
+**Baseline:** commit `3a9cfb3` (merge of `arena/01a0fe1a-air`, the pass above) · **Working branch:** `arena/01a0fe37-air`
+
+## W0/W1 — Recon and baseline (MEASURED)
+
+`npm ci` → 185 packages, 0 vulnerabilities. `npm run typecheck` 0 errors. `npm test` 100/100 passing across 19 files. `npm run build` green, 10.2s. `npm run check:bundle` green. No headless browser engine was installable in this sandbox (no network egress for the Playwright binary, no package manager access for its system deps) — identical constraint to Pass 1 — so this pass again routes around that by reading the shipped renderer source (`node_modules/three/src/renderers/WebGLRenderer.js`) directly rather than guessing at its behaviour.
+
+Routing: this repository had already been taken through a full accessibility/i18n/bundle pass. A second recon pass over the two hand-written WebGL surfaces (`src/three/airgl/uld/scene.ts`, `src/three/airgl/globe/scene.ts`) found the engine itself — render-on-demand, zero-allocation loops, full resource-lifecycle disposal, reduced-motion handling, DPR ceiling — already at a high bar. The one load-bearing gap: **no code anywhere handled `webglcontextlost` / `webglcontextrestored`.**
+
+## What that gap actually meant (verified against three.js r186 source, not assumed)
+
+`THREE.WebGLRenderer` already registers its own internal `webglcontextlost` listener and calls `preventDefault()` — so the browser was already *attempting* restoration; that part was never broken. On restore, `initGLContext()` replaces the renderer's internal `WebGLProperties` registry wholesale, which means ordinary geometries, textures and shader programs already re-upload themselves automatically from their JS-side data on the next `render()` call. What three.js's generic recovery cannot do:
+
+1. **Pause the app's own rAF loop.** Both scenes kept ticking every frame into a renderer whose `render()` had become a silent no-op (`if (this._isContextLost) return;`) — CPU spent on damping/spring/sun-position math for a frame nobody would ever see, for an indefinite window.
+2. **Tell the user anything.** A lost context freezes the last rendered frame with zero explanation — exactly the "unexplained blank canvas" the loading/failure contract forbids.
+3. **Rebuild GPU-only artifacts.** The ULD viewer's environment reflections are baked once by a `PMREMGenerator` pass with no source image; after a restore that bake is still "applied" as far as three.js is concerned, but the pixels it produced lived only on the now-dead GPU, so it would have rendered as flat/blank lighting until the unit was changed (which `setModel` happens to avoid, but nothing accounted for it directly) and never actually re-baked.
+
+## Changes landed
+
+| File | Change |
+|---|---|
+| `src/three/airgl/gl.ts` | New `watchContextLoss(canvas, { onLost, onRestored })` — the one shared, pure-DOM primitive both scenes wire into. `onLost` calls `event.preventDefault()`. |
+| `src/three/airgl/uld/scene.ts` | Wires `watchContextLoss`; pauses/arms the rAF loop on loss/restore; exposes `onContextChange(cb)`; extracted the environment bake into `buildEnvironment()` so it can run again on restore (disposing the stale `PMREMGenerator` and render target first); `wake()`/`renderOnce()` now also gate on `contextLost`; `dispose()` detaches the listener. |
+| `src/three/airgl/globe/scene.ts` | Same wiring, without the environment rebuild — every resource in this scene is a plain `BufferGeometry`/`ShaderMaterial` with scalar uniforms, which three.js's generic recovery already handles correctly. |
+| `src/components/ULDViewer3D.tsx`, `src/components/CorridorGlobe3D.tsx` | Subscribe to `onContextChange`; render a bilingual, `role="status" aria-live="polite"` notice over the canvas while lost, which clears itself on restore — no new persistent UI state, no change to any existing control. |
+| `src/three/airgl/gl.test.ts` (new) | Proves the DOM contract directly: `preventDefault()` is called, both callbacks fire independently, cleanup detaches both listeners. |
+| `src/components/ULDViewer3D.test.tsx`, `src/components/CorridorGlobe3D.test.tsx` (new) | Mock the scene controllers (jsdom has no real WebGL, so the real classes never instantiate in any test — this was literally untested before) and drive the lost→restored cycle through the component, asserting the accessible notice appears and clears. |
+
+## W7 — Verification (MEASURED)
+
+| Metric | Before this pass | After | Δ |
+|---|---|---|---|
+| Typecheck errors | 0 | 0 | — |
+| Tests / files | 100 / 19 | **109 / 22** | **+9 / +3** |
+| App-total JS raw | 492.4 KiB | **495.0 KiB** | +2.6 KiB (new recovery logic + bilingual UI strings) |
+| App-total JS gzip | 165.0 KiB | **165.9 KiB** | +0.9 KiB |
+| App CSS | 107.2 KiB | 107.9 KiB | +0.7 KiB |
+| Bundle ratchets (`scripts/check-bundle.mjs`) | — | **all pass**, headroom intact (495.0/502.9 KiB JS, 107.9/109.4 KiB CSS) | no ratchet raised |
+| `npm audit` | 0 vulns | 0 vulns | — |
+| New dependencies | — | **0** | the fix uses only standard DOM events and existing three.js/React APIs |
+
+`dist/` was rebuilt from current `src/` as part of this pass (see "Fixed in passing" below) and is committed to match, per the repo's tracked-`dist/` contract.
+
+**Invariant Gate (I1–I7): PASS.** No behaviour change for the common case (context never lost): the new code paths are inert until the browser actually fires `webglcontextlost`. No new runtime errors. PRESERVE intact (no public API, route, data contract or copy changed outside the two new UI strings). No regression — bundle ratchets still pass with headroom. Resource behaviour stays bounded (the PMREMGenerator/render-target pair is explicitly disposed before each rebuild, on both the first boot and every subsequent restore). No new dependency. No cross-boundary files touched.
+
+## Fixed in passing
+
+- `dist/` had drifted from `src/` (it still shipped Pass 1's pre-`noscript`/pre-OG-locale HTML and an unminified-looking stale `theme-init.js`) — a plain `npm run build` with no source changes would have produced a different `dist/` than what was committed. Rebuilt so the tracked output matches `HEAD` exactly, honouring the "`dist/` is a deliberate deployment contract" decision from Pass 1.
+
+## Rejected after analysis
+
+- **A full renderer/scene teardown-and-remount on every context loss** (the pattern shown in three.js's own `webgl_materials_context_restore` example) — unnecessary here: both scenes' own resource model (geometries/materials with persistent JS-side data, no streamed assets) is exactly the case three.js's built-in `initGLContext()` recovery already covers. Rebuilding everything would have meant re-running `buildUldModel`/`buildDotShell` et al. unconditionally, doubling the surface area of this change for no measurable benefit over the targeted fix (pause loop + notify + rebake the one GPU-only artifact).
+- **An FPS-based adaptive-quality governor** (dynamic DPR/particle-count stepping for Tier C) — considered and set aside: there is no post-processing, no shadow map, and both scenes already run at a DPR ceiling of 2 with single-digit draw calls; without a measured low-FPS device sample in this sandbox (no headless GPU available), adding a stepping governor now would be unjustified complexity against the Prime Directive's "proportionate complexity" test, not a confirmed fix for a confirmed problem.
+
+## Externally blocked
+
+- No headless Chromium (no network path to the Playwright CDN, no package-manager access for its system deps in this sandbox) → an actual `forceContextLoss()`/`forceContextRestore()` round-trip against a live GPU-backed context, and any FPS/draw-call numbers for the two 3D surfaces, remain **UNMEASURED** here. The DOM-event contract and the React wiring it drives are covered by the new unit/component tests instead, which do not depend on a real WebGL context.
