@@ -1,16 +1,24 @@
-/* ── AIRGL · corridor network globe ───────────────────────────────────────
+/* ── AIRGL · corridor network globe ───────────────────────────────
    The airway network rendered the way the data actually exists: great
-   circles on a sphere. One scene, six draw calls, zero CPU animation —
-   every moving element (arc sparks, aircraft traffic, hub pulses) is a
-   closed-form function of time evaluated in the vertex shader.
+   circles on a sphere, over a dot-shell planet whose dots know whether
+   they are land or water (see landmask.ts) and whether the sun is above
+   them right now (see geo.ts subsolarLatLon). One scene, six draw calls,
+   zero CPU animation — every moving element (arc sparks, aircraft traffic,
+   hub pulses) is a closed-form function of time evaluated in the vertex
+   shader.
 
    Draw calls (steady state):
-     1. Fibonacci dot-shell (the planet, 2 400 points, one Points)
+     1. Land/ocean dot-shell (the planet, ~8 k classified points, one Points)
      2. Graticule (one merged LineSegments)
      3. Atmosphere rim (one inverted-hull additive sphere)
      4. Airport hubs (one Points, per-point shader pulse; CAI reads largest)
      5. Corridor arcs (all arcs merged into one LineSegments)
      6. Live traffic (one Points; GLSL great-circle slerp per aircraft)
+
+   The terminator is geography-locked, not screen-locked: the subsolar
+   direction is computed in world space, then rotated into the globe's
+   local frame each frame so night follows the continents as the user
+   spins the planet — the way the real planet behaves.
 ────────────────────────────────────────────────────────────────────────── */
 
 import * as THREE from 'three';
@@ -23,8 +31,10 @@ import {
   greatCircleAngle,
   greatCirclePoint,
   latLonToVec3,
+  subsolarLatLon,
   type Vec3Tuple,
 } from '../geo';
+import { isLand } from './landmask';
 
 export interface GlobeCorridor {
   id: string;
@@ -45,11 +55,21 @@ export interface GlobeHub {
 }
 
 const GLOBE_RADIUS = 1;
-const SHELL_POINTS = 2400;
+/** Candidate lattice; ocean points are thinned below, land points all kept. */
+const SHELL_CANDIDATES = 13000;
+/** Fraction of ocean candidates retained — land carries the information. */
+const OCEAN_KEEP_NUMERATOR = 4;
+const OCEAN_KEEP_DENOMINATOR = 7;
 const ARC_SEGMENTS = 72;
 const PLANES_PER_CORRIDOR = 2;
 const AUTO_SPIN = 0.05;
 const ROTATION_SMOOTH = 4.2;
+const ZOOM_SMOOTH = 5.5;
+const REST_RADIUS = 3.05;
+const MIN_RADIUS = 2.25;
+const MAX_RADIUS = 4.2;
+/** The sun moves ~0.25°/min; re-deriving it every minute is invisible. */
+const SUN_REFRESH_MS = 60_000;
 
 /* ── GLSL ───────────────────────────────────────────────────────────────── */
 
@@ -68,6 +88,48 @@ const ATMOSPHERE_FRAGMENT = /* glsl */ `
   void main() {
     float rim = pow(max(0.68 - dot(vNormalV, vec3(0.0, 0.0, 1.0)), 0.0), 3.2);
     gl_FragColor = vec4(uColor, rim * 0.85);
+    #include <colorspace_fragment>
+  }
+`;
+
+/* Dot-shell: one program for the whole planet. Per-point attributes carry
+   land/ocean identity and size; the fragment composes the terminator light
+   from the (already globe-local) sun direction. Night-side land keeps a
+   faint warm tone — settlements seen from orbit — while ocean goes near
+   black, which is what makes coastlines pop after dark. */
+const SHELL_VERTEX = /* glsl */ `
+  attribute float aSize;
+  attribute float aLand;
+  varying vec3 vColor;
+  varying float vLand;
+  varying float vSun;
+  uniform float uPointScale;
+  uniform vec3 uSunDir;
+  void main() {
+    vColor = color;
+    vLand = aLand;
+    vSun = dot(normalize(position), uSunDir);
+    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = aSize * uPointScale / max(0.6, -mvPos.z);
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+
+const SHELL_FRAGMENT = /* glsl */ `
+  precision mediump float;
+  varying vec3 vColor;
+  varying float vLand;
+  varying float vSun;
+  void main() {
+    float dist = length(gl_PointCoord - vec2(0.5));
+    float disc = smoothstep(0.5, 0.14, dist);
+    // Soft wrap terminator: dusk spans roughly ±25° of arc.
+    float day = clamp(vSun * 1.4 + 0.32, 0.0, 1.0);
+    vec3 lit = vColor * (0.34 + 0.82 * day);
+    vec3 nightLand = vec3(0.36, 0.27, 0.18) * (0.5 + 0.5 * vColor.g);
+    vec3 col = mix(lit, nightLand, (1.0 - day) * vLand * 0.42);
+    float alpha = disc * mix(0.5, 0.95, vLand) * (0.42 + 0.58 * day);
+    gl_FragColor = vec4(col, alpha);
     #include <colorspace_fragment>
   }
 `;
@@ -191,15 +253,25 @@ export class CorridorGlobeScene {
   private hubMaterial: THREE.ShaderMaterial | null = null;
   private trafficMaterial: THREE.ShaderMaterial | null = null;
   private atmosphereMaterial: THREE.ShaderMaterial | null = null;
+  private shellMaterial: THREE.ShaderMaterial | null = null;
 
   /* Rest yaw presents the Mediterranean (CAI longitude ≈ 31.4°E) head-on. */
   private yaw = -0.55;
   private yawGoal = -0.55;
   private tilt = 0.34;
   private tiltGoal = 0.34;
+  private radius = REST_RADIUS;
+  private radiusGoal = REST_RADIUS;
   private spinVelocity = 0;
   private dragging = false;
   private lastPointerX = 0;
+  private lastPointerY = 0;
+
+  /* Solar state — world-space direction, refreshed on a slow clock. */
+  private readonly sunWorld = new THREE.Vector3(1, 0, 0);
+  private readonly sunLocal = new THREE.Vector3(1, 0, 0);
+  private readonly inverseSpin = new THREE.Quaternion();
+  private sunLastComputed = 0;
 
   private rafId = 0;
   private lastTime = 0;
@@ -227,6 +299,7 @@ export class CorridorGlobeScene {
     this.buildAtmosphere();
     this.buildHubs(hubs);
     this.buildArcsAndTraffic(corridors);
+    this.refreshSun(true);
 
     this.attachPointer(canvas);
     const host = canvas.parentElement ?? canvas;
@@ -235,38 +308,83 @@ export class CorridorGlobeScene {
     this.applySize();
   }
 
-  /* 1 — the planet shell. */
+  /* 1 — the planet shell: a Fibonacci lattice classified against the
+     landmask. Land is kept whole and reads bright; ocean is thinned and
+     dimmed so the coastlines — the actual geography of the corridors —
+     carry the composition. Still exactly one draw call. */
   private buildDotShell(): void {
-    const positions = new Float32Array(SHELL_POINTS * 3);
-    const colors = new Float32Array(SHELL_POINTS * 3);
-    const base = new THREE.Color(0x14364c);
-    const bright = new THREE.Color(0x2a6a8a);
+    const positions: number[] = [];
+    const colors: number[] = [];
+    const sizes: number[] = [];
+    const lands: number[] = [];
+
+    const landColor = new THREE.Color(0x35c9dd);
+    const landAlt = new THREE.Color(0x2ba8b8);
+    const oceanColor = new THREE.Color(0x16436b);
     const mixed = new THREE.Color();
-    for (let i = 0; i < SHELL_POINTS; i++) {
-      const [x, y, z] = fibonacciSpherePoint(i, SHELL_POINTS, GLOBE_RADIUS);
-      positions[i * 3] = x;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = z;
-      // Longitude bands brighten the tropics where the corridors actually live.
-      const band = 0.5 + 0.5 * Math.sin(y * Math.PI * 1.6 + x * 0.5);
-      mixed.copy(base).lerp(bright, band * 0.8);
-      colors[i * 3] = mixed.r;
-      colors[i * 3 + 1] = mixed.g;
-      colors[i * 3 + 2] = mixed.b;
+    const latLon = new THREE.Vector3();
+
+    for (let i = 0; i < SHELL_CANDIDATES; i++) {
+      const [x, y, z] = fibonacciSpherePoint(i, SHELL_CANDIDATES, GLOBE_RADIUS);
+      latLon.set(x, y, z);
+      const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(y, -1, 1)));
+      const lon = THREE.MathUtils.radToDeg(Math.atan2(x, z));
+      const land = isLand(lat, lon);
+      if (!land && i % OCEAN_KEEP_DENOMINATOR >= OCEAN_KEEP_NUMERATOR) continue;
+
+      positions.push(x, y, z);
+      if (land) {
+        // Slight two-tone variation keeps continents from reading flat.
+        mixed.copy(landColor).lerp(landAlt, (i * 0.37) % 1);
+        sizes.push(1.35);
+        lands.push(1);
+      } else {
+        // Ocean keeps a whisper of the old latitude banding for texture.
+        const band = 0.5 + 0.5 * Math.sin(y * Math.PI * 1.6 + x * 0.5);
+        mixed.copy(oceanColor).multiplyScalar(0.72 + band * 0.28);
+        sizes.push(0.85);
+        lands.push(0);
+      }
+      colors.push(mixed.r, mixed.g, mixed.b);
     }
+
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    const material = new THREE.PointsMaterial({
-      size: 0.012,
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setAttribute('aSize', new THREE.Float32BufferAttribute(sizes, 1));
+    geometry.setAttribute('aLand', new THREE.Float32BufferAttribute(lands, 1));
+    this.shellMaterial = new THREE.ShaderMaterial({
+      vertexShader: SHELL_VERTEX,
+      fragmentShader: SHELL_FRAGMENT,
+      uniforms: {
+        uPointScale: this.pointScale,
+        uSunDir: { value: this.sunLocal },
+      },
       vertexColors: true,
       transparent: true,
-      opacity: 0.85,
-      sizeAttenuation: true,
       depthWrite: false,
     });
-    const points = new THREE.Points(geometry, material);
-    this.globeGroup.add(points);
+    this.globeGroup.add(new THREE.Points(geometry, this.shellMaterial));
+  }
+
+  /** Subsolar direction in world space; refreshed on the slow sun clock. */
+  private refreshSun(force = false): void {
+    const now = performance.now();
+    if (!force && now - this.sunLastComputed < SUN_REFRESH_MS) return;
+    this.sunLastComputed = now;
+    const { lat, lon } = subsolarLatLon(new Date());
+    this.sunWorld.set(
+      Math.cos(THREE.MathUtils.degToRad(lat)) * Math.sin(THREE.MathUtils.degToRad(lon)),
+      Math.sin(THREE.MathUtils.degToRad(lat)),
+      Math.cos(THREE.MathUtils.degToRad(lat)) * Math.cos(THREE.MathUtils.degToRad(lon)),
+    );
+  }
+
+  /** Rotate the world-space sun into the globe's local frame so the
+      terminator stays glued to the geography while the planet spins. */
+  private updateSunLocal(): void {
+    this.inverseSpin.copy(this.globeGroup.quaternion).invert();
+    this.sunLocal.copy(this.sunWorld).applyQuaternion(this.inverseSpin);
   }
 
   /* 2 — merged lat/lon lattice. */
@@ -470,7 +588,7 @@ export class CorridorGlobeScene {
     this.statsCallback = callback;
   }
 
-  /* ── Loop: damped spin + two uniforms + camera. That's the whole frame. ── */
+  /* ── Loop: damped spin/tilt/zoom + three uniforms + camera. The frame. ── */
   private wake(): void {
     if (this.disposed || this.reducedMotion || !this.visible) return;
     if (this.rafId === 0) {
@@ -495,6 +613,7 @@ export class CorridorGlobeScene {
     this.spinVelocity *= Math.exp(-4.5 * dt);
     this.yaw = dampAngle(this.yaw, this.yawGoal, ROTATION_SMOOTH, dt);
     this.tilt = damp(this.tilt, this.tiltGoal, ROTATION_SMOOTH, dt);
+    this.radius = damp(this.radius, this.radiusGoal, ZOOM_SMOOTH, dt);
     this.globeGroup.rotation.set(this.tilt, this.yaw, 0);
 
     if (this.arcMaterial) this.arcMaterial.uniforms.uTime.value = this.elapsed;
@@ -506,12 +625,16 @@ export class CorridorGlobeScene {
   };
 
   private draw(time: number): void {
-    this.camera.position.set(0, 0.16, 3.05);
+    /* Sun state belongs here, not only in the loop: the reduced-motion path
+       renders via renderOnce() and still deserves a correct terminator. */
+    this.refreshSun();
+    this.updateSunLocal();
+    this.camera.position.set(0, 0.052 * this.radius, this.radius);
     this.camera.lookAt(0, 0, 0);
     this.renderer.render(this.scene, this.camera);
 
     this.frames += 1;
-    this.statsAccumulator += time - (this.lastStatTime || time);
+    this.statsAccumulator += Math.min(100, time - (this.lastStatTime || time));
     this.lastStatTime = time;
     if (this.statsAccumulator >= 500 && this.statsCallback) {
       this.statsCallback({
@@ -526,6 +649,7 @@ export class CorridorGlobeScene {
 
   private attachPointer(canvas: HTMLCanvasElement): void {
     canvas.addEventListener('pointerdown', this.onPointerDown);
+    canvas.addEventListener('wheel', this.onWheel, { passive: false });
     window.addEventListener('pointermove', this.onPointerMove);
     window.addEventListener('pointerup', this.onPointerUp);
     window.addEventListener('pointercancel', this.onPointerUp);
@@ -536,20 +660,35 @@ export class CorridorGlobeScene {
     this.dragging = true;
     this.spinVelocity = 0;
     this.lastPointerX = event.clientX;
+    this.lastPointerY = event.clientY;
     this.canvas.setPointerCapture?.(event.pointerId);
   };
 
   private readonly onPointerMove = (event: PointerEvent): void => {
     if (!this.dragging) return;
     const dx = event.clientX - this.lastPointerX;
+    const dy = event.clientY - this.lastPointerY;
     this.lastPointerX = event.clientX;
+    this.lastPointerY = event.clientY;
     this.yawGoal += dx * 0.005;
     this.spinVelocity = dx * 0.0016;
+    // Vertical drag pitches the view between a low horizon and polar overview.
+    this.tiltGoal = THREE.MathUtils.clamp(this.tiltGoal + dy * 0.0035, 0.06, 1.15);
     this.wake();
   };
 
   private readonly onPointerUp = (): void => {
     this.dragging = false;
+  };
+
+  private readonly onWheel = (event: WheelEvent): void => {
+    event.preventDefault();
+    this.radiusGoal = THREE.MathUtils.clamp(
+      this.radiusGoal + event.deltaY * 0.0016,
+      MIN_RADIUS,
+      MAX_RADIUS,
+    );
+    this.wake();
   };
 
   private applySize(): void {
@@ -572,11 +711,10 @@ export class CorridorGlobeScene {
     this.rafId = 0;
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
+    this.canvas.removeEventListener('wheel', this.onWheel);
     window.removeEventListener('pointermove', this.onPointerMove);
     window.removeEventListener('pointerup', this.onPointerUp);
     window.removeEventListener('pointercancel', this.onPointerUp);
     releaseWebGL(this.renderer, this.scene);
   }
 }
-
-

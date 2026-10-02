@@ -136,6 +136,28 @@ export function facingYawFor(a: Vec3Tuple, b: Vec3Tuple): number {
 }
 
 /**
+ * Subsolar point (where the sun is exactly overhead) for a given UTC instant,
+ * from the standard low-precision solar ephemeris:
+ *   · declination via the cosine-of-the-season approximation (±0.3° error);
+ *   · equation of time via the NOAA B-term series (~±0.3 min error).
+ * Feeds the globe's day/night terminator — a few tenths of a degree is far
+ * below what a dot-shell globe can express, so the cheap closed form wins.
+ */
+export function subsolarLatLon(date: Date): { lat: number; lon: number } {
+  const yearStart = Date.UTC(date.getUTCFullYear(), 0, 0);
+  const dayOfYear = (date.getTime() - yearStart) / 86_400_000;
+  const declination = -23.44 * Math.cos(((2 * Math.PI) / 365.24) * (dayOfYear + 10));
+  const b = ((2 * Math.PI) / 364) * (dayOfYear - 81);
+  const equationOfTimeMinutes =
+    9.87 * Math.sin(2 * b) - 7.53 * Math.cos(b) - 1.5 * Math.sin(b);
+  const utcHours =
+    date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+  let lon = -15 * (utcHours + equationOfTimeMinutes / 60 - 12);
+  lon = ((((lon + 180) % 360) + 360) % 360) - 180;
+  return { lat: declination, lon };
+}
+
+/**
  * Even point distribution on a sphere via the Fibonacci lattice. Deterministic
  * (no RNG state), which keeps SSR/tests stable and avoids cluster artifacts
  * that naive random sampling produces near the poles.

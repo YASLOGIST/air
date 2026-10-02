@@ -10,6 +10,7 @@ import {
   normalize3,
   norm3,
   slerpUnit,
+  subsolarLatLon,
 } from './geo';
 
 const CAI = latLonToVec3(30.1219, 31.4056);
@@ -134,5 +135,40 @@ describe('greatCircleAngle', () => {
   it('dot3/normalize3 agree', () => {
     const n = normalize3([3, 4, 0]);
     expect(dot3(n, n)).toBeCloseTo(1, 6);
+  });
+});
+
+describe('subsolarLatLon', () => {
+  it('peaks near +23.4° at the June solstice and dips near -23.4° in December', () => {
+    const june = subsolarLatLon(new Date(Date.UTC(2026, 5, 21, 12, 0, 0)));
+    const december = subsolarLatLon(new Date(Date.UTC(2026, 11, 21, 12, 0, 0)));
+    expect(june.lat).toBeGreaterThan(23);
+    expect(june.lat).toBeLessThan(24);
+    expect(december.lat).toBeGreaterThan(-24);
+    expect(december.lat).toBeLessThan(-23);
+  });
+
+  it('crosses the equator at the equinoxes', () => {
+    const march = subsolarLatLon(new Date(Date.UTC(2026, 2, 20, 12, 0, 0)));
+    expect(Math.abs(march.lat)).toBeLessThan(1.5);
+  });
+
+  it('hangs over the Greenwich meridian near 12:00 UTC', () => {
+    const noon = subsolarLatLon(new Date(Date.UTC(2026, 2, 20, 12, 0, 0)));
+    // Equation of time in late March is ~-7 min → ~+1.8° east of Greenwich.
+    expect(Math.abs(noon.lon)).toBeLessThan(5);
+  });
+
+  it('sits over the antimeridian near 00:00 UTC', () => {
+    const midnight = subsolarLatLon(new Date(Date.UTC(2026, 2, 20, 0, 0, 0)));
+    expect(Math.abs(midnight.lon)).toBeGreaterThan(175);
+  });
+
+  it('always returns a wrapped longitude', () => {
+    for (const hour of [0, 3, 6, 9, 12, 15, 18, 21]) {
+      const { lon } = subsolarLatLon(new Date(Date.UTC(2026, 7, 15, hour, 0, 0)));
+      expect(lon).toBeGreaterThanOrEqual(-180);
+      expect(lon).toBeLessThanOrEqual(180);
+    }
   });
 });

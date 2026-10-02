@@ -125,6 +125,9 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
               <Compass className="h-3 w-3" />
               AIRWAY NETWORK · LIVE ARCS
             </span>
+            <span className="block w-fit rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] tracking-wider text-slate-400 backdrop-blur">
+              SOLAR TERMINATOR · REAL UTC
+            </span>
             {active && (
               <span className="block w-fit rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] tracking-wider text-slate-300 backdrop-blur">
                 FOCUS ⇢ {active.code}
@@ -134,7 +137,7 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
 
           <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5 font-mono text-[8px] text-slate-400" dir="ltr">
             <MousePointer2 className="h-3 w-3 text-cyan-400/70" />
-            <span>{isRtl ? 'اسحب لتدوير الكوكب' : 'DRAG TO SPIN'}</span>
+            <span>{isRtl ? 'اسحب للتدوير · حرّك العجلة للتقريب' : 'DRAG TO SPIN · SCROLL TO ZOOM'}</span>
             {stats && (
               <span className="ml-2 rounded-full border border-white/10 bg-black/45 px-2 py-0.5 backdrop-blur">
                 {stats.fps} FPS · {stats.draws} DRAWS · DPR ×{stats.dpr}

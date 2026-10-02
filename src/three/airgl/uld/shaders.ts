@@ -56,6 +56,10 @@ const THERMAL_FRAGMENT = /* glsl */ `
     float shimmer = 0.035 * sin(vWorldPos.x * 9.0 + uTime * 2.1)
                   + 0.03 * sin(vWorldPos.y * 12.0 - uTime * 1.4);
     float t = clamp(base + heightT * 0.2 + leak + shimmer, 0.0, 1.0);
+    // Discrete isotherms: real radiometers quantize the palette, and the
+    // banding makes gradients legible as measurement, not decoration.
+    float isotherm = (floor(t * 8.0) + 0.5) / 8.0;
+    t = mix(t, isotherm, 0.6);
     vec3 color = thermalRamp(t);
     float lambert = 0.55 + 0.45 * abs(dot(normalize(vNormalV), normalize(vec3(0.4, 0.85, 0.5))));
     gl_FragColor = vec4(color * lambert, 1.0);

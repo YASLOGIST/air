@@ -7,8 +7,11 @@
      · zero allocations inside the loop — every transform/scratch vector was
        allocated once at construction;
      · one damped spring per animated state (door · explosion · camera),
-       all sleeping at rest so a settled scene renders identical frames with
-       only GPU uniforms changing;
+       with a quiescence-aware loop: once every spring, easing curve and
+       ambient effect has settled, the rAF itself goes to sleep — a paused,
+       door-closed twin in material mode costs zero frames per second;
+     · hotspot pills are occlusion-tested against the unit's world AABB each
+       frame, so labels dim when the body stands between them and the camera;
      · geometries/materials replaced between units are disposed recursively
        before the next build is attached (see gl.ts zero-leak policy);
      · off-screen (IntersectionObserver) or reduced-motion → no rAF at all.
@@ -61,6 +64,8 @@ const DOOR_SPRING_STIFFNESS = 42;
 const EXPLODE_SMOOTH = 8;
 const EXPLODE_OFFSET = 0.34;
 const PARTICLE_COUNT = 140;
+/** How long a fully settled, unanimated scene keeps the rAF loop alive. */
+const QUIESCENT_GRACE_MS = 300;
 
 /** Orbit targets per preset; radius is resolved per-unit from its size. */
 const PRESETS: Record<CameraPreset, { theta: number; phi: number; radiusScale: number }> = {
@@ -85,6 +90,13 @@ export class UldScene {
   private readonly scratchVec = new THREE.Vector3();
   private readonly scratchVec2 = new THREE.Vector3();
   private readonly orbitTarget = new THREE.Vector3(0, 0.55, 0);
+
+  /* Hotspot occlusion: one ray-vs-AABB test per hotspot per frame. */
+  private readonly occlusionRay = new THREE.Ray();
+  private readonly occlusionHit = new THREE.Vector3();
+  private readonly anchorDir = new THREE.Vector3();
+  private occlusionBox: THREE.Box3 | null = null;
+  private readonly hotspotOccluded: [boolean, boolean, boolean] = [false, false, false];
 
   private orbit: OrbitState = { theta: -0.65, phi: Math.PI / 2 - 0.35, radius: 4 };
   private orbitGoal: OrbitState = { theta: -0.65, phi: Math.PI / 2 - 0.35, radius: 4 };
@@ -129,6 +141,7 @@ export class UldScene {
   private statsCallback: ((stats: SceneStats) => void) | null = null;
   private frames = 0;
   private statsAccumulator = 0;
+  private idleTime = 0;
 
   private disposed = false;
 
@@ -272,10 +285,19 @@ export class UldScene {
       this.floorDisc.scale.set(s, s, 1);
     }
 
+    /* World-space occlusion hull for the hotspot fade, in rest pose: the
+       exploded assembly suspends occlusion anyway, so a rest box keeps
+       surface-mounted anchors from being shadowed by their own face.
+       Computed once per unit swap — the group never moves after this. */
+    this.occlusionBox = new THREE.Box3().setFromObject(model.group);
+
     this.applyMode(this.mode);
     this.applyDoorImmediate();
     this.applyExplosionImmediate();
     this.renderOnce();
+    // A fresh unit may carry machinery (fan, LED) or animated inspection
+    // modes — re-arm the loop even if the previous one had gone to sleep.
+    this.wake();
   }
 
   private lastDoorApplied = -1;
@@ -316,6 +338,7 @@ export class UldScene {
     this.thermal = null;
     this.xrayMaterial?.dispose();
     this.xrayMaterial = null;
+    this.occlusionBox = null;
   }
 
   /* ── Render modes: swap materials by role, never rebuild geometry ─────── */
@@ -350,7 +373,12 @@ export class UldScene {
   }
 
   setRenderMode(mode: RenderMode): void {
-    if (mode !== this.mode) this.applyMode(mode);
+    if (mode !== this.mode) {
+      this.applyMode(mode);
+      // Thermal shimmer and the x-ray sweep are time-driven — the loop must
+      // run for them; every other input path wakes on its own.
+      this.wake();
+    }
   }
 
   /* ── Interaction ──────────────────────────────────────────────────────── */
@@ -387,7 +415,9 @@ export class UldScene {
     this.dragVelocity.theta = 0;
     this.dragVelocity.phi = 0;
     if (this.reducedMotion) {
-      this.orbit = { ...this.orbitGoal };
+      this.orbit.theta = this.orbitGoal.theta;
+      this.orbit.phi = this.orbitGoal.phi;
+      this.orbit.radius = this.orbitGoal.radius;
       this.renderOnce();
     }
     this.wake();
@@ -435,6 +465,7 @@ export class UldScene {
     this.lastPointer.x = event.clientX;
     this.lastPointer.y = event.clientY;
     this.canvas.setPointerCapture?.(event.pointerId);
+    this.wake();
   };
 
   private readonly onPointerMove = (event: PointerEvent): void => {
@@ -461,7 +492,11 @@ export class UldScene {
     this.zoomBy(event.deltaY * 0.0022);
   };
 
-  /* ── Hotspots: projected to CSS, drawn by the DOM, pixel-sharp text ───── */
+  /* ── Hotspots: projected to CSS, drawn by the DOM, pixel-sharp text ─────
+     Each anchor is also occlusion-tested against the unit's world AABB:
+     when the body of the container stands between the camera and the
+     anchor, the pill fades instead of lying about what is visible. X-ray
+     mode suspends the test — the shell is transparent by definition. */
   setHotspots(hotspots: HotspotSpec[]): void {
     this.hotspots = hotspots;
   }
@@ -471,7 +506,14 @@ export class UldScene {
     const w = rect.width;
     const h = rect.height;
     if (w === 0 || h === 0) return;
-    for (const hotspot of this.hotspots) {
+    /* Occlusion only speaks while the interior is genuinely hidden: X-ray
+       sees through walls, an open door exposes the payload bay, and an
+       exploded assembly has no hull to hide behind. */
+    const interiorVisible =
+      this.mode === 'xray' || this.doorSpring.position > 0.55 || this.explosion > 0.4;
+    const occlusionEnabled = !interiorVisible && this.occlusionBox !== null;
+    for (let i = 0; i < this.hotspots.length; i++) {
+      const hotspot = this.hotspots[i];
       const el = hotspot.element;
       if (!el) continue;
       const anchor = this.scratchVec.copy(this.hotspotAnchors[hotspot.id]);
@@ -480,8 +522,27 @@ export class UldScene {
       const behindCamera = this.scratchVec2.z > 1;
       const x = (this.scratchVec2.x * 0.5 + 0.5) * w;
       const y = (-this.scratchVec2.y * 0.5 + 0.5) * h;
-      const display = behindCamera || x < -80 || x > w + 80 || y < -80 || y > h + 80 ? 'none' : '';
+      const offscreen = behindCamera || x < -80 || x > w + 80 || y < -80 || y > h + 80;
+      const display = offscreen ? 'none' : '';
       if (el.style.display !== display) el.style.display = display;
+      if (offscreen) continue;
+
+      let occluded = false;
+      if (occlusionEnabled) {
+        // Ray from camera toward the anchor: blocked when it crosses the
+        // unit's hull meaningfully before the anchor — the margin keeps
+        // surface-mounted pills from being shadowed by their own wall.
+        this.anchorDir.copy(anchor).sub(this.camera.position);
+        const anchorDistance = this.anchorDir.length();
+        this.occlusionRay.origin.copy(this.camera.position);
+        this.occlusionRay.direction.copy(this.anchorDir).multiplyScalar(1 / Math.max(1e-6, anchorDistance));
+        const hit = this.occlusionRay.intersectBox(this.occlusionBox as THREE.Box3, this.occlusionHit);
+        occluded = hit !== null && this.camera.position.distanceTo(hit) < anchorDistance - 0.22;
+      }
+      if (occluded !== this.hotspotOccluded[i]) {
+        this.hotspotOccluded[i] = occluded;
+        el.style.opacity = occluded ? '0.24' : '1';
+      }
       el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -100%)`;
     }
   }
@@ -580,8 +641,45 @@ export class UldScene {
     }
 
     this.draw(time);
-    this.rafId = requestAnimationFrame(this.tick);
+
+    /* Quiescence: once every spring, easing curve and ambient effect is at
+       rest, the honest frame budget is zero. Sleep after a short grace
+       period; any intent (pointer, zoom, mode, door) re-wakes the loop. */
+    if (this.isAmbientAnimated()) {
+      this.idleTime = 0;
+      this.rafId = requestAnimationFrame(this.tick);
+    } else {
+      this.idleTime += dt * 1000;
+      if (this.idleTime < QUIESCENT_GRACE_MS) {
+        this.rafId = requestAnimationFrame(this.tick);
+      } else {
+        this.idleTime = 0;
+        this.rafId = 0; // asleep — the last drawn frame stays valid.
+      }
+    }
   };
+
+  /**
+   * Everything that legitimately changes the picture from one frame to the
+   * next. False means the scene is visually settled and the loop may sleep.
+   */
+  private isAmbientAnimated(): boolean {
+    if (this.dragging) return true;
+    if (this.autoRotate) return true;
+    if (this.mode === 'thermal' || this.mode === 'xray') return true; // uTime drives both
+    if (!isSpringSettled(this.doorSpring, this.doorTarget)) return true;
+    if (Math.abs(this.explosion - this.explosionTarget) >= 0.003) return true;
+    // Particles stream only while the aperture is open.
+    if (this.doorSpring.position > 0.001) return true;
+    const machinery = this.model?.machinery;
+    if (machinery && (machinery.spin.length > 0 || machinery.led)) return true;
+    // Camera still easing toward its goal, or drag inertia still decaying.
+    if (Math.abs(this.orbit.theta - this.orbitGoal.theta) > 1e-3) return true;
+    if (Math.abs(this.orbit.phi - this.orbitGoal.phi) > 1e-3) return true;
+    if (Math.abs(this.orbit.radius - this.orbitGoal.radius) > 1e-3) return true;
+    if (Math.abs(this.dragVelocity.theta) > 1e-4 || Math.abs(this.dragVelocity.phi) > 1e-4) return true;
+    return false;
+  }
 
   private draw(time: number): void {
     const { camera, orbit, orbitTarget } = this;
@@ -596,9 +694,10 @@ export class UldScene {
     this.renderer.render(this.scene, camera);
     this.projectHotspots();
 
-    /* 500 ms stat windows: fps, live draw calls, capped DPR. */
+    /* 500 ms stat windows: fps, live draw calls, capped DPR. The per-frame
+       contribution is capped so a sleep/wake gap can't poison the window. */
     this.frames += 1;
-    this.statsAccumulator += time - (this.lastStatTime || time);
+    this.statsAccumulator += Math.min(100, time - (this.lastStatTime || time));
     this.lastStatTime = time;
     if (this.statsAccumulator >= 500 && this.statsCallback) {
       this.statsCallback({
