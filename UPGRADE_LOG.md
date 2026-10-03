@@ -156,3 +156,31 @@ Routing: this repository had already been taken through a full accessibility/i18
 ## Externally blocked
 
 - No headless Chromium (no network path to the Playwright CDN, no package-manager access for its system deps in this sandbox) → an actual `forceContextLoss()`/`forceContextRestore()` round-trip against a live GPU-backed context, and any FPS/draw-call numbers for the two 3D surfaces, remain **UNMEASURED** here. The DOM-event contract and the React wiring it drives are covered by the new unit/component tests instead, which do not depend on a real WebGL context.
+
+# Pass 3 — Truth-preserving simulation language
+
+**Mode:** UPGRADE · **Autonomy:** FULL · **Date:** 2026-10-03
+**Baseline:** commit `78f6a56` · **Process depth:** STANDARD
+
+## W0/W1 — Recon
+
+The repository is a mature static React 19 + TypeScript + Vite air-freight simulation with a deliberate no-network/data-boundary contract. Existing automated coverage was green: 111 tests across 23 files, strict typecheck, production build, and bundle budgets. A copy audit found several user-facing labels and social metadata saying **LIVE**, **REAL-TIME**, or **ONLINE** even though the underlying vectors, corridors, consignment records, and sensor values are bundled/scripted demo data.
+
+## W4/W5 — Changes landed
+
+- Reframed English and Arabic hero, radar, tracker, and statistics copy as modeled, scripted, simulated, or demo content.
+- Renamed the globe HUD from “LIVE ARCS” to “SIMULATED ARCS”.
+- Renamed the ULD HUD from “LIVE TELEMETRY FEED / ONLINE” to “SIMULATED TELEMETRY / DEMO ACTIVE”, including Arabic.
+- Corrected Open Graph/Twitter image alt text and the README preview alt text so external previews cannot imply a live feed.
+- Kept the interactive motion and controls intact; this is a truth/copy correction, not a capability reduction.
+- Rebuilt tracked `dist/` from the updated source.
+
+## W7 — Verification
+
+- **PASSED / MEASURED:** `npm run check` — typecheck passed; 111 tests / 23 files passed; Vite production build passed; bundle budget passed.
+- **MEASURED:** app total JS 495.1 KiB raw / 165.9 KiB gzip; CSS 107.9 KiB raw / 16.8 KiB gzip; vendor-three 563.7 KiB raw / 138.4 KiB gzip.
+- **UNMEASURED:** no browser/GPU visual capture available in this environment; copy changes were verified through source/build output and automated suite only.
+
+## Residual risk
+
+Some operational-sounding illustrative terms remain intentionally as domain vocabulary (for example, “flight”, “runway”, and “temperature stable” inside the model). The persistent simulation badge and revised surrounding labels now make their modeled status explicit without flattening the product’s aviation design language.

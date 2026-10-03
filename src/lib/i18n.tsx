@@ -304,9 +304,9 @@ export const DICTIONARY: Record<Language, Dict> = {
       titlePrimary: 'PRECISION AIR FREIGHT',
       titleAccent: 'AT TRANSONIC SPEED',
       subtitle:
-        'Resolving the 48-hour Cairo Cargo Village bottleneck. Synchronized e-AWB pre-clearance with Egyptian Nafeza ACID and continuous real-time pharma cold-chain monitoring directly from tarmac to land reefer fleet.',
+        'Modeling the 48-hour Cairo Cargo Village bottleneck. Explore synchronized e-AWB pre-clearance with Egyptian Nafeza ACID and simulated pharma cold-chain monitoring from tarmac to land reefer fleet.',
       ctaSim: 'Launch Volumetric Simulator',
-      ctaRadar: 'View Live Flight HUD',
+      ctaRadar: 'View Simulated Flight HUD',
       telemetryBar: {
         flight: 'CARGO FLIGHT',
         route: 'SECTOR',
@@ -319,10 +319,10 @@ export const DICTIONARY: Record<Language, Dict> = {
       },
     },
     radar: {
-      sectionBadge: 'Live Aviation Telemetry',
-      title: 'Real-Time Flight Vector & Sensor HUD',
+      sectionBadge: 'Simulated Aviation Telemetry',
+      title: 'Simulated Flight Vector & Sensor HUD',
       subtitle:
-        'Continuous surveillance of critical cargo in transit between European hubs and Cairo International Airport Cargo Village.',
+        'A scripted operational model of critical cargo moving between European hubs and Cairo International Airport Cargo Village.',
       terminalLabel: 'CAI TERMINAL 3 CARGO DISPATCH',
       targetAirport: 'Cairo Int’l (HECA / CAI)',
       runwayAssignment: 'Assigned Runway 05L',
@@ -338,7 +338,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       stable: 'THERMALLY STABLE',
       excursion: 'TEMPERATURE EXCURSION',
       approachingWaypoint: 'Approaching Waypoint CVO VOR / ILS Inbound',
-      livePing: 'AIR TELEMETRY FEED LIVE',
+      livePing: 'SIMULATED TELEMETRY · RUNNING',
     },
     simulator: {
       sectionBadge: 'IATA TACT Volume Calculator',
@@ -474,7 +474,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       stat3: {
         value: '±0.5°C',
         label: 'Sensor Accuracy',
-        desc: 'Continuous real-time temperature loggers protecting life-saving biologics.',
+        desc: 'Modeled temperature logging for a representative life-science shipment.',
       },
       stat4: {
         value: 'ONE Record',
@@ -549,11 +549,11 @@ export const DICTIONARY: Record<Language, Dict> = {
     },
     tracker: {
       kicker: 'Consignment Radar',
-      title: 'Real-Time e-AWB Tracking & Customs Audit',
-      subtitle: 'Inspect live consignment status, temperature excursions, and ACID registration numbers across active corridors.',
+      title: 'Demo e-AWB Tracking & Customs Audit',
+      subtitle: 'Inspect bundled sample milestones, modeled temperature excursions, and ACID reference numbers across demo corridors.',
       placeholder: 'Enter Master AWB (e.g. 077-88442115)...',
       search: 'Inspect Consignment',
-      samples: 'Active Live Samples:',
+      samples: 'Bundled Demo Samples:',
       notFound: 'No active shipment found matching this AWB number. Verify prefix and checksum.',
       commodity: 'Commodity',
       uld: 'Assigned ULD',
@@ -597,9 +597,9 @@ export const DICTIONARY: Record<Language, Dict> = {
       titlePrimary: 'دقة الشحن الجوي',
       titleAccent: 'بسرعة التحليق الترانزستورية',
       subtitle:
-        'علاج معضلة مكوث البضائع لـ 48 ساعة بقرية بضائع مطار القاهرة. مطابقة مسبقة رقمية لبوالص e-AWB مع نظام نافذة (ACID) المصري، ومراقبة حية لسلاسل تبريد الأدوية الحساسة من المهبط وحتى الشاحنات المبردة.',
+        'نمذجة معضلة مكوث البضائع لـ 48 ساعة بقرية بضائع مطار القاهرة. مطابقة مسبقة رقمية لبوالص e-AWB مع نظام نافذة (ACID) المصري، ومحاكاة لسلاسل تبريد الأدوية الحساسة من المهبط وحتى الشاحنات المبردة.',
       ctaSim: 'تشغيل محاكي الوزن الحجمي',
-      ctaRadar: 'استعراض شاشة الرادار والتيليميتري',
+      ctaRadar: 'استعراض شاشة الرادار المحاكية',
       telemetryBar: {
         flight: 'رحلة الشحن',
         route: 'المسار الملاحي',
@@ -612,10 +612,10 @@ export const DICTIONARY: Record<Language, Dict> = {
       },
     },
     radar: {
-      sectionBadge: 'تيليميتري الملاحة الجوية المباشرة',
-      title: 'شاشة الرادار وتتبع متجهات الرحلة',
+      sectionBadge: 'محاكاة تيليميتري الملاحة الجوية',
+      title: 'شاشة محاكاة الرادار ومتجهات الرحلة',
       subtitle:
-        'مراقبة مستمرة للشحنات الحرجة والأدوية فائقة القيمة أثناء عبورها بين المراكز الأوروبية وقرية بضائع مطار القاهرة الدولي.',
+        'نموذج تشغيلي مبرمج لشحنات حرجة تعبر بين المراكز الأوروبية وقرية بضائع مطار القاهرة الدولي.',
       terminalLabel: 'مركز ترحيل بضائع صالة 3 - مطار القاهرة',
       targetAirport: 'مطار القاهرة الدولي (HECA / CAI)',
       runwayAssignment: 'المدرج المخصص 05L',
@@ -631,7 +631,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       stable: 'مستقرة حرارياً',
       excursion: 'انحراف حراري',
       approachingWaypoint: 'الاقتراب من نقطة CVO VOR / نظام الهبوط الآلي ILS',
-      livePing: 'بث التيليميتري الملاحي متصل',
+      livePing: 'محاكاة التيليميتري · قيد التشغيل',
     },
     simulator: {
       sectionBadge: 'حاسبة IATA TACT القياسية',
@@ -842,11 +842,11 @@ export const DICTIONARY: Record<Language, Dict> = {
     },
     tracker: {
       kicker: 'رادار تتبع الشحنات الجوية',
-      title: 'تتبع بوالص الشحن الجوي الإلكترونية والتدقيق الجمركي',
-      subtitle: 'استعلم لحظياً عن حالة الشحنات وسجلات درجات الحرارة وأرقام ACID لمنظومة نافذة عبر الممرات الجوية.',
+      title: 'تتبع تجريبي لبوالص الشحن والتدقيق الجمركي',
+      subtitle: 'استعرض مراحل عينات مجمّعة وسجلات حرارة نموذجية ومراجع ACID عبر الممرات الجوية التجريبية.',
       placeholder: 'أدخل رقم بوليصة الشحن (مثال: 077-88442115)...',
       search: 'فحص الشحنة',
-      samples: 'شحنات تجريبية نشطة:',
+      samples: 'عينات محاكاة مجمّعة:',
       notFound: 'لم يتم العثور على شحنة تطابق هذا الرقم. يرجى التحقق من الرقم وكود شركة الطيران.',
       commodity: 'طبيعة البضاعة',
       uld: 'حاوية التحميل (ULD)',

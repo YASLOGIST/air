@@ -443,9 +443,9 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
             <div className="flex items-center justify-between text-[10px] font-mono text-cyan-400 font-bold">
               <span className="flex items-center gap-1.5">
                 <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
-                <span>{isRtl ? 'حالة التيليميتري المباشرة' : 'LIVE TELEMETRY FEED'}</span>
+                <span>{isRtl ? 'حالة تيليميتري محاكاة' : 'SIMULATED TELEMETRY'}</span>
               </span>
-              <span className="text-emerald-400">ONLINE</span>
+              <span className="text-emerald-400">DEMO ACTIVE</span>
             </div>
 
             <div className="space-y-1 font-mono text-xs text-white">

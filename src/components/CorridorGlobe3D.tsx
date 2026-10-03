@@ -125,7 +125,7 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
           <div className="pointer-events-none absolute left-3 top-3 space-y-1 font-mono" dir="ltr">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/25 bg-black/45 px-2.5 py-1 text-[9px] font-bold tracking-[.18em] text-cyan-300 backdrop-blur">
               <Compass className="h-3 w-3" />
-              AIRWAY NETWORK · LIVE ARCS
+              AIRWAY NETWORK · SIMULATED ARCS
             </span>
             <span className="block w-fit rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] tracking-wider text-slate-400 backdrop-blur">
               SOLAR TERMINATOR · REAL UTC
