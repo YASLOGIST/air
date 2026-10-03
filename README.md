@@ -76,7 +76,7 @@ flowchart TD
 | **No fetch/XHR client anywhere in `src/`** | The single strongest guarantee that "simulation" stays true. Verified by grep in CI review and by the audit in `docs/RECONSTRUCTION.md`. |
 | **Calculation logic lives in `src/lib`, UI lives in `src/components`** | `air-math.ts` and `corridors.ts` are framework-free, synchronously testable, and shared by every section that needs the same number (no duplicated constants drifting apart). |
 | **Theme/direction resolved before paint** (`public/theme-init.js`) | Eliminates flash-of-wrong-theme and flash-of-wrong-direction on both cold load and bfcache restores. |
-| **`SUITE_URLS` resolves per environment** (`src/lib/suite.ts`) | `localhost:3200` links to `localhost:3000`/`3100` in dev and to `land.yaslogist.com`/`ocean.yaslogist.com` in production, so the three-surface suite (Air/Land/Ocean) can be exercised together locally. |
+| **`SUITE_URLS` is preview-safe** (`src/lib/suite.ts`) | Public suite origins are the default, so browser previews never emit `localhost` links that resolve to the visitor's own machine. Local sibling apps remain opt-in through `VITE_HUB_URL`, `VITE_LAND_URL`, `VITE_OCEAN_URL`, and `VITE_AIR_URL`. |
 
 ---
 
