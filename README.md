@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/assets/og-image-animated.gif" alt="YASLOGIST AIR — animated flight-corridor HUD showing the FRA → CAI air-freight route, live telemetry chips and a radar sweep" width="100%" />
+<img src="public/assets/og-image-animated.gif" alt="YASLOGIST AIR — animated flight-corridor HUD showing the FRA → CAI air-freight route, simulated telemetry chips and a radar sweep" width="100%" />
 
 # YASLOGIST AIR
 ### Air Freight Intelligence Suite — Technical Whitepaper
