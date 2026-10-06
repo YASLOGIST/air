@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "label": "kinetic refresh",
-  "message": "bootstrap",
-  "color": "00E5FF",
   "labelColor": "0D1117",
-  "namedLogo": "github",
-  "cacheSeconds": 3600
+  "cacheSeconds": 3600,
+  "label": "kinetic refresh",
+  "message": "2026-10-06T12:22Z",
+  "color": "00E5FF",
+  "namedLogo": "github"
 }

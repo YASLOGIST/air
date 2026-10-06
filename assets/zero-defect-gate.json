@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "label": "zero-defect gate",
-  "message": "0 tolerated",
-  "color": "00E5FF",
   "labelColor": "0D1117",
-  "namedLogo": "githubactions",
-  "cacheSeconds": 3600
+  "cacheSeconds": 3600,
+  "label": "zero-defect gate",
+  "message": "in_progress",
+  "color": "FF476F",
+  "namedLogo": "githubactions"
 }
