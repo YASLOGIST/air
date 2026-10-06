@@ -41,6 +41,10 @@ function prefersReducedData(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-data: reduce)').matches;
 }
 
+function prefersReducedMotion(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export const CinematicStage: React.FC = () => {
   const { dict, isRtl } = useLang();
   const { theme } = useTheme();
@@ -51,7 +55,17 @@ export const CinematicStage: React.FC = () => {
   const videoDayRef = useRef<HTMLVideoElement>(null);
 
   const [progress, setProgress] = useState(0);
-  const [reelsEnabled] = useState(() => !prefersReducedData());
+  // Keep the first render deterministic for SSR/hydration. Browser media
+  // preferences are applied after mount, which also defers the decorative
+  // video request until after the critical HTML has rendered.
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [reelsEnabled, setReelsEnabled] = useState(false);
+
+  useEffect(() => {
+    const motionReduced = prefersReducedMotion();
+    setReducedMotion(motionReduced);
+    setReelsEnabled(!prefersReducedData() && !motionReduced);
+  }, []);
   const targetRef = useRef(0);
   const currentRef = useRef(0);
   const lastAppliedTimeNightRef = useRef(-1);
@@ -60,7 +74,6 @@ export const CinematicStage: React.FC = () => {
 
   // Sync scroll scrubbing for both day & night runway reels
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const track = trackRef.current;
     if (!track) return;
 
@@ -74,7 +87,7 @@ export const CinematicStage: React.FC = () => {
       }
     };
 
-    if (reduced) {
+    if (reducedMotion) {
       targetRef.current = 0.5;
       currentRef.current = 0.5;
       setProgress(0.5);
@@ -148,7 +161,7 @@ export const CinematicStage: React.FC = () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
     };
-  }, [isDark, reelsEnabled]);
+  }, [isDark, reelsEnabled, reducedMotion]);
 
   // Setup video event handlers for both videos
   useEffect(() => {
@@ -252,7 +265,7 @@ export const CinematicStage: React.FC = () => {
   const activeLabel = active.kicker.split('·').pop()?.trim() ?? active.kicker;
 
   return (
-    <section ref={trackRef} className="relative h-[320vh] bg-[var(--c-bg)]" aria-label={isRtl ? 'التوأم الرقمي لرحلة الوصول' : 'Arrival digital twin'}>
+    <section ref={trackRef} className={`relative ${reducedMotion ? 'h-[100svh]' : 'h-[320vh]'} bg-[var(--c-bg)]`} aria-label={isRtl ? 'التوأم الرقمي لرحلة الوصول' : 'Arrival digital twin'}>
       <div className="sticky top-0 h-[100svh] overflow-hidden bg-[var(--c-bg)]">
         {/* Dual Cinematic Background: Night (Dark Mode) & Day (Light Mode) with buttery Crossfade */}
         <div className="absolute inset-0 overflow-hidden">
