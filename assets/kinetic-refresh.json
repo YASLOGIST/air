@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "label": "kinetic refresh",
+  "message": "bootstrap",
+  "color": "00E5FF",
+  "labelColor": "0D1117",
+  "namedLogo": "github",
+  "cacheSeconds": 3600
+}

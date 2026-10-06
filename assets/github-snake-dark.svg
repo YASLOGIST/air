@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 180" role="img" aria-labelledby="title desc">
+  <title id="title">YASLOGIST AIR kinetic contribution grid placeholder dark</title>
+  <desc id="desc">Bootstrap animated SVG. The Kinetic README workflow replaces this file with a generated contribution-grid animation every twelve hours.</desc>
+  <defs>
+    <linearGradient id="g" x1="0" x2="1">
+      <stop offset="0" stop-color="#0D1117"/>
+      <stop offset="0.5" stop-color="#00343D"/>
+      <stop offset="1" stop-color="#00E5FF"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1200" height="180" rx="22" fill="#0D1117"/>
+  <g transform="translate(34 36)">
+    <rect width="1132" height="108" rx="18" fill="#101820" stroke="#00E5FF" opacity="0.72"/>
+    <text x="36" y="60" fill="#E6EDF3" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="24" font-weight="700">KINETIC README FACTORY</text>
+    <text x="36" y="92" fill="#9BB0BC" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="14">bootstrap asset · Platane/snk overwrites this SVG on schedule</text>
+    <rect x="840" y="44" width="230" height="16" rx="8" fill="#17212B"/>
+    <rect x="840" y="44" width="80" height="16" rx="8" fill="url(#g)" filter="url(#glow)">
+      <animate attributeName="x" values="840;990;840" dur="3.2s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+</svg>
