@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "label": "quality latency",
+  "message": "bootstrap",
+  "color": "9BB0BC",
+  "labelColor": "0D1117",
+  "namedLogo": "githubactions",
+  "cacheSeconds": 3600
+}
