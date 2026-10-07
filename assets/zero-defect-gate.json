@@ -3,7 +3,7 @@
   "labelColor": "0D1117",
   "cacheSeconds": 3600,
   "label": "zero-defect gate",
-  "message": "in_progress",
-  "color": "FF476F",
+  "message": "passing",
+  "color": "00E5FF",
   "namedLogo": "githubactions"
 }
