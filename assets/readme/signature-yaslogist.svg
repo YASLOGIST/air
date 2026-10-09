@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="180" viewBox="0 0 900 180" role="img" aria-label="YASLOGIST signature">
+  <!-- base state is the FINISHED mark; SMIL (where supported) replays the draw-in.
+       Static renderers and SMIL-stripping proxies therefore show the complete signature. -->
+  <g transform="translate(52,38) scale(1.62)" fill="none" stroke="#38BDF8" stroke-linecap="square" stroke-linejoin="miter">
+    <g stroke-width="1.6" opacity="0.55">
+      <ellipse cx="32" cy="32" rx="12.5" ry="29" pathLength="1">
+        <animate attributeName="stroke-dasharray" values="1;1" dur="2.4s" begin="0s" fill="freeze"/>
+        <animate attributeName="stroke-dashoffset" values="1;1;0" keyTimes="0;0.2;0.8" dur="2.4s" begin="0s" fill="freeze"/>
+      </ellipse>
+      <path d="M3 32h58M8 17.5h48M8 46.5h48" pathLength="1">
+        <animate attributeName="stroke-dasharray" values="1;1" dur="2.4s" begin="0s" fill="freeze"/>
+        <animate attributeName="stroke-dashoffset" values="1;1;0" keyTimes="0;0.25;0.85" dur="2.4s" begin="0s" fill="freeze"/>
+      </path>
+    </g>
+    <circle cx="32" cy="32" r="29" stroke-width="2.2" pathLength="1">
+      <animate attributeName="stroke-dasharray" values="1;1" dur="2.2s" begin="0s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" values="1;1;0" keyTimes="0;0.05;0.75" dur="2.2s" begin="0s" fill="freeze"/>
+    </circle>
+    <g stroke-width="5" stroke="#00B7D9">
+      <path d="M16 16 L27.5 31.5 L27.5 49" pathLength="1">
+        <animate attributeName="stroke-dasharray" values="1;1" dur="2.6s" begin="0s" fill="freeze"/>
+        <animate attributeName="stroke-dashoffset" values="1;1;0" keyTimes="0;0.4;0.75" dur="2.6s" begin="0s" fill="freeze"/>
+      </path>
+      <path d="M39 16 L30 28" pathLength="1">
+        <animate attributeName="stroke-dasharray" values="1;1" dur="2.8s" begin="0s" fill="freeze"/>
+        <animate attributeName="stroke-dashoffset" values="1;1;0" keyTimes="0;0.5;0.7" dur="2.8s" begin="0s" fill="freeze"/>
+      </path>
+      <path d="M40.5 20 L40.5 48 L53 48" pathLength="1">
+        <animate attributeName="stroke-dasharray" values="1;1" dur="3s" begin="0s" fill="freeze"/>
+        <animate attributeName="stroke-dashoffset" values="1;1;0" keyTimes="0;0.55;0.85" dur="3s" begin="0s" fill="freeze"/>
+      </path>
+    </g>
+  </g>
+  <defs>
+    <clipPath id="wm"><rect x="200" y="40" width="560" height="70">
+      <animate attributeName="width" values="0;0;560" keyTimes="0;0.25;0.8" dur="2.8s" begin="0s" fill="freeze"/>
+    </rect></clipPath>
+  </defs>
+  <text x="204" y="96" font-family="'DejaVu Sans',Arial,sans-serif" font-weight="700" font-size="46" letter-spacing="14" fill="#38BDF8" clip-path="url(#wm)">YASLOGIST</text>
+  <line x1="206" y1="118" x2="756" y2="118" stroke="#00E5FF" stroke-opacity="0.35">
+    <animate attributeName="stroke-opacity" values="0;0;0.35" keyTimes="0;0.55;1" dur="3s" begin="0s" fill="freeze"/>
+  </line>
+  <text x="206" y="146" font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="13" letter-spacing="3" fill="#64748B">MULTIMODAL LOGISTICS INTELLIGENCE &#183; yaslogist.com
+    <animate attributeName="opacity" values="0;0;1" keyTimes="0;0.6;1" dur="3.2s" begin="0s" fill="freeze"/>
+  </text>
+</svg>
