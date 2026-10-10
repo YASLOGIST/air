@@ -23,11 +23,12 @@ export default defineConfig({
     chunkSizeWarningLimit: 640,
     rollupOptions: {
       output: {
-        /* three.js is deliberately isolated into one cacheable vendor chunk:
-           it is fetched in parallel with — never serially before — the lazy
-           section chunks that use it (ULD twin, corridor globe), and its long
-           cache lifetime survives every app-code redeploy. Budgets for it are
-           tracked separately in scripts/check-bundle.mjs. */
+        /* three.js is deliberately isolated into one cacheable vendor chunk.
+           When IntersectionObserver is available, the two scene modules are
+           imported only after their canvases enter a 200px near-viewport; the
+           large engine stays off the initial graph and survives app redeploys
+           in cache. Older-browser eager fallback is preserved. Its budget and
+           deferred-import invariant live in check-bundle.mjs. */
         manualChunks(id) {
           if (/node_modules\/three\//.test(id) || id.endsWith('node_modules/three/build/three.core.min.js')) {
             return 'vendor-three';

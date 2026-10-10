@@ -20,37 +20,10 @@
 
 import * as THREE from 'three';
 
+export { isWebGLSupported, resetWebGLSupportCache } from './webgl-support';
+
 /** Hard ceiling applied by every renderer in the app. */
 export const MAX_DEVICE_PIXEL_RATIO = 2;
-
-let supportChecked = false;
-let supportResult = false;
-
-/**
- * One-shot probe for a usable WebGL context. Result is memoized: probing
- * creates a scratch context, and doing that per component under React
- * StrictMode double-mount would burn two of the tab's context budget.
- */
-export function isWebGLSupported(): boolean {
-  if (supportChecked) return supportResult;
-  supportChecked = true;
-  try {
-    const probe = document.createElement('canvas');
-    supportResult = Boolean(
-      (probe.getContext('webgl2') as WebGL2RenderingContext | null) ??
-        (probe.getContext('webgl') as WebGLRenderingContext | null),
-    );
-  } catch {
-    supportResult = false;
-  }
-  return supportResult;
-}
-
-/** Escape hatch for tests and forced-failover smoke runs. */
-export function resetWebGLSupportCache(): void {
-  supportChecked = false;
-  supportResult = false;
-}
 
 export function createAirRenderer(
   canvas: HTMLCanvasElement,

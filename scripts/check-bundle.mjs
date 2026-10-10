@@ -14,9 +14,10 @@
  *      three.js engine layer. It is a deliberate architectural addition
  *      (real WebGL digital twin + corridor globe replacing a 2D painter),
  *      isolated in vite.config.ts so it caches independently of app code and
- *      is fetched in parallel with the two lazy sections that consume it.
- *      Its limit is likewise a ratchet just above the measured size; raise it
- *      only along with an intentional three version bump.
+ *      loaded after either canvas enters the 200px near-viewport (with eager
+ *      fallback where IntersectionObserver is unavailable). The gate also
+ *      prevents the section chunks from statically importing it. Its limit is
+ *      a ratchet just above measured size; raise it only with a Three.js bump.
  */
 import { readdir, stat } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
@@ -97,6 +98,33 @@ if (vendorSeen !== 1) {
   console.error(`FAIL expected exactly one vendor-three-* chunk, found ${vendorSeen}`);
 } else {
   console.log(`ok   vendor tier: exactly one vendor-three chunk present`);
+}
+
+/* The shell sections are themselves fetched at startup. Keep the 3D engine
+   behind their explicit dynamic imports, or the browser would still download
+   it immediately despite the byte-budget pass. Vite records dynamic-import
+   dependencies in each chunk's __vite__mapDeps table; a static ESM import
+   instead contains `from "./vendor-three-*.js"` (or a side-effect import). */
+for (const section of ['ULDSelector', 'CorridorsAir']) {
+  const file = files.find((name) => new RegExp(`^${section}-[\\w-]+\\.js$`).test(name));
+  if (!file) {
+    failed = true;
+    console.error(`FAIL expected a ${section} section chunk to verify deferred Three.js loading`);
+    continue;
+  }
+
+  const source = await readFile(`dist/assets/${file}`, 'utf8');
+  const hasDynamicVendorDependency = source.includes('vendor-three-') && /\bimport\s*\(/.test(source);
+  const hasStaticVendorImport =
+    /\bfrom\s*["'][^"']*vendor-three-[\w-]+\.js["']/.test(source) ||
+    /\bimport\s*["'][^"']*vendor-three-[\w-]+\.js["']/.test(source);
+
+  if (!hasDynamicVendorDependency || hasStaticVendorImport) {
+    failed = true;
+    console.error(`FAIL ${section} must load vendor-three only via a deferred dynamic import`);
+  } else {
+    console.log(`ok   ${section}: vendor-three remains behind a dynamic import`);
+  }
 }
 
 if (failed) {
