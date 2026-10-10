@@ -1,11 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLang } from '../lib/i18n';
-import { isWebGLSupported } from '../three/airgl/gl';
-import {
-  CorridorGlobeScene,
-  type GlobeCorridor,
-  type GlobeHub,
-} from '../three/airgl/globe/scene';
+import { isWebGLSupported } from '../three/airgl/webgl-support';
+import type { CorridorGlobeScene, GlobeCorridor, GlobeHub } from '../three/airgl/globe/scene';
 import { anchorFor } from '../three/airgl/globe/airports';
 import { AIR_CORRIDORS } from '../lib/corridors';
 import { Compass, Globe2, MousePointer2 } from 'lucide-react';
@@ -42,58 +38,92 @@ function coordinatesOf(iata: string): { lat: number; lon: number } {
 }
 
 /**
- * Live airway-network globe. Card selection in CorridorsAir drives both the
- * focused arc (shader uniform, instant) and a damped globe rotation that
- * brings the corridor's midpoint to face the camera.
+ * Simulated airway-network globe. Card selection in CorridorsAir drives both
+ * the focused arc (shader uniform, instant) and a damped globe rotation that
+ * brings the corridor's midpoint to face the camera. Three.js is deferred
+ * until this canvas approaches the viewport.
  */
 export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridorId }) => {
   const { isRtl } = useLang();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<CorridorGlobeScene | null>(null);
-  const [webGlFailed, setWebGlFailed] = useState(false);
+  const [webGlFailure, setWebGlFailure] = useState<'unsupported' | 'load' | null>(null);
+  const [sceneLoading, setSceneLoading] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
   const [stats, setStats] = useState<{ fps: number; draws: number; dpr: number } | null>(null);
+  const webGlFailed = webGlFailure !== null;
   const [contextLost, setContextLost] = useState(false);
 
+  /* The WebGL bundle is requested only when the globe is about to enter the
+     viewport. The observer also retains the existing off-screen render gate;
+     a cancelled in-flight import can never allocate a late GPU context. */
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    if (!isWebGLSupported()) {
-      setWebGlFailed(true);
-      return;
-    }
-    let scene: CorridorGlobeScene | null = null;
-    try {
-      scene = new CorridorGlobeScene(canvas, GLOBE_CORRIDORS, GLOBE_HUBS);
-    } catch {
-      setWebGlFailed(true);
-      return;
-    }
-    sceneRef.current = scene;
-    scene.onStats(setStats);
-    scene.onContextChange(setContextLost);
-
     const host = hostRef.current;
+    if (!canvas || !host) return;
+
+    let active = true;
+    let nearViewport = typeof IntersectionObserver === 'undefined';
+    let loading = false;
+    let scene: CorridorGlobeScene | null = null;
     let observer: IntersectionObserver | null = null;
-    if (host && typeof IntersectionObserver !== 'undefined') {
-      observer = new IntersectionObserver(([entry]) => scene?.setVisible(entry.isIntersecting), { rootMargin: '200px' });
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const bootScene = async () => {
+      if (!active || loading || scene) return;
+      loading = true;
+      setSceneLoading(true);
+
+      if (!isWebGLSupported()) {
+        if (active) {
+          setWebGlFailure('unsupported');
+          setSceneLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const { CorridorGlobeScene: Scene } = await import('../three/airgl/globe/scene');
+        if (!active) return;
+
+        scene = new Scene(canvas, GLOBE_CORRIDORS, GLOBE_HUBS);
+        sceneRef.current = scene;
+        scene.onStats(setStats);
+        scene.onContextChange(setContextLost);
+        scene.setVisible(nearViewport);
+        scene.setReducedMotion(reducedMotionQuery.matches);
+        setSceneReady(true);
+      } catch {
+        if (active) setWebGlFailure('load');
+      } finally {
+        if (active) setSceneLoading(false);
+      }
+    };
+
+    if (typeof IntersectionObserver !== 'undefined') {
+      observer = new IntersectionObserver(([entry]) => {
+        if (!entry) return;
+        nearViewport = entry.isIntersecting;
+        scene?.setVisible(nearViewport);
+        if (nearViewport) void bootScene();
+      }, { rootMargin: '200px' });
       observer.observe(host);
     } else {
-      scene.setVisible(true);
+      void bootScene();
     }
 
-    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const onMotionChange = () => scene?.setReducedMotion(reducedMotionQuery.matches);
     reducedMotionQuery.addEventListener?.('change', onMotionChange);
     onMotionChange();
 
     return () => {
+      active = false;
       observer?.disconnect();
       reducedMotionQuery.removeEventListener?.('change', onMotionChange);
       scene?.dispose();
       sceneRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -105,7 +135,7 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
         ? { fromLat: corridor.fromLat, fromLon: corridor.fromLon, toLat: corridor.toLat, toLon: corridor.toLon }
         : undefined,
     );
-  }, [activeCorridorId, webGlFailed]);
+  }, [activeCorridorId, webGlFailed, sceneReady]);
 
   const active = AIR_CORRIDORS.find((c) => c.id === activeCorridorId) ?? null;
 
@@ -119,6 +149,20 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
         aria-label="Interactive 3D globe rendering the scheduled air corridors converging on Cairo International Airport"
         className="block h-full w-full cursor-grab touch-none active:cursor-grabbing"
       />
+
+      {!sceneReady && !webGlFailed && (
+        <div
+          aria-hidden={!sceneLoading}
+          role={sceneLoading ? 'status' : undefined}
+          aria-live={sceneLoading ? 'polite' : undefined}
+          className="pointer-events-none absolute inset-0 z-[5] grid place-items-center bg-[#02060c]/45"
+        >
+          <div className="flex flex-col items-center gap-2 font-mono text-[10px] tracking-wider text-cyan-200/80">
+            <Globe2 className="h-6 w-6 text-cyan-400/80" />
+            {sceneLoading && <span>{isRtl ? 'جارٍ تحميل شبكة الممرات ثلاثية الأبعاد…' : 'Loading the 3D corridor network…'}</span>}
+          </div>
+        </div>
+      )}
 
       {!webGlFailed && (
         <>
@@ -166,9 +210,13 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
           <div className="max-w-xs space-y-2">
             <Globe2 className="mx-auto h-6 w-6 text-cyan-400" />
             <p className="font-mono text-xs text-slate-300">
-              {isRtl
-                ? 'متصفحك حظر WebGL — الممرات الجوية المجدولة متاحة في البطاقات أدناه.'
-                : 'WebGL is unavailable — the scheduled corridors remain fully browsable in the cards below.'}
+              {webGlFailure === 'unsupported'
+                ? (isRtl
+                    ? 'عارض WebGL غير متاح — الممرات الجوية المجدولة متاحة في البطاقات أدناه.'
+                    : 'WebGL is unavailable — the scheduled corridors remain browsable in the cards below.')
+                : (isRtl
+                    ? 'تعذّر تحميل الكرة ثلاثية الأبعاد — الممرات الجوية متاحة في البطاقات أدناه.'
+                    : 'The 3D globe could not be loaded — the scheduled corridors remain available in the cards below.')}
             </p>
           </div>
         </div>

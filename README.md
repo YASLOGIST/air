@@ -162,7 +162,7 @@ flowchart LR
   <tr><td><code>src/lib/uld-fleet.ts</code></td><td>ULD constants and recommendation engine.</td><td>Horizontal rotation only; 90% broken-stowage reserve; active-cooling match required.</td></tr>
   <tr><td><code>src/lib/corridors.ts</code></td><td>FRA/DXB/AMS/PVG ⇄ CAI lane constants and sea benchmarks.</td><td>One shared data source for simulator and corridor browser.</td></tr>
   <tr><td><code>src/components/ConsignmentTracker.tsx</code></td><td>Bundled demo consignment lookup.</td><td>Unknown query returns not found; never synthesizes operational status.</td></tr>
-  <tr><td><code>src/three/airgl/</code></td><td>WebGL2 ULD digital twin and corridor globe.</td><td>Dedicated <code>vendor-three</code> chunk, explicit resource disposal, no render-loop allocations.</td></tr>
+  <tr><td><code>src/three/airgl/</code></td><td>WebGL2 ULD digital twin and corridor globe.</td><td>Dedicated <code>vendor-three</code> chunk loads when a 3D canvas approaches within 200px of the viewport (eager fallback without <code>IntersectionObserver</code>); explicit resource disposal and no render-loop allocations.</td></tr>
   <tr><td><code>scripts/check-bundle.mjs</code></td><td>Production asset budget gate.</td><td>App JS ≤ 515 KB raw; CSS ≤ 112 KB raw; exactly one vendor-three chunk ≤ 592 KB raw.</td></tr>
   <tr><td><code>assets/readme/src/render_hero.py</code></td><td>Procedural README hero renderer (this page's opening visual).</td><td>Reuses repo geodesy, landmask, airport anchors and monogram geometry; periodic functions only, so the loop is seamless.</td></tr>
 </table>
@@ -268,7 +268,7 @@ sequenceDiagram
   <tr><td><code>boot</code></td><td><code>theme-init.js</code> pre-paints theme + direction before React mounts.</td><td>No flash of wrong theme/direction in either locale.</td></tr>
   <tr><td><code>validate</code></td><td>Numeric inputs checked finite &gt; 0 before any UI mutation.</td><td>Synchronous <code>RangeError</code>, never NaN propagation.</td></tr>
   <tr><td><code>compute</code></td><td>Pure functions: IATA 1:6000 volumetrics, GLEC CO2e, indicative cost, ULD fit.</td><td>Deterministic, unit-tested, zero network.</td></tr>
-  <tr><td><code>render</code></td><td>AIRGL WebGL2 twin + corridor globe in an isolated <code>vendor-three</code> chunk.</td><td>Quiescent frame budget; explicit GL disposal.</td></tr>
+  <tr><td><code>render</code></td><td>AIRGL WebGL2 twin + corridor globe in an isolated <code>vendor-three</code> chunk, imported as either 3D canvas approaches within 200px of view (eager fallback without <code>IntersectionObserver</code>).</td><td>Deferred engine transfer; quiescent frame budget; explicit GL disposal.</td></tr>
   <tr><td><code>export</code></td><td>Manifest leaves the app only via clipboard / print / local .txt download.</td><td>No upload path exists.</td></tr>
 </table>
 

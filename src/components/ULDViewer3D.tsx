@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useLang } from '../lib/i18n';
-import { isWebGLSupported } from '../three/airgl/gl';
-import { UldScene, type CameraPreset, type RenderMode, type SceneStats, type HotspotSpec } from '../three/airgl/uld/scene';
+import { isWebGLSupported } from '../three/airgl/webgl-support';
+import type { CameraPreset, HotspotSpec, RenderMode, SceneStats, UldScene } from '../three/airgl/uld/scene';
 import type { UldCode } from '../three/airgl/uld/model';
 import type { ULDContainer } from '../types/air-freight';
 import {
@@ -44,7 +44,10 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<UldScene | null>(null);
-  const [webGlFailed, setWebGlFailed] = useState(false);
+  const [webGlFailure, setWebGlFailure] = useState<'unsupported' | 'load' | null>(null);
+  const [sceneLoading, setSceneLoading] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  const webGlFailed = webGlFailure !== null;
 
   // UI truth mirrored to the scene.
   const [isAutoRotate, setIsAutoRotate] = useState(
@@ -57,61 +60,89 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   const [customModelNotice, setCustomModelNotice] = useState(false);
   const [stats, setStats] = useState<SceneStats | null>(null);
   const [contextLost, setContextLost] = useState(false);
+  const pendingPresetRef = useRef<CameraPreset>('iso');
 
   // Hotspot overlay elements — written by the scene's projection, never by React state.
   const tempHotspotRef = useRef<HTMLDivElement | null>(null);
   const cargoHotspotRef = useRef<HTMLDivElement | null>(null);
   const acidHotspotRef = useRef<HTMLDivElement | null>(null);
 
-  /* Boot the twin once. StrictMode mounts twice: the first scene is fully
-     released (geometry, materials, render targets, context) before the
-     second boots, so the tab's context budget stays clean. */
+  /* Load and boot the twin only when its viewport approaches the screen. The
+     small capability probe above stays independent of Three.js, so browsers
+     without WebGL never download the engine. StrictMode cleanup invalidates
+     an in-flight import before it can allocate a renderer or GPU resources. */
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    if (!isWebGLSupported()) {
-      setWebGlFailed(true);
-      return;
-    }
-    let scene: UldScene | null = null;
-    try {
-      scene = new UldScene(canvas);
-    } catch {
-      setWebGlFailed(true);
-      return;
-    }
-    sceneRef.current = scene;
-    scene.onStats(setStats);
-    scene.onContextChange(setContextLost);
-    scene.setModel(toUldCode(uld.code));
-    scene.setAutoRotate(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-
     const host = viewportRef.current;
+    if (!canvas || !host) return;
+
+    let active = true;
+    let nearViewport = typeof IntersectionObserver === 'undefined';
+    let loading = false;
+    let scene: UldScene | null = null;
     let observer: IntersectionObserver | null = null;
-    if (host && typeof IntersectionObserver !== 'undefined') {
-      observer = new IntersectionObserver(([entry]) => scene?.setVisible(entry.isIntersecting), { rootMargin: '200px' });
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const bootScene = async () => {
+      if (!active || loading || scene) return;
+      loading = true;
+      setSceneLoading(true);
+
+      if (!isWebGLSupported()) {
+        if (active) {
+          setWebGlFailure('unsupported');
+          setSceneLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const { UldScene: Scene } = await import('../three/airgl/uld/scene');
+        if (!active) return;
+
+        scene = new Scene(canvas);
+        sceneRef.current = scene;
+        scene.onStats(setStats);
+        scene.onContextChange(setContextLost);
+        scene.setVisible(nearViewport);
+        scene.setReducedMotion(reducedMotionQuery.matches);
+        setSceneReady(true);
+      } catch {
+        if (active) setWebGlFailure('load');
+      } finally {
+        if (active) setSceneLoading(false);
+      }
+    };
+
+    if (typeof IntersectionObserver !== 'undefined') {
+      observer = new IntersectionObserver(([entry]) => {
+        if (!entry) return;
+        nearViewport = entry.isIntersecting;
+        scene?.setVisible(nearViewport);
+        if (nearViewport) void bootScene();
+      }, { rootMargin: '200px' });
       observer.observe(host);
     } else {
-      scene.setVisible(true);
+      void bootScene();
     }
 
-    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const onMotionChange = () => {
       scene?.setReducedMotion(reducedMotionQuery.matches);
-      if (reducedMotionQuery.matches) scene?.setAutoRotate(false);
+      if (reducedMotionQuery.matches) {
+        scene?.setAutoRotate(false);
+        setIsAutoRotate(false);
+      }
     };
     reducedMotionQuery.addEventListener?.('change', onMotionChange);
     onMotionChange();
 
     return () => {
+      active = false;
       observer?.disconnect();
       reducedMotionQuery.removeEventListener?.('change', onMotionChange);
       scene?.dispose();
       sceneRef.current = null;
     };
-    // The boot is identity-stable; model/mode intents flow through the
-    // forwarding effects below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Hotspot pill projection targets (registered once elements exist).
@@ -138,26 +169,32 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
     ];
     sceneRef.current?.setHotspots(specs);
     return () => sceneRef.current?.setHotspots([]);
-  }, [uld.activeCooling, uld.volumeCbm, uld.maxGrossWeightKg, uld.tareWeightKg, webGlFailed]);
+  }, [uld.activeCooling, uld.volumeCbm, uld.maxGrossWeightKg, uld.tareWeightKg, webGlFailed, sceneReady]);
 
-  /* Intent forwarding — every knob below maps to exactly one scene method. */
+  /* Intent forwarding — every knob below maps to exactly one scene method.
+     `sceneReady` replays the latest React state when the deferred module lands,
+     so input changed during a slow import is not lost. */
   useEffect(() => {
     sceneRef.current?.setModel(toUldCode(uld.code));
-  }, [uld.code]);
+  }, [uld.code, sceneReady]);
   useEffect(() => {
     sceneRef.current?.setRenderMode(renderMode);
-  }, [renderMode]);
+  }, [renderMode, sceneReady]);
   useEffect(() => {
     sceneRef.current?.setDoorOpen(isDoorOpen);
-  }, [isDoorOpen]);
+  }, [isDoorOpen, sceneReady]);
   useEffect(() => {
     sceneRef.current?.setExploded(isExploded);
-  }, [isExploded]);
+  }, [isExploded, sceneReady]);
   useEffect(() => {
     sceneRef.current?.setAutoRotate(isAutoRotate);
-  }, [isAutoRotate]);
+  }, [isAutoRotate, sceneReady]);
+  useEffect(() => {
+    sceneRef.current?.setPreset(pendingPresetRef.current);
+  }, [sceneReady]);
 
   const setPresetView = (view: CameraPreset) => {
+    pendingPresetRef.current = view;
     setIsAutoRotate(false);
     const inside = view === 'inside';
     setIsInsideView(inside);
@@ -290,6 +327,20 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           className="block h-full w-full touch-none"
         />
 
+        {!sceneReady && !webGlFailed && (
+          <div
+            aria-hidden={!sceneLoading}
+            role={sceneLoading ? 'status' : undefined}
+            aria-live={sceneLoading ? 'polite' : undefined}
+            className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-[#060b14]/75"
+          >
+            <div className="flex flex-col items-center gap-2 font-mono text-[10px] tracking-wider text-cyan-200/80">
+              <Globe2 className="h-6 w-6 text-cyan-400/80" />
+              {sceneLoading && <span>{isRtl ? 'جارٍ تحميل التوأم الرقمي ثلاثي الأبعاد…' : 'Loading the 3D digital twin…'}</span>}
+            </div>
+          </div>
+        )}
+
         {/* GPU-reset recovery: the context can drop mid-session (driver
             reset, thermal throttling, a backgrounded mobile tab reclaiming
             VRAM) and restore a moment later. Rather than leaving a frozen
@@ -350,9 +401,13 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
             <div className="max-w-sm space-y-2">
               <Globe2 className="mx-auto h-6 w-6 text-cyan-400" />
               <p className="font-mono text-xs text-slate-300">
-                {isRtl
-                  ? 'متصفحك حظر WebGL — يتم عرض بيانات الوحدة النصية.'
-                  : 'WebGL is unavailable in this browser — showing the unit specification summary.'}
+                {webGlFailure === 'unsupported'
+                  ? (isRtl
+                      ? 'عارض WebGL غير متاح — بيانات الوحدة النصية معروضة أدناه.'
+                      : 'WebGL is unavailable — the unit specification summary remains below.')
+                  : (isRtl
+                      ? 'تعذّر تحميل عارض الوحدة ثلاثي الأبعاد — بيانات الوحدة متاحة أدناه.'
+                      : 'The 3D viewer could not be loaded — the unit specifications remain available below.')}
               </p>
               <p className="font-mono text-[10px] text-slate-500" dir="ltr">
                 {uld.code} · {uld.internalCm.lengthCm}×{uld.internalCm.widthCm}×{uld.internalCm.heightCm} CM ·{' '}
