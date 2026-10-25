@@ -33,6 +33,17 @@
   --z-nav: 9000;
   --z-modal: 10000;
 
+  /* Instrument screens (radar scope, 3D viewports) are the same in both
+     themes, so their four ink levels and three signal colours live here
+     rather than being re-declared per theme. */
+  --hud-ink: #E6F3FF;
+  --hud-ink-dim: #8FA9C2;
+  --hud-line: rgba(143, 169, 194, 0.26);
+  --hud-line-strong: rgba(143, 169, 194, 0.5);
+  --hud-accent: #4FC3F7;
+  --hud-ok: #34D399;
+  --hud-warn: #FBBF24;
+
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
   --dur-fast: 180ms;
@@ -78,7 +89,7 @@
   --glass-inset: #FFFFFF;
   --glass-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 12px 32px -24px rgba(16, 24, 40, 0.18);
 
-  --hud-bg: #0B1220; /* Avionics screens stay dark in both themes by design */
+  --hud-bg: #06101C; /* Avionics screens stay dark in both themes by design */
   --hud-glow: rgba(3, 105, 161, 0.18);
   --hud-green-glow: rgba(13, 148, 136, 0.22);
   --radar-sweep-color: rgba(3, 105, 161, 0.12);
@@ -115,7 +126,7 @@
   --glass-inset: rgba(255, 255, 255, 0.05);
   --glass-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.7);
 
-  --hud-bg: #060B12;
+  --hud-bg: #06101C;
   --hud-glow: rgba(56, 189, 248, 0.25);
   --hud-green-glow: rgba(52, 211, 153, 0.3);
   --radar-sweep-color: rgba(56, 189, 248, 0.15);
@@ -353,17 +364,100 @@ b {
   --c-border: rgba(155, 176, 188, 0.24);
 }
 
-/* Avionics Screen Well (Cockpit HUD) */
+/* Avionics Screen Well (Cockpit HUD).
+   One dark screen that sits on either page: a single flat ground, one hairline
+   border and no inner glow, so the radar and the 3D viewports read as
+   instruments rather than as glowing ornaments. */
 .avionics-well {
   background-color: var(--hud-bg);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.8), inset 0 0 40px rgba(6, 182, 212, 0.12);
+  border: 1px solid var(--hud-line);
+  box-shadow: 0 18px 40px -28px rgba(2, 8, 20, 0.55);
+}
+
+/* ---- Radar scope -------------------------------------------------------
+   Four ink levels and three signal colours, no more. Every mark on the scope
+   is drawn from this scale so a target, a ring and a label never compete. */
+.radar-scope {
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 50% 50%, #0A1929 0%, #06101C 62%, #040C15 100%);
+  box-shadow: inset 0 0 0 1px var(--hud-line), inset 0 0 60px rgba(4, 12, 24, 0.9);
+  touch-action: pan-y;
+}
+
+.radar-numeral {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* The sweep and the beam are one rotating layer; the gradient is a conic
+   gradient rather than a blurred element so the trail costs no filter pass.
+   It advances in 30 steps per revolution, matching a real PPI raster, which
+   reads as motion while staying cheap on a 60 Hz compositor. */
+.radar-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  animation: radarSweep 8s linear infinite;
+  will-change: transform;
+}
+
+.radar-sweep-idle {
+  animation-play-state: paused;
+}
+
+.radar-sweep-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(79, 195, 247, 0.24) 0deg,
+    rgba(79, 195, 247, 0.10) 18deg,
+    rgba(79, 195, 247, 0.03) 42deg,
+    transparent 60deg,
+    transparent 360deg
+  );
+  mask-image: radial-gradient(circle, #000 96%, transparent 100%);
+  -webkit-mask-image: radial-gradient(circle, #000 96%, transparent 100%);
+}
+
+.radar-sweep-beam {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 50%;
+  width: 1.5px;
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, rgba(125, 211, 252, 0.9), rgba(125, 211, 252, 0.15));
+  box-shadow: 0 0 6px rgba(125, 211, 252, 0.55);
+}
+
+/* A contact brightens exactly as the beam crosses its bearing: the animation
+   delay is the negative time it takes the sweep to reach that angle. */
+.radar-contact {
+  display: block;
+  animation: radarContact 8s linear infinite;
+}
+
+.radar-contact-idle {
+  animation-play-state: paused;
+}
+
+@keyframes radarContact {
+  0% { opacity: 1; filter: brightness(1.9); }
+  6% { opacity: 0.92; filter: brightness(1.35); }
+  35% { opacity: 0.62; filter: brightness(1); }
+  100% { opacity: 0.4; filter: brightness(0.85); }
 }
 
 /* Radar Animations */
+/* Stepped once per 12°: a real PPI paints in discrete sweeps, and stepping the
+   transform keeps the trail crisp instead of smearing it through a filter. */
 @keyframes radarSweep {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes pingPulse {
@@ -380,10 +474,6 @@ b {
 @keyframes altitudeFlight {
   0%, 100% { transform: translateY(0px) rotate(0deg); }
   50% { transform: translateY(-5px) rotate(0.5deg); }
-}
-
-.animate-radar-sweep {
-  animation: radarSweep 8s linear infinite;
 }
 
 .animate-ping-pulse {
@@ -408,12 +498,14 @@ b {
     scroll-behavior: auto !important;
   }
 
-  .animate-radar-sweep,
+  .radar-sweep,
+  .radar-contact,
   .animate-ping-pulse,
   .animate-hud-blink,
   .animate-flight-float {
     animation: none !important;
     opacity: 1;
+    filter: none !important;
   }
 }
 

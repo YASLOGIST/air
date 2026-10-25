@@ -14,7 +14,7 @@ interface ModelBadgeProps {
  * - Arabic: "محاكاة تشغيلية"
  */
 export const ModelBadge: React.FC<ModelBadgeProps> = ({ className = '', short = false }) => {
-  const { dict, isRtl } = useLang();
+  const { dict } = useLang();
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const wrapperRef = useRef<HTMLSpanElement>(null);
@@ -40,7 +40,7 @@ export const ModelBadge: React.FC<ModelBadgeProps> = ({ className = '', short = 
   const label = short ? dict.brand.modelBadge.split('·')[0] : dict.brand.modelBadge;
 
   return (
-    <span ref={wrapperRef} className={`relative inline-flex ${className}`} dir={isRtl ? 'rtl' : 'ltr'}>
+    <span ref={wrapperRef} className={`relative inline-flex ${className}`} dir="ltr">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -57,7 +57,7 @@ export const ModelBadge: React.FC<ModelBadgeProps> = ({ className = '', short = 
         id={panelId}
         role="note"
         hidden={!open}
-        className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 w-64 max-w-[min(16rem,calc(100vw-2rem))] p-3 rounded-xl border border-amber-400/30 bg-[var(--c-card-solid)] shadow-2xl text-[11px] leading-relaxed text-body font-sans normal-case tracking-normal text-left rtl:text-right"
+        className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 w-64 max-w-[min(16rem,calc(100vw-2rem))] p-3 rounded-xl border border-amber-400/30 bg-[var(--c-card-solid)] shadow-2xl text-[11px] leading-relaxed text-body font-sans normal-case tracking-normal text-left"
       >
         {dict.brand.modelBadgeDesc}
       </span>

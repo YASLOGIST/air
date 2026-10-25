@@ -55,7 +55,7 @@ export const CorridorsAir: React.FC = () => {
                 type="button"
                 onClick={() => setSelectedCorridor(corridor)}
                 aria-pressed={isSelected}
-                className={`w-full text-left rtl:text-right p-4 rounded-2xl border cursor-pointer transition-all duration-200 glass-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--c-bg)] ${
+                className={`w-full text-left p-4 rounded-2xl border cursor-pointer transition-all duration-200 glass-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--c-bg)] ${
                   isSelected
                     ? 'bg-[var(--c-subcard)] border-[var(--c-accent)] shadow-sm'
                     : 'glass-panel'

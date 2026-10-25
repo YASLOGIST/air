@@ -493,7 +493,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         )}
 
         {/* Floating Telemetry & Information HUD */}
-        <div className="absolute top-4 left-4 rtl:left-auto rtl:right-4 z-10 pointer-events-none space-y-2">
+        <div className="absolute top-4 left-4 z-10 pointer-events-none space-y-2">
           <div className="rounded-2xl border border-cyan-500/30 bg-[#06101d]/90 p-3 max-w-[230px] space-y-1.5 shadow-lg">
             <div className="flex items-center justify-between text-[10px] font-mono text-cyan-400 font-semibold">
               <span className="flex items-center gap-1.5">
@@ -535,7 +535,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         )}
 
         {/* Camera Preset Quick Buttons (Bottom Left) */}
-        <div className="absolute bottom-4 left-4 rtl:left-auto rtl:right-4 z-10 flex items-center gap-1.5 font-mono text-[10px] pointer-events-auto">
+        <div className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 font-mono text-[10px] pointer-events-auto">
           <span className="text-slate-400 mr-1 hidden sm:inline">{isRtl ? 'زوايا الرؤية:' : 'CAMERA:'}</span>
           <button
             type="button"
@@ -568,7 +568,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         </div>
 
         {/* Zoom Controls (Bottom Right) */}
-        <div className="absolute bottom-4 right-4 rtl:right-auto rtl:left-4 z-10 flex items-center gap-1 font-mono pointer-events-auto">
+        <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 font-mono pointer-events-auto">
           <button
             type="button"
             onClick={() => sceneRef.current?.zoomBy(-0.55)}

@@ -121,7 +121,7 @@ export const CargoVillageFlow: React.FC = () => {
             <button
               key={step.id}
               onClick={() => setActiveStepIndex(idx)}
-              className={`p-4 rounded-2xl border text-left rtl:text-right transition-colors duration-300 relative overflow-hidden flex flex-col justify-between min-h-[140px] ${
+              className={`p-4 rounded-2xl border text-left transition-colors duration-300 relative overflow-hidden flex flex-col justify-between min-h-[140px] ${
                 isSelected
                   ? 'bg-[var(--c-subcard)] border-[var(--c-accent)] shadow-sm'
                   : 'glass-panel hover:border-[var(--c-accent)]'

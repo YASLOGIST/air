@@ -19,7 +19,8 @@
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
     root.lang = language;
-    root.dir = language === 'ar' ? 'rtl' : 'ltr';
+    /* Direction is fixed LTR; only the copy switches language. */
+    root.dir = 'ltr';
     const themeColor = document.querySelector('meta[name="theme-color"]');
     if (themeColor) themeColor.setAttribute('content', THEME_COLORS[theme]);
   } catch {

@@ -862,6 +862,7 @@ export const DICTIONARY: Record<Language, Dict> = {
 interface LanguageContextType {
   lang: Language;
   dict: Dict;
+  /** True when the copy is Arabic. Presentation direction stays LTR. */
   isRtl: boolean;
   setLang: (lang: Language) => void;
   toggleLang: () => void;
@@ -886,8 +887,13 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     const root = document.documentElement;
+    /* Language and direction are separate concerns here. `lang` selects the
+       dictionary and the Arabic font stack; `dir` is fixed to `ltr` because
+       the page is built on a left-to-right grid (charts, radar, tables,
+       numerics) and only the words are translated. Flipping `dir` used to
+       mirror that grid and break reading order of every data visual. */
     root.lang = lang;
-    root.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    root.dir = 'ltr';
     try {
       localStorage.setItem(STORAGE_KEY, lang);
     } catch (e) {

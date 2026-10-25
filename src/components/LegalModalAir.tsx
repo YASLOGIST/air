@@ -39,7 +39,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
         tabIndex={-1}
         className="w-full max-w-3xl max-h-[85vh] rounded-3xl border border-[var(--glass-brd)] bg-[var(--c-card-solid)] shadow-2xl flex flex-col overflow-hidden text-body focus:outline-none"
         onClick={(e) => e.stopPropagation()}
-        dir={isRtl ? 'rtl' : 'ltr'}
+        dir="ltr"
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between p-6 border-b border-[var(--glass-brd)] glass-subcard">

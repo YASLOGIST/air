@@ -51,7 +51,7 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
         tabIndex={-1}
         className="w-full max-w-lg rounded-3xl border border-[var(--glass-brd)] bg-[var(--c-card-solid)] shadow-2xl p-6 text-body space-y-5 focus:outline-none"
         onClick={(e) => e.stopPropagation()}
-        dir={isRtl ? 'rtl' : 'ltr'}
+        dir="ltr"
       >
         <div className="flex items-center justify-between border-b border-[var(--glass-brd)] pb-4">
           <div className="flex items-center gap-2.5">
@@ -111,7 +111,7 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
               />
               <button
                 type="submit"
-                className="btn-primary absolute inset-y-1.5 right-1.5 rtl:right-auto rtl:left-1.5 px-4 rounded-lg font-mono text-xs font-semibold transition-opacity hover:opacity-90 flex items-center gap-1"
+                className="btn-primary absolute inset-y-1.5 right-1.5 px-4 rounded-lg font-mono text-xs font-semibold transition-opacity hover:opacity-90 flex items-center gap-1"
               >
                 <Search className="w-3.5 h-3.5" />
                 <span>{isRtl ? 'فحص' : 'Check'}</span>

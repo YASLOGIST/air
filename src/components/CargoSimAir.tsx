@@ -289,7 +289,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               key={idx}
               type="button"
               onClick={() => applyPreset(preset)}
-              className="px-3.5 py-2.5 rounded-xl text-xs font-medium glass-subcard hover:border-cyan-400 text-left rtl:text-right transition-all flex flex-col justify-between group"
+              className="px-3.5 py-2.5 rounded-xl text-xs font-medium glass-subcard hover:border-cyan-400 text-left transition-all flex flex-col justify-between group"
             >
               <span className="font-semibold text-title group-hover:text-cyan-400 transition-colors">
                 {isRtl ? preset.nameAr : preset.nameEn}
@@ -454,7 +454,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               <button
                 type="button"
                 onClick={() => setIsPharmaColdChain(!isPharmaColdChain)}
-                className={`p-3 rounded-2xl border text-left rtl:text-right transition-all flex items-center justify-between text-xs font-mono ${
+                className={`p-3 rounded-2xl border text-left transition-all flex items-center justify-between text-xs font-mono ${
                   isPharmaColdChain
                     ? 'bg-teal-500/15 border-teal-500/50 text-teal-300'
                     : 'glass-subcard text-muted hover:border-slate-500'
@@ -469,7 +469,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               <button
                 type="button"
                 onClick={() => setUrgencyMode(urgencyMode === 'STANDARD' ? 'PRIORITY' : 'STANDARD')}
-                className={`p-3 rounded-2xl border text-left rtl:text-right transition-all flex items-center justify-between text-xs font-mono ${
+                className={`p-3 rounded-2xl border text-left transition-all flex items-center justify-between text-xs font-mono ${
                   urgencyMode === 'PRIORITY'
                     ? 'bg-sky-500/15 border-sky-500/50 text-sky-300'
                     : 'glass-subcard text-muted hover:border-slate-500'
@@ -613,7 +613,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                       {isRtl ? uldRec.best.uld.dimensionsAr : uldRec.best.uld.dimensionsEn}
                     </span>
                   </div>
-                  <div className="text-right rtl:text-left shrink-0 font-mono">
+                  <div className="text-right shrink-0 font-mono">
                     <span className="block text-[10px] text-muted uppercase">{dict.simulator.uldRecNetPayload}</span>
                     <span className="text-sm font-semibold text-title tabular" dir="ltr">
                       {uldRec.best.netPayloadKg.toLocaleString()} kg
@@ -712,7 +712,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 className="shrink-0 inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-[var(--c-accent)] hover:text-sky-500 transition-colors"
               >
                 <span>{dict.simulator.uldRecViewFleet}</span>
-                <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" aria-hidden="true" />
+                <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
               </a>
             </div>
           </div>

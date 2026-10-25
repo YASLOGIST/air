@@ -132,7 +132,7 @@ export const ExperienceLayer: React.FC = () => {
       <div className="fixed inset-x-0 top-0 z-[9500] h-[2px] bg-[var(--c-border)]" aria-hidden="true">
         <span
           ref={barRef}
-          className="block h-full origin-left rtl:origin-right bg-[var(--c-accent)]"
+          className="block h-full origin-left bg-[var(--c-accent)]"
           style={{ transform: 'scaleX(0)' }}
         />
       </div>
