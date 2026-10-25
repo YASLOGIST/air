@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* `dist/` is committed in this repository (a static host serves the build
+   directly), so the previous build's markup, CSS and sourcemaps are on disk
+   whenever the next build runs. Tailwind's automatic content detection would
+   read those files as source and regenerate utility classes the app no longer
+   uses — measured ~30 KiB of dead rules, enough to break the bundle budget on
+   its own. The output directory must never feed itself back in. */
+@source not "../dist";
+
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme {

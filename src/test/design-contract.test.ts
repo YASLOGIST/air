@@ -78,6 +78,14 @@ describe('daylight design contract', () => {
     expect(css).toMatch(/\.avionics-panel,\s*\.avionics-well\s*\{[\s\S]*?--c-muted:\s*#9BB0BC/);
   });
 
+  it('keeps the committed build output out of Tailwind content detection', () => {
+    /* `dist/` is tracked, so the previous build's CSS and sourcemaps are on
+       disk when the next build runs. Without this exclusion Tailwind reads
+       them as source and regenerates ~30 KiB of dead utilities — enough to
+       fail the bundle budget on a clean checkout. */
+    expect(css).toMatch(/@source\s+not\s+"\.\.\/dist"\s*;/);
+  });
+
   it('keeps one flat weight scale', () => {
     const banned = /\bfont-(thin|extralight|light|bold|extrabold|black)\b/;
     const offenders = componentSources
