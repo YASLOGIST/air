@@ -23,7 +23,7 @@
 [![Vite](https://img.shields.io/github/package-json/dependency-version/YASLOGIST/air/dev/vite?filename=package.json&label=Vite&style=for-the-badge&logo=vite&logoColor=white&labelColor=0D1117&color=B73BFE)](package.json)
 [![Tailwind CSS](https://img.shields.io/github/package-json/dependency-version/YASLOGIST/air/dev/tailwindcss?filename=package.json&label=Tailwind%20CSS&style=for-the-badge&logo=tailwindcss&logoColor=white&labelColor=0D1117&color=06B6D4)](package.json)
 
-**[Live Preview](https://air.yaslogist.com)** · **[Quality Workflow](.github/workflows/quality.yml)** · **[Kinetic Workflow](.github/workflows/kinetic-readme.yml)** · **[Reconstruction Log](docs/RECONSTRUCTION.md)** · **[Issues](../../issues)**
+**[Live Preview](https://air.yaslogist.com)** · **[Quality Workflow](.github/workflows/quality.yml)** · **[Kinetic Workflow](.github/workflows/kinetic-readme.yml)** · **[Reconstruction Log](docs/RECONSTRUCTION.md)** · **[Email Runbook](docs/EMAIL_STABILITY_RUNBOOK.md)** · **[Issues](../../issues)**
 
 </div>
 

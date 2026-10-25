@@ -1,0 +1,44 @@
+name: Email health
+
+# Deliverability is the one part of this project that lives outside the repo:
+# MX, SPF, DKIM, DMARC and MTA-STS records can rot on their own (a provider
+# rotates a DKIM key, someone adds a second SPF record) and nothing in the app
+# build notices. This job re-checks the live records on a schedule and fails on
+# anything that actually blocks or spoofs mail.
+#   · FAIL: no MX, no/duplicate SPF, SPF over 10 lookups, no DMARC policy.
+#   · WARN (does not fail the job): missing Google DKIM, p=none, 1024-bit keys,
+#     missing reporting addresses, missing MTA-STS/TLS-RPT.
+
+on:
+  schedule:
+    # Mondays 06:00 UTC - after the weekend, before the working week.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: Domain to check
+        required: false
+        default: yaslogist.com
+
+permissions:
+  contents: read
+
+jobs:
+  dns:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check mail authentication records
+        run: node scripts/email-health-check.mjs --domain=${{ inputs.domain || 'yaslogist.com' }}
+      - name: Upload report
+        if: always()
+        run: node scripts/email-health-check.mjs --json --domain=${{ inputs.domain || 'yaslogist.com' }} > email-health.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: email-health-report
+          path: email-health.json
+          retention-days: 30
