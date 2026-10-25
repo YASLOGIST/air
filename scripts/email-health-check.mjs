@@ -226,7 +226,7 @@ async function run() {
       'warn',
       `DKIM missing: ${required}._domainkey`,
       required === 'google'
-        ? 'Mail sent from Google Workspace as this domain carries no aligned DKIM signature; DMARC succeeds on SPF alignment alone. Tightening the policy before this record exists would reject the CEO\'s own mail.'
+        ? 'Mail sent from Google Workspace as this domain carries no DKIM signature of its own, so DMARC passes on SPF alignment alone. Forwarded or mailing-list copies lose that SPF, have nothing signed to fall back on, and fail DMARC at the next hop.'
         : 'Zoho Mail signatures are not aligned to this domain, so DMARC depends on SPF alignment.',
       required === 'google'
         ? 'Google Admin console -> Apps -> Google Workspace -> Gmail -> Authenticate email -> generate new record, then publish it here.'
