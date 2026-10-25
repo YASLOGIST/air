@@ -12,7 +12,7 @@ const STORAGE_KEY = 'yaslogist-air-theme';
 /* Browser-chrome colour per theme, matching `--c-bg` in src/index.css.
    `public/theme-init.js` applies the same table before first paint; the two
    copies are pinned together by src/test/theme-color.test.ts. */
-export const THEME_COLORS = { dark: '#070C14', light: '#F8FAFC' } as const;
+export const THEME_COLORS = { dark: '#070C14', light: '#FFFFFF' } as const;
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
@@ -25,13 +25,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return saved;
         }
       } catch {
-        // Continue with the system preference when storage is unavailable.
-      }
-      if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-        return 'light';
+        // Storage can be unavailable under strict privacy settings.
       }
     }
-    return 'dark';
+    /* White is the product's default surface. The OS dark preference is
+       deliberately not consulted: a cockpit-themed page that flips to black
+       for half its visitors is not the site the brief asks for. The toggle
+       still persists an explicit choice. */
+    return 'light';
   });
 
   useEffect(() => {

@@ -263,7 +263,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
             </span>
             <ModelBadge />
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-title h2-display">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-title h2-display">
             {dict.simulator.title}
           </h2>
           <p className="mt-2 text-sm sm:text-base text-muted max-w-2xl">
@@ -272,7 +272,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
         </div>
 
         {/* IATA Rule Badge */}
-        <div className="self-start md:self-auto glass-subcard px-3.5 py-2 rounded-xl text-xs font-mono text-cyan-600 dark:text-cyan-300 flex items-center gap-2 shadow-sm">
+        <div className="self-start md:self-auto glass-subcard px-3.5 py-2 rounded-xl text-xs font-mono text-[var(--c-accent)] flex items-center gap-2 shadow-sm">
           <Info className="w-4 h-4 text-cyan-500 shrink-0" />
           <span dir="ltr">IATA TACT RULE 1:6000 (1 CBM = 166.67 KG)</span>
         </div>
@@ -305,13 +305,13 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
       {/* Interactive Grid: Inputs & Results */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left 6 Columns: Interactive Physical & Sector Controls */}
-        <div className="lg:col-span-6 glass-panel rounded-3xl p-6 space-y-6 shadow-xl">
+        <div className="lg:col-span-6 glass-panel rounded-3xl p-6 space-y-6 shadow-sm">
           <div className="flex items-center justify-between border-b border-[var(--glass-brd)] pb-3">
-            <h3 className="font-bold text-base text-title flex items-center gap-2">
+            <h3 className="font-semibold text-base text-title flex items-center gap-2">
               <Calculator className="w-4 h-4 text-cyan-500" />
               <span>{dict.simulator.dimensions}</span>
             </h3>
-            <span className="text-xs font-mono text-cyan-500 font-bold" dir="ltr">
+            <span className="text-xs font-mono text-cyan-500 font-semibold" dir="ltr">
               {calc.volumeCbm} CBM (m³)
             </span>
           </div>
@@ -320,7 +320,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs font-mono">
               <span className="text-title">{dict.simulator.length}</span>
-              <span className="font-bold text-cyan-600 dark:text-cyan-300" dir="ltr">{lengthCm} cm</span>
+              <span className="font-semibold text-[var(--c-accent)]" dir="ltr">{lengthCm} cm</span>
             </div>
             <input
               type="range"
@@ -330,7 +330,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               value={lengthCm}
               onChange={(e) => setLengthCm(Number(e.target.value))}
               aria-label={dict.simulator.length}
-              className="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
+              className="w-full accent-[var(--c-accent)] cursor-pointer h-1.5 bg-[var(--c-track)] rounded-lg"
             />
           </div>
 
@@ -338,7 +338,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs font-mono">
               <span className="text-title">{dict.simulator.width}</span>
-              <span className="font-bold text-cyan-600 dark:text-cyan-300" dir="ltr">{widthCm} cm</span>
+              <span className="font-semibold text-[var(--c-accent)]" dir="ltr">{widthCm} cm</span>
             </div>
             <input
               type="range"
@@ -348,7 +348,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               value={widthCm}
               onChange={(e) => setWidthCm(Number(e.target.value))}
               aria-label={dict.simulator.width}
-              className="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
+              className="w-full accent-[var(--c-accent)] cursor-pointer h-1.5 bg-[var(--c-track)] rounded-lg"
             />
           </div>
 
@@ -356,7 +356,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs font-mono">
               <span className="text-title">{dict.simulator.height}</span>
-              <span className="font-bold text-cyan-600 dark:text-cyan-300" dir="ltr">{heightCm} cm</span>
+              <span className="font-semibold text-[var(--c-accent)]" dir="ltr">{heightCm} cm</span>
             </div>
             <input
               type="range"
@@ -366,7 +366,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               value={heightCm}
               onChange={(e) => setHeightCm(Number(e.target.value))}
               aria-label={dict.simulator.height}
-              className="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
+              className="w-full accent-[var(--c-accent)] cursor-pointer h-1.5 bg-[var(--c-track)] rounded-lg"
             />
           </div>
 
@@ -377,7 +377,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 <Scale className="w-3.5 h-3.5 text-amber-500" />
                 <span>{dict.simulator.grossWeight}</span>
               </span>
-              <span className="font-bold text-amber-600 dark:text-amber-300 text-sm tabular" dir="ltr">{grossWeightKg} kg</span>
+              <span className="font-semibold text-[var(--c-warn)] text-sm tabular" dir="ltr">{grossWeightKg} kg</span>
             </div>
             <input
               type="range"
@@ -387,7 +387,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               value={grossWeightKg}
               onChange={(e) => setGrossWeightKg(Number(e.target.value))}
               aria-label={dict.simulator.grossWeight}
-              className="w-full accent-amber-500 cursor-pointer h-2 bg-slate-200 dark:bg-slate-800 rounded-lg"
+              className="w-full accent-[var(--c-warn)] cursor-pointer h-2 bg-[var(--c-track)] rounded-lg"
             />
           </div>
 
@@ -395,10 +395,10 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
           <div className="pt-2 space-y-1.5">
             <div className="flex justify-between text-xs font-mono">
               <span className="text-title flex items-center gap-1.5">
-                <Boxes className="w-3.5 h-3.5 text-violet-500" />
+                <Boxes className="w-3.5 h-3.5 text-sky-500" />
                 <span>{dict.simulator.pieces}</span>
               </span>
-              <span className="font-bold text-violet-600 dark:text-violet-300 tabular" dir="ltr">
+              <span className="font-semibold text-[var(--c-accent)] tabular" dir="ltr">
                 {pieces} {dict.simulator.piecesUnit}
               </span>
             </div>
@@ -410,7 +410,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               value={pieces}
               onChange={(e) => setPieces(Number(e.target.value))}
               aria-label={dict.simulator.pieces}
-              className="w-full accent-violet-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
+              className="w-full accent-[var(--c-accent)] cursor-pointer h-1.5 bg-[var(--c-track)] rounded-lg"
             />
             <span className="block text-[11px] font-mono text-muted pt-0.5" dir="ltr">
               {pieces} × {grossWeightKg} kg = {calc.totalGrossWeightKg.toLocaleString()} kg · {calc.volumeCbm} CBM
@@ -424,7 +424,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 <Plane className="w-3.5 h-3.5 text-sky-500" />
                 <span>{dict.simulator.distance}</span>
               </span>
-              <span className="font-bold text-sky-600 dark:text-sky-300" dir="ltr">{distanceKm.toLocaleString()} km</span>
+              <span className="font-semibold text-[var(--c-accent)]" dir="ltr">{distanceKm.toLocaleString()} km</span>
             </div>
             <input
               type="range"
@@ -434,7 +434,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               value={distanceKm}
               onChange={(e) => handleDistanceChange(Number(e.target.value))}
               aria-label={dict.simulator.distance}
-              className="w-full accent-sky-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
+              className="w-full accent-[var(--c-accent)] cursor-pointer h-1.5 bg-[var(--c-track)] rounded-lg"
             />
             <span className="block text-[11px] font-mono text-muted pt-0.5">
               {corridor
@@ -488,10 +488,10 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
         <div className="lg:col-span-6 space-y-5">
           {/* Primary Chargeable Weight Hero Card */}
           <div
-            className={`glass-panel rounded-3xl p-6 border transition-all duration-300 relative overflow-hidden ${
+            className={`glass-panel rounded-3xl p-6 border transition-colors duration-300 relative overflow-hidden ${
               isGrossBilled
-                ? 'bg-gradient-to-br from-amber-500/10 via-[var(--glass-bg)] to-[var(--glass-bg)] border-amber-500/30'
-                : 'bg-gradient-to-br from-cyan-500/10 via-[var(--glass-bg)] to-[var(--glass-bg)] border-cyan-500/30'
+                ? 'bg-[var(--c-subcard)] border-amber-500/40'
+                : 'bg-[var(--c-subcard)] border-[var(--c-accent)]'
             }`}
           >
             <div className="flex items-center justify-between mb-4">
@@ -499,10 +499,10 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 {dict.simulator.chargeableWeight}
               </span>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-mono font-bold border ${
+                className={`px-3 py-1 rounded-full text-xs font-mono font-semibold border ${
                   isGrossBilled
-                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30'
-                    : 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/30'
+                    ? 'bg-amber-500/15 text-[var(--c-warn)] border-amber-500/30'
+                    : 'bg-cyan-500/15 text-[var(--c-accent)] border-cyan-500/30'
                 }`}
               >
                 {isGrossBilled ? dict.simulator.basisGross : dict.simulator.basisVolumetric}
@@ -510,10 +510,10 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
             </div>
 
             <div className="flex items-baseline gap-3 mb-4">
-              <span className="text-4xl sm:text-5xl font-black font-mono text-title tabular" dir="ltr">
+              <span className="text-4xl sm:text-5xl font-semibold font-mono text-title tabular" dir="ltr">
                 {calc.chargeableWeightKg.toLocaleString()}
               </span>
-              <span className="text-lg font-mono text-cyan-600 dark:text-cyan-400 font-bold" dir="ltr">
+              <span className="text-lg font-mono text-[var(--c-accent)] font-semibold" dir="ltr">
                 KG (BILLABLE)
               </span>
             </div>
@@ -522,7 +522,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
             <div className="grid grid-cols-3 gap-3 p-3.5 rounded-2xl glass-subcard mb-4 font-mono text-xs">
               <div>
                 <span className="block text-muted text-[11px]">{dict.simulator.actualWeight}</span>
-                <span className="text-base font-bold text-amber-600 dark:text-amber-300 tabular block mt-0.5" dir="ltr">
+                <span className="text-base font-semibold text-[var(--c-warn)] tabular block mt-0.5" dir="ltr">
                   {calc.totalGrossWeightKg.toLocaleString()} kg
                 </span>
                 {pieces > 1 && (
@@ -533,13 +533,13 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               </div>
               <div>
                 <span className="block text-muted text-[11px]">{dict.simulator.volumetricWeight}</span>
-                <span className="text-base font-bold text-cyan-600 dark:text-cyan-300 tabular block mt-0.5" dir="ltr">
+                <span className="text-base font-semibold text-[var(--c-accent)] tabular block mt-0.5" dir="ltr">
                   {calc.volumetricWeightKg.toLocaleString()} kg
                 </span>
               </div>
               <div>
                 <span className="block text-muted text-[11px]">{dict.simulator.density}</span>
-                <span className="text-base font-bold text-violet-600 dark:text-violet-300 tabular block mt-0.5" dir="ltr">
+                <span className="text-base font-semibold text-[var(--c-accent)] tabular block mt-0.5" dir="ltr">
                   {calc.densityKgPerCbm} <span className="text-[10px] font-normal">kg/m³</span>
                 </span>
               </div>
@@ -549,7 +549,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
             <div className="mb-4 px-1" aria-hidden="true">
               <div className="relative h-1.5 rounded-full bg-gradient-to-r from-cyan-500/60 via-slate-400/40 to-amber-500/60">
                 <span
-                  className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-white dark:border-slate-900 bg-[var(--c-card-solid)] shadow transition-[left] duration-300"
+                  className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-[var(--c-bg)] bg-[var(--c-card-solid)] shadow transition-[left] duration-300"
                   style={{ left: `${Math.min(100, Math.max(0, (calc.densityKgPerCbm / 333.4) * 100))}%`, backgroundColor: isGrossBilled ? '#f59e0b' : '#06b6d4' }}
                 />
                 <span className="absolute top-1/2 left-1/2 h-3 w-px -translate-y-1/2 bg-slate-500/70" />
@@ -579,15 +579,15 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
           </div>
 
           {/* ULD Load-Fit Recommendation — shares the fleet rendered in the ULD browser */}
-          <div className="glass-panel rounded-3xl p-5 shadow-xl border border-violet-400/25">
+          <div className="glass-panel rounded-3xl p-5 shadow-sm border border-[var(--c-border)]">
             <div className="flex items-center justify-between border-b border-[var(--glass-brd)] pb-3 mb-4">
               <div className="flex items-center gap-2">
-                <Container className="w-4 h-4 text-violet-400" />
-                <h4 className="font-bold text-xs uppercase tracking-wider text-title font-mono">
+                <Container className="w-4 h-4 text-sky-400" />
+                <h4 className="font-semibold text-xs uppercase tracking-wider text-title font-mono">
                   {dict.simulator.uldRecTitle}
                 </h4>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-violet-500/10 text-violet-500 dark:text-violet-300 border border-violet-500/20">
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-sky-500/10 text-[var(--c-accent)] border border-sky-500/20">
                 {dict.simulator.uldRecBadge}
               </span>
             </div>
@@ -597,11 +597,11 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <span className="inline-flex items-center gap-2">
-                      <span className="px-2.5 py-1 rounded-lg bg-violet-500/15 border border-violet-500/30 text-violet-600 dark:text-violet-300 font-mono font-black text-sm" dir="ltr">
+                      <span className="px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-500/30 text-[var(--c-accent)] font-mono font-semibold text-sm" dir="ltr">
                         {uldRec.best.uld.code}
                       </span>
                       {uldRec.best.uld.activeCooling && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-teal-500/10 text-teal-600 dark:text-teal-300 border border-teal-500/25">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-teal-500/10 text-[var(--c-cold)] border border-teal-500/25">
                           GDP COOL-CHAIN
                         </span>
                       )}
@@ -615,7 +615,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                   </div>
                   <div className="text-right rtl:text-left shrink-0 font-mono">
                     <span className="block text-[10px] text-muted uppercase">{dict.simulator.uldRecNetPayload}</span>
-                    <span className="text-sm font-bold text-title tabular" dir="ltr">
+                    <span className="text-sm font-semibold text-title tabular" dir="ltr">
                       {uldRec.best.netPayloadKg.toLocaleString()} kg
                     </span>
                   </div>
@@ -626,11 +626,11 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                   <div>
                     <div className="flex justify-between mb-1">
                       <span className="text-muted">{dict.simulator.uldRecVolumeUse}</span>
-                      <span className="font-bold text-violet-600 dark:text-violet-300 tabular" dir="ltr">{uldRec.best.volumeUtilizationPct}%</span>
+                      <span className="font-semibold text-[var(--c-accent)] tabular" dir="ltr">{uldRec.best.volumeUtilizationPct}%</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-[var(--c-track)] overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400 transition-[width] duration-500"
+                        className="h-full rounded-full bg-[var(--c-accent)] transition-[width] duration-500"
                         style={{ width: `${Math.min(100, uldRec.best.volumeUtilizationPct)}%` }}
                       />
                     </div>
@@ -638,9 +638,9 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                   <div>
                     <div className="flex justify-between mb-1">
                       <span className="text-muted">{dict.simulator.uldRecPayloadUse}</span>
-                      <span className="font-bold text-amber-600 dark:text-amber-300 tabular" dir="ltr">{uldRec.best.payloadUtilizationPct}%</span>
+                      <span className="font-semibold text-[var(--c-warn)] tabular" dir="ltr">{uldRec.best.payloadUtilizationPct}%</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-[var(--c-track)] overflow-hidden">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400 transition-[width] duration-500"
                         style={{ width: `${Math.min(100, uldRec.best.payloadUtilizationPct)}%` }}
@@ -650,10 +650,10 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 </div>
               </div>
             ) : (
-              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs font-mono text-rose-700 dark:text-rose-300 flex items-start gap-2.5">
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs font-mono text-[var(--c-alert)] flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold block">{dict.simulator.uldRecNone}</span>
+                  <span className="font-semibold block">{dict.simulator.uldRecNone}</span>
                   <span className="text-[11px] opacity-80">{dict.simulator.uldRecNoneHint}</span>
                 </div>
               </div>
@@ -669,15 +669,15 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                     title={a.fits ? undefined : blockerLabel(a.blockers[0])}
                     className={`rounded-xl px-2 py-2 text-center font-mono text-[10px] border transition-colors ${
                       isBest
-                        ? 'bg-violet-500/15 border-violet-500/40 text-violet-600 dark:text-violet-300'
+                        ? 'bg-sky-500/15 border-sky-500/40 text-[var(--c-accent)]'
                         : a.fits
                           ? 'glass-subcard text-title'
                           : 'glass-subcard opacity-50 text-muted'
                     }`}
                   >
-                    <span className="block font-bold" dir="ltr">{a.uld.code}</span>
+                    <span className="block font-semibold" dir="ltr">{a.uld.code}</span>
                     {a.fits ? (
-                      <span className="inline-flex items-center gap-0.5 mt-0.5 text-emerald-600 dark:text-emerald-400" dir="ltr">
+                      <span className="inline-flex items-center gap-0.5 mt-0.5 text-[var(--c-ok)]" dir="ltr">
                         <Check className="w-3 h-3" /> {a.volumeUtilizationPct}%
                       </span>
                     ) : (
@@ -698,7 +698,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                   .filter((a) => !a.fits)
                   .map((a) => (
                     <li key={a.uld.id} className="flex items-baseline gap-1.5">
-                      <span className="font-bold text-title" dir="ltr">{a.uld.code}:</span>
+                      <span className="font-semibold text-title" dir="ltr">{a.uld.code}:</span>
                       <span>{blockerLabel(a.blockers[0])}</span>
                     </li>
                   ))}
@@ -709,7 +709,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               <span className="text-[10px] text-muted leading-tight">{dict.simulator.uldRecStowageNote}</span>
               <a
                 href="#uld"
-                className="shrink-0 inline-flex items-center gap-1 text-[11px] font-mono font-bold text-violet-600 dark:text-violet-300 hover:text-violet-500 transition-colors"
+                className="shrink-0 inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-[var(--c-accent)] hover:text-sky-500 transition-colors"
               >
                 <span>{dict.simulator.uldRecViewFleet}</span>
                 <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" aria-hidden="true" />
@@ -718,15 +718,15 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
           </div>
 
           {/* Interactive Tariff & Surcharges Cost Engine */}
-          <div className="glass-panel rounded-3xl p-5 shadow-xl border border-sky-400/25">
+          <div className="glass-panel rounded-3xl p-5 shadow-sm border border-[var(--c-border)]">
             <div className="flex items-center justify-between border-b border-[var(--glass-brd)] pb-3 mb-4">
               <div className="flex items-center gap-2">
                 <Receipt className="w-4 h-4 text-cyan-400" />
-                <h4 className="font-bold text-xs uppercase tracking-wider text-title font-mono">
+                <h4 className="font-semibold text-xs uppercase tracking-wider text-title font-mono">
                   {isRtl ? 'حاسبة التكلفة الجوية ورسوم المناولة التقديرية' : 'Estimated Aviation Freight & Surcharge Breakdown'}
                 </h4>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
                 INDICATIVE TARIFF
               </span>
             </div>
@@ -770,7 +770,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-2xl sm:text-3xl font-black font-mono text-cyan-300" dir="ltr">
+                  <span className="text-2xl sm:text-3xl font-semibold font-mono text-cyan-300" dir="ltr">
                     ${cost.totalEstimatedUsd.toLocaleString()}
                   </span>
                   <span className="text-xs font-mono text-slate-400 ml-1">USD</span>
@@ -790,7 +790,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 <button
                   type="button"
                   onClick={handleCopyShareLink}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold glass-subcard hover:border-cyan-400 text-title transition-all active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-semibold glass-subcard hover:border-cyan-400 text-title transition-all active:scale-95"
                 >
                   {linkCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" /> : <Link2 className="w-3.5 h-3.5" aria-hidden="true" />}
                   <span>{linkCopied ? (isRtl ? 'تم نسخ الرابط!' : 'Link Copied!') : (isRtl ? 'مشاركة السيناريو' : 'Share Scenario')}</span>
@@ -798,7 +798,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 <button
                   type="button"
                   onClick={() => setManifestModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-bold bg-cyan-400 hover:bg-cyan-300 text-slate-950 transition-all shadow-md shadow-cyan-400/20 active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-semibold btn-primary transition-opacity hover:opacity-90"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
                   <span>{isRtl ? 'استخراج بيان الشحنة الفني' : 'Export Manifest'}</span>
@@ -808,8 +808,8 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
           </div>
 
           {/* Speed vs Sustainability Trade-Off Card */}
-          <div className="glass-panel rounded-3xl p-5 shadow-lg">
-            <h4 className="text-xs font-mono uppercase text-emerald-600 dark:text-emerald-400 tracking-wider mb-3 flex items-center gap-1.5 font-bold">
+          <div className="glass-panel rounded-3xl p-5 shadow-sm">
+            <h4 className="text-xs font-mono uppercase text-[var(--c-ok)] tracking-wider mb-3 flex items-center gap-1.5 font-semibold">
               <Leaf className="w-4 h-4 text-emerald-500" />
               <span>{dict.simulator.tradeoffTitle}</span>
             </h4>
@@ -817,12 +817,12 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
             <div className="grid grid-cols-2 gap-4 mb-4">
               {/* Air Column */}
               <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">
-                <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-600 dark:text-cyan-300 mb-1 font-semibold">
+                <div className="flex items-center gap-1.5 text-xs font-mono text-[var(--c-accent)] mb-1 font-semibold">
                   <Plane className="w-3.5 h-3.5" />
                   <span>{dict.simulator.transitAir}</span>
                 </div>
-                <div className="text-xl font-bold font-mono text-title tabular" dir="ltr">
-                  {calc.airportBlockHours} <span className="text-xs text-cyan-600 dark:text-cyan-300 font-normal">HRS</span>
+                <div className="text-xl font-semibold font-mono text-title tabular" dir="ltr">
+                  {calc.airportBlockHours} <span className="text-xs text-[var(--c-accent)] font-normal">HRS</span>
                 </div>
                 <span className="block text-[11px] font-mono text-muted mt-1" dir="ltr">
                   {distanceKm.toLocaleString()} km · CO₂ {calc.estimatedCo2Tonnes} t
@@ -837,11 +837,11 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 </div>
                 {calc.oceanComparison ? (
                   <>
-                    <div className="text-xl font-bold font-mono text-title tabular" dir="ltr">
+                    <div className="text-xl font-semibold font-mono text-title tabular" dir="ltr">
                       {calc.oceanComparison.portToPortDaysMin}–{calc.oceanComparison.portToPortDaysMax}{' '}
                       <span className="text-xs text-muted font-normal">DAYS</span>
                     </div>
-                    <span className="block text-[11px] font-mono text-emerald-600 dark:text-emerald-400 mt-1" dir="ltr">
+                    <span className="block text-[11px] font-mono text-[var(--c-ok)] mt-1" dir="ltr">
                       {calc.oceanComparison.seaDistanceKm.toLocaleString()} km · CO₂ {calc.oceanComparison.co2Tonnes} t
                     </span>
                     <span className="block text-[11px] font-mono text-muted mt-0.5">
@@ -869,14 +869,14 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
 
       {/* Export Consignment Specification Modal */}
       {manifestModalOpen && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" onClick={() => setManifestModalOpen(false)}>
-          <div ref={manifestDialogRef} role="dialog" aria-modal="true" aria-labelledby="manifest-title" tabIndex={-1} onClick={(event) => event.stopPropagation()} className="printable-manifest-card max-h-[90vh] overflow-y-auto bg-[#070d18] border border-cyan-500/30 rounded-3xl max-w-2xl w-full p-6 text-slate-100 shadow-2xl relative font-mono text-xs">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/50" onClick={() => setManifestModalOpen(false)}>
+          <div ref={manifestDialogRef} role="dialog" aria-modal="true" aria-labelledby="manifest-title" tabIndex={-1} onClick={(event) => event.stopPropagation()} className="avionics-panel printable-manifest-card max-h-[90vh] overflow-y-auto bg-[#070d18] border border-cyan-500/30 rounded-3xl max-w-2xl w-full p-6 text-slate-100 shadow-2xl relative font-mono text-xs">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-cyan-500/20 pb-4 mb-4">
               <div className="flex items-center gap-2.5">
                 <Building2 className="w-5 h-5 text-cyan-400" />
                 <div>
-                  <h3 id="manifest-title" className="font-bold text-sm text-white">
+                  <h3 id="manifest-title" className="font-semibold text-sm text-white">
                     {isRtl ? 'بيان مواصفات وتكاليف الشحن الجوي الرسمي' : 'OFFICIAL AIR CONSIGNMENT SPECIFICATION'}
                   </h3>
                   <span className="text-[10px] text-cyan-400/80">
@@ -909,13 +909,13 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               <div className="grid grid-cols-2 gap-3 border-b border-white/10 pb-3">
                 <div>
                   <span className="text-muted block text-[10px]">{isRtl ? 'الممر والمسار الجوي' : 'CORRIDOR & ROUTE'}</span>
-                  <span className="font-bold text-cyan-300" dir="ltr">
+                  <span className="font-semibold text-cyan-300" dir="ltr">
                     {corridor?.code ?? (isRtl ? 'مسار حر' : 'FREEHAND')} · {distanceKm.toLocaleString()} KM
                   </span>
                 </div>
                 <div>
                   <span className="text-muted block text-[10px]">{isRtl ? 'بوابة ومحطة الوصول' : 'HANDLING GATEWAY'}</span>
-                  <span className="font-bold text-title">{isRtl ? 'قرية بضائع القاهرة (صالة 3)' : 'CAI CARGO TERMINAL 3'}</span>
+                  <span className="font-semibold text-title">{isRtl ? 'قرية بضائع القاهرة (صالة 3)' : 'CAI CARGO TERMINAL 3'}</span>
                 </div>
               </div>
 
@@ -930,14 +930,14 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                 </div>
                 <div>
                   <span className="text-muted block text-[10px]">{isRtl ? 'الوزن الخاضع للرسوم' : 'BILLABLE WEIGHT'}</span>
-                  <span className="font-bold text-title" dir="ltr">{calc.chargeableWeightKg} KG</span>
+                  <span className="font-semibold text-title" dir="ltr">{calc.chargeableWeightKg} KG</span>
                 </div>
               </div>
 
               <div className="p-3 rounded-xl bg-cyan-950/30 border border-cyan-500/20 space-y-1.5">
                 <div className="flex justify-between">
                   <span>{isRtl ? `نولون الشحن الأساسي (${calc.chargeableWeightKg} كجم @ $${cost.baseRatePerKg}):` : `Base Airfreight (${calc.chargeableWeightKg} kg @ $${cost.baseRatePerKg}):`}</span>
-                  <span className="font-bold text-title" dir="ltr">${cost.baseFreightTotal}</span>
+                  <span className="font-semibold text-title" dir="ltr">${cost.baseFreightTotal}</span>
                 </div>
                 <div className="flex justify-between text-muted">
                   <span>{isRtl ? 'رسم الوقود الجوي (FSC @ $0.85/كجم):' : 'Fuel Surcharge (FSC @ $0.85/kg):'}</span>
@@ -955,7 +955,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
                   <span>{isRtl ? 'مطابقة التسجيل المسبق عبر نافذة (ACID):' : 'Nafeza ACID Pre-Clearance Validation:'}</span>
                   <span dir="ltr">${cost.nafezaPreValidationFee}</span>
                 </div>
-                <div className="pt-2 border-t border-cyan-500/30 flex justify-between font-bold text-sm text-cyan-300">
+                <div className="pt-2 border-t border-cyan-500/30 flex justify-between font-semibold text-sm text-cyan-300">
                   <span>{isRtl ? 'إجمالي الرسوم التقديرية (بالدولار الأمريكي):' : 'TOTAL ESTIMATED CHARGES (USD):'}</span>
                   <span dir="ltr">${cost.totalEstimatedUsd}</span>
                 </div>
@@ -973,7 +973,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               <button
                 type="button"
                 onClick={handleCopyManifest}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/20 hover:bg-white/10 text-white transition-all"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold border border-white/20 hover:bg-white/10 text-white transition-all"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Download className="w-4 h-4" />}
                 <span>{copied ? (isRtl ? 'تم النسخ للحافظة!' : 'Copied to Clipboard!') : (isRtl ? 'نسخ البيان' : 'Copy Text')}</span>
@@ -982,7 +982,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               <button
                 type="button"
                 onClick={handleDownloadManifest}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/20 hover:bg-white/10 text-white transition-all"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold border border-white/20 hover:bg-white/10 text-white transition-all"
               >
                 <Download className="w-4 h-4" aria-hidden="true" />
                 <span>{isRtl ? 'تنزيل TXT' : 'Download TXT'}</span>
@@ -991,7 +991,7 @@ Terminal: Cairo International Airport Cargo Village (CAI / HECA)
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-cyan-400 hover:bg-cyan-300 text-slate-950 transition-all shadow-md shadow-cyan-400/20"
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-semibold btn-primary transition-opacity hover:opacity-90"
               >
                 <Printer className="w-4 h-4" />
                 <span>{isRtl ? 'طباعة بيان الشحنة' : 'Print Manifest'}</span>

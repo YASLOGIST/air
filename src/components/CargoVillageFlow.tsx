@@ -90,7 +90,7 @@ export const CargoVillageFlow: React.FC = () => {
             </span>
             <ModelBadge />
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-title h2-display">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-title h2-display">
             {dict.cargoVillage.title}
           </h2>
           <p className="mt-2 text-sm sm:text-base text-muted max-w-2xl">
@@ -100,11 +100,11 @@ export const CargoVillageFlow: React.FC = () => {
 
         {/* Airport Gateway Badge */}
         <div className="self-start md:self-auto flex items-center gap-3">
-          <div className="glass-subcard px-3.5 py-2 rounded-xl text-xs font-mono text-cyan-600 dark:text-cyan-300 flex items-center gap-2 shadow-sm">
+          <div className="glass-subcard px-3.5 py-2 rounded-xl text-xs font-mono text-[var(--c-accent)] flex items-center gap-2 shadow-sm">
             <Building2 className="w-4 h-4 text-cyan-500 shrink-0" />
             <span dir="ltr">CAI CARGO VILLAGE (HECA)</span>
           </div>
-          <span className="px-3 py-2 rounded-xl text-xs font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+          <span className="px-3 py-2 rounded-xl text-xs font-mono font-semibold bg-emerald-500/10 text-[var(--c-ok)] border border-emerald-500/20">
             {dict.cargoVillage.timeSavedBadge}
           </span>
         </div>
@@ -121,15 +121,15 @@ export const CargoVillageFlow: React.FC = () => {
             <button
               key={step.id}
               onClick={() => setActiveStepIndex(idx)}
-              className={`p-4 rounded-2xl border text-left rtl:text-right transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[140px] ${
+              className={`p-4 rounded-2xl border text-left rtl:text-right transition-colors duration-300 relative overflow-hidden flex flex-col justify-between min-h-[140px] ${
                 isSelected
-                  ? 'bg-gradient-to-br from-cyan-500/15 via-[var(--glass-bg)] to-[var(--glass-bg)] border-cyan-500 shadow-md'
-                  : 'glass-panel hover:border-cyan-400/40'
+                  ? 'bg-[var(--c-subcard)] border-[var(--c-accent)] shadow-sm'
+                  : 'glass-panel hover:border-[var(--c-accent)]'
               }`}
             >
               {/* Step indicator top row */}
               <div className="flex items-center justify-between w-full mb-3">
-                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${isSelected ? 'bg-cyan-500 text-slate-950' : 'glass-subcard text-muted'}`}>
+                <span className={`font-mono text-xs font-semibold px-2 py-0.5 rounded ${isSelected ? 'pill-active' : 'glass-subcard text-muted'}`}>
                   STEP {step.stepNum}
                 </span>
                 <span className="text-[10px] font-mono text-muted" dir="ltr">
@@ -140,14 +140,14 @@ export const CargoVillageFlow: React.FC = () => {
               {/* Title & Icon */}
               <div>
                 <Icon className={`w-5 h-5 mb-2 ${isSelected ? 'text-cyan-500' : 'text-muted'}`} />
-                <span className="font-bold text-xs sm:text-sm text-title block leading-snug">
+                <span className="font-semibold text-xs sm:text-sm text-title block leading-snug">
                   {stepData.subtitle}
                 </span>
               </div>
 
               {/* Active Glow Bar */}
               {isSelected && (
-                <div className="absolute bottom-0 inset-x-0 h-1 bg-gradient-to-r from-cyan-400 to-sky-300" />
+                <div className="absolute bottom-0 inset-x-0 h-1 bg-[var(--c-accent)]" />
               )}
             </button>
           );
@@ -155,22 +155,22 @@ export const CargoVillageFlow: React.FC = () => {
       </div>
 
       {/* Selected Stage Detail Hero Panel */}
-      <div className="glass-panel rounded-2xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+      <div className="glass-panel rounded-2xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Left 7 Cols: Comprehensive Operational Breakdown */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
-              <span className="px-2.5 py-1 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 font-bold">
+              <span className="px-2.5 py-1 rounded bg-cyan-500/15 text-[var(--c-accent)] font-semibold">
                 PHASE {currentMeta.stepNum} OF 04
               </span>
               <span className="text-muted">·</span>
-              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+              <span className="text-[var(--c-ok)] flex items-center gap-1 font-semibold">
                 <ShieldCheck className="w-4 h-4" />
                 {currentMeta.complianceDoc}
               </span>
             </div>
 
-            <h3 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-title">
+            <h3 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-title">
               {activeContent.title}
             </h3>
 
@@ -189,7 +189,7 @@ export const CargoVillageFlow: React.FC = () => {
                   <span className="block text-[10px] font-mono text-muted uppercase">
                     {isRtl ? 'المستهدف الزمني' : 'Target Window'}
                   </span>
-                  <span className="font-mono font-bold text-sm text-title" dir="ltr">
+                  <span className="font-mono font-semibold text-sm text-title" dir="ltr">
                     {currentMeta.timeTarget}
                   </span>
                 </div>
@@ -201,7 +201,7 @@ export const CargoVillageFlow: React.FC = () => {
                   <span className="block text-[10px] font-mono text-muted uppercase">
                     {isRtl ? 'حالة التبريد الدوائي' : 'Cold-Chain Telemetry'}
                   </span>
-                  <span className="font-mono font-bold text-sm text-teal-600 dark:text-teal-300" dir="ltr">
+                  <span className="font-mono font-semibold text-sm text-[var(--c-cold)]" dir="ltr">
                     {currentMeta.tempStatus}
                   </span>
                 </div>
@@ -213,7 +213,7 @@ export const CargoVillageFlow: React.FC = () => {
                   <span className="block text-[10px] font-mono text-muted uppercase">
                     {isRtl ? 'مخرجات المرحلة' : 'Phase Output'}
                   </span>
-                  <span className="font-mono font-bold text-sm text-title">
+                  <span className="font-mono font-semibold text-sm text-title">
                     {activeContent.metric}
                   </span>
                 </div>
@@ -236,11 +236,11 @@ export const CargoVillageFlow: React.FC = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               <div className="absolute bottom-2.5 inset-x-3 flex items-center justify-between text-white font-mono text-[11px]">
-                <span className="font-bold flex items-center gap-1.5 drop-shadow">
+                <span className="font-semibold flex items-center gap-1.5 drop-shadow">
                   <Building2 className="w-3.5 h-3.5 text-cyan-400" />
                   <span>CAI CARGO GATE 4</span>
                 </span>
-                <span className="bg-cyan-500/30 text-cyan-200 px-2 py-0.5 rounded backdrop-blur-md">
+                <span className="bg-cyan-500/30 text-cyan-200 px-2 py-0.5 rounded">
                   TARMAC CLEARANCE
                 </span>
               </div>
@@ -250,19 +250,19 @@ export const CargoVillageFlow: React.FC = () => {
             <div className="p-4 space-y-2.5 font-mono text-xs">
               <div className="flex justify-between items-center text-muted">
                 <span>{isRtl ? 'المدرج والساحة:' : 'Runway Node:'}</span>
-                <span className="text-cyan-600 dark:text-cyan-400 font-bold" dir="ltr">CAI 05L/23R (East Apron)</span>
+                <span className="text-[var(--c-accent)] font-semibold" dir="ltr">CAI 05L/23R (East Apron)</span>
               </div>
               <div className="flex justify-between items-center text-muted">
                 <span>{isRtl ? 'نظام نافذة الجمركي:' : 'Nafeza ACI Match:'}</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold" dir="ltr">AUTOMATED PRE-AUTH</span>
+                <span className="text-[var(--c-ok)] font-semibold" dir="ltr">AUTOMATED PRE-AUTH</span>
               </div>
               <div className="flex justify-between items-center text-muted">
                 <span>{isRtl ? 'تسليم الشاحنات:' : 'Reefer Truck Bay:'}</span>
-                <span className="text-title font-bold" dir="ltr">Gate 4 Highway Access</span>
+                <span className="text-title font-semibold" dir="ltr">Gate 4 Highway Access</span>
               </div>
               <div className="flex justify-between items-center text-muted">
                 <span>{isRtl ? 'الربط البري المستهدف:' : 'Land Link Target:'}</span>
-                <span className="text-sky-600 dark:text-sky-400 font-bold" dir="ltr">land.yaslogist.com</span>
+                <span className="text-[var(--c-accent)] font-semibold" dir="ltr">land.yaslogist.com</span>
               </div>
 
               <div className="pt-2 border-t border-[var(--glass-brd)] text-[11px] text-muted leading-relaxed font-sans">

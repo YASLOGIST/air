@@ -142,7 +142,7 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
   return (
     <div
       ref={hostRef}
-      className="relative aspect-square w-full overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_50%_42%,#081726_0%,#040a13_58%,#02060c_100%)]"
+      className="avionics-panel relative aspect-square w-full overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_50%_42%,#081726_0%,#040a13_58%,#02060c_100%)]"
     >
       <canvas
         ref={canvasRef}
@@ -167,15 +167,15 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
       {!webGlFailed && (
         <>
           <div className="pointer-events-none absolute left-3 top-3 space-y-1 font-mono" dir="ltr">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/25 bg-black/45 px-2.5 py-1 text-[9px] font-bold tracking-[.18em] text-cyan-300 backdrop-blur">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/25 bg-black/45 px-2.5 py-1 text-[9px] font-semibold tracking-[.18em] text-cyan-300">
               <Compass className="h-3 w-3" />
               AIRWAY NETWORK · SIMULATED ARCS
             </span>
-            <span className="block w-fit rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] tracking-wider text-slate-400 backdrop-blur">
+            <span className="block w-fit rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] tracking-wider text-slate-400">
               SOLAR TERMINATOR · REAL UTC
             </span>
             {active && (
-              <span className="block w-fit rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] tracking-wider text-slate-300 backdrop-blur">
+              <span className="block w-fit rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] tracking-wider text-slate-300">
                 FOCUS ⇢ {active.code}
               </span>
             )}
@@ -185,7 +185,7 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
             <MousePointer2 className="h-3 w-3 text-cyan-400/70" />
             <span>{isRtl ? 'اسحب للتدوير · حرّك العجلة للتقريب' : 'DRAG TO SPIN · SCROLL TO ZOOM'}</span>
             {stats && (
-              <span className="ml-2 rounded-full border border-white/10 bg-black/45 px-2 py-0.5 backdrop-blur">
+              <span className="ml-2 rounded-full border border-white/10 bg-black/45 px-2 py-0.5">
                 {stats.fps} FPS · {stats.draws} DRAWS · DPR ×{stats.dpr}
               </span>
             )}
@@ -194,11 +194,11 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
           {/* Hub legend pins — DOM text stays razor sharp above the canvas. */}
           <div className="pointer-events-none absolute bottom-3 right-3 flex gap-1 font-mono text-[8px]" dir="ltr">
             {['FRA', 'DXB', 'AMS', 'PVG'].map((iata) => (
-              <span key={iata} className="rounded-full border border-white/10 bg-black/45 px-1.5 py-0.5 text-sky-300/80 backdrop-blur">
+              <span key={iata} className="rounded-full border border-white/10 bg-black/45 px-1.5 py-0.5 text-sky-300/80">
                 {iata}
               </span>
             ))}
-            <span className="rounded-full border border-cyan-300/40 bg-cyan-400/15 px-1.5 py-0.5 font-bold text-cyan-200 backdrop-blur">
+            <span className="rounded-full border border-cyan-300/40 bg-cyan-400/15 px-1.5 py-0.5 font-semibold text-cyan-200">
               CAI
             </span>
           </div>
@@ -229,7 +229,7 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
         <div
           role="status"
           aria-live="polite"
-          className="absolute inset-0 z-20 grid place-items-center bg-[#02060c]/85 backdrop-blur-sm"
+          className="absolute inset-0 z-20 grid place-items-center bg-[#02060c]/85"
         >
           <div className="flex items-center gap-2.5 rounded-full border border-amber-400/30 bg-black/60 px-4 py-2 font-mono text-[11px] text-amber-200">
             <Compass className="h-3.5 w-3.5 animate-pulse" />

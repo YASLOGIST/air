@@ -233,7 +233,7 @@ export const FlightRadarHUD: React.FC = () => {
             </span>
             <ModelBadge />
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-title h2-display">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-title h2-display">
             {dict.radar.title}
           </h2>
           <p className="mt-2 text-sm sm:text-base text-muted max-w-2xl">
@@ -249,13 +249,13 @@ export const FlightRadarHUD: React.FC = () => {
             aria-pressed={isLiveActive}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-mono text-xs border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 ${
               isLiveActive
-                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.15)]'
+                ? 'bg-emerald-500/10 text-[var(--c-ok)] border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.15)]'
                 : 'glass-subcard text-muted'
             }`}
           >
             <span
               className={`w-2 h-2 rounded-full ${
-                isLiveActive ? 'bg-emerald-400 animate-ping-pulse' : 'bg-slate-500'
+                isLiveActive && isSectionActive ? 'bg-emerald-400 animate-ping-pulse' : isLiveActive ? 'bg-emerald-400' : 'bg-slate-500'
               }`}
               aria-hidden="true"
             />
@@ -276,7 +276,7 @@ export const FlightRadarHUD: React.FC = () => {
             <Activity className="w-3.5 h-3.5 text-cyan-500" />
             <span>{isRtl ? 'اختر رحلة الشحن للتتبع الراداري الحي:' : 'Select Active Freighter Vector:'}</span>
           </span>
-          <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-400 font-semibold" dir="ltr">
+          <span className="text-[11px] font-mono text-[var(--c-accent)] font-semibold" dir="ltr">
             4 VECTORS INBOUND CAI
           </span>
         </div>
@@ -291,15 +291,15 @@ export const FlightRadarHUD: React.FC = () => {
                 onClick={() => setSelectedFlightId(flight.id)}
                 className={`p-3 rounded-2xl border text-left rtl:text-right transition-all duration-300 relative overflow-hidden flex flex-col justify-between ${
                   isSelected
-                    ? 'bg-gradient-to-br from-cyan-500/20 via-[var(--glass-bg)] to-[var(--glass-bg)] border-cyan-400 shadow-md ring-1 ring-cyan-400/40'
-                    : 'glass-subcard hover:border-cyan-500/40 text-muted'
+                    ? 'bg-[var(--c-subcard)] border-[var(--c-accent)] shadow-sm'
+                    : 'glass-subcard hover:border-[var(--c-accent)] text-muted'
                 }`}
               >
                 <div className="flex items-center justify-between w-full mb-1">
-                  <span className={`font-mono text-xs font-extrabold ${isSelected ? 'text-cyan-300' : 'text-title'}`}>
+                  <span className={`font-mono text-xs font-semibold ${isSelected ? 'text-[var(--c-accent)]' : 'text-title'}`}>
                     {flight.flightNumber}
                   </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/30 border border-white/10 text-cyan-400" dir="ltr">
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[var(--c-subcard)] border border-[var(--c-border)] text-[var(--c-accent)]" dir="ltr">
                     {flight.aircraft}
                   </span>
                 </div>
@@ -312,13 +312,13 @@ export const FlightRadarHUD: React.FC = () => {
                   <span className="truncate max-w-[120px]">
                     {isRtl ? flight.originCityAr : flight.originCityEn}
                   </span>
-                  <span className={flight.isTempControlled ? 'text-teal-400 font-bold' : 'text-slate-400'}>
+                  <span className={flight.isTempControlled ? 'text-teal-400 font-semibold' : 'text-slate-400'}>
                     {flight.isTempControlled ? `${flight.tempCelsius}°C` : 'AMBIENT'}
                   </span>
                 </div>
 
                 {isSelected && (
-                  <div className="absolute bottom-0 inset-x-0 h-1 bg-gradient-to-r from-cyan-400 to-sky-300" />
+                  <div className="absolute bottom-0 inset-x-0 h-1 bg-[var(--c-accent)]" />
                 )}
               </button>
             );
@@ -338,7 +338,7 @@ export const FlightRadarHUD: React.FC = () => {
           <div className="relative z-10 mb-4 flex w-full items-center justify-between border-b border-cyan-400/20 pb-3 font-mono text-[10px] text-cyan-200" dir="ltr">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1.5"><Wifi className="h-3 w-3 text-emerald-400" /> SIM LINK</span>
-              <span className="text-slate-500">CAIRO ACC · SECTOR E</span>
+              <span className="text-slate-400">CAIRO ACC · SECTOR E</span>
             </div>
             <time dateTime={utcTime.toISOString()} className="tabular text-cyan-300">
               {utcTime.toLocaleTimeString('en-GB', { timeZone: 'UTC', hour12: false })} UTC
@@ -371,8 +371,14 @@ export const FlightRadarHUD: React.FC = () => {
             <div className="absolute left-[13%] top-[35%] font-mono text-[8px] tracking-wider text-amber-300/70">WX · LIGHT</div>
             <div className="absolute bottom-[11%] right-[15%] rotate-[-49deg] font-mono text-[8px] tracking-widest text-emerald-300/70">ILS 05L</div>
 
-            {/* Sweep Beam Line */}
-            <div className="absolute inset-0 rounded-full animate-radar-sweep pointer-events-none">
+            {/* Sweep Beam Line. The sweep is an 8s infinite rotation: it is
+                only attached while the radar is on screen, so scrolling the
+                rest of the page costs nothing on the compositor. */}
+            <div
+              className={`absolute inset-0 rounded-full pointer-events-none ${
+                isSectionActive ? 'animate-radar-sweep' : ''
+              }`}
+            >
               <div className="w-1/2 h-1/2 origin-bottom-right bg-gradient-to-br from-cyan-400/25 via-cyan-500/5 to-transparent [clip-path:polygon(0_0,100%_100%,0_100%)]" />
             </div>
 
@@ -387,7 +393,7 @@ export const FlightRadarHUD: React.FC = () => {
               <div className="w-3.5 h-3.5 rounded-sm border-2 border-emerald-400 bg-emerald-950/80 flex items-center justify-center animate-pulse">
                 <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
               </div>
-              <span className="text-[10px] font-mono text-emerald-400 mt-1 font-bold tracking-tight bg-slate-950/90 px-1.5 py-0.5 rounded border border-emerald-500/30">
+              <span className="text-[10px] font-mono text-emerald-400 mt-1 font-semibold tracking-tight bg-slate-950/90 px-1.5 py-0.5 rounded border border-emerald-500/30">
                 CAI / 05L
               </span>
             </div>
@@ -431,15 +437,15 @@ export const FlightRadarHUD: React.FC = () => {
                   className="w-6 h-6 text-cyan-300 drop-shadow-[0_0_12px_#38bdf8] transition-transform duration-500"
                   style={{ transform: `rotate(${activeFlight.headingDeg - 90}deg)` }}
                 />
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 ${isSectionActive ? 'animate-ping' : ''}`} />
               </div>
 
               {/* In-Flight HUD Tag */}
               <div
-                className="mt-1 bg-slate-950/95 border border-cyan-400/60 px-2.5 py-1 rounded-lg shadow-2xl backdrop-blur-md text-[10px] font-mono leading-tight text-white whitespace-nowrap"
+                className="mt-1 bg-slate-950/95 border border-cyan-400/60 px-2.5 py-1 rounded-lg shadow-xl text-[10px] font-mono leading-tight text-white whitespace-nowrap"
                 dir="ltr"
               >
-                <div className="flex items-center gap-1 font-bold text-cyan-300">
+                <div className="flex items-center gap-1 font-semibold text-cyan-300">
                   <span>{activeFlight.flightNumber}</span>
                   <span className="text-[8px] px-1 bg-cyan-500/25 text-cyan-200 rounded">
                     {activeFlight.aircraft}
@@ -480,8 +486,8 @@ export const FlightRadarHUD: React.FC = () => {
               { label: 'LOGGER BATTERY', value: `${Math.floor(loggerBattery)}%`, icon: BatteryMedium, tone: 'text-emerald-300' },
             ].map(({ label, value, icon: SensorIcon, tone }) => (
               <div key={label} className="bg-[#07101b]/90 px-3 py-2.5">
-                <dt className="flex items-center gap-1.5 font-mono text-[8px] tracking-wider text-slate-500"><SensorIcon className="h-3 w-3" />{label}</dt>
-                <dd className={`mt-1 font-mono text-xs font-bold tabular ${tone}`}>{value}</dd>
+                <dt className="flex items-center gap-1.5 font-mono text-[8px] tracking-wider text-slate-400"><SensorIcon className="h-3 w-3" />{label}</dt>
+                <dd className={`mt-1 font-mono text-xs font-semibold tabular ${tone}`}>{value}</dd>
               </div>
             ))}
           </dl>
@@ -494,7 +500,7 @@ export const FlightRadarHUD: React.FC = () => {
             <div className="flex items-center justify-between border-b border-[var(--glass-brd)] pb-3 mb-4">
               <div className="flex items-center gap-2">
                 <Plane className="w-4 h-4 text-cyan-500" />
-                <span className="font-mono text-xs uppercase tracking-wider text-muted font-bold">
+                <span className="font-mono text-xs uppercase tracking-wider text-muted font-semibold">
                   {activeFlight.operator}
                 </span>
               </div>
@@ -509,7 +515,7 @@ export const FlightRadarHUD: React.FC = () => {
                 <span className="block text-[10px] font-mono text-muted uppercase">
                   {dict.hero.telemetryBar.altitude}
                 </span>
-                <span className="text-xl font-bold font-mono text-title tabular block mt-0.5" dir="ltr">
+                <span className="text-xl font-semibold font-mono text-title tabular block mt-0.5" dir="ltr">
                   {currentAltitude.toLocaleString()} <span className="text-xs text-cyan-500 font-normal">FT</span>
                 </span>
                 <span className="block text-[10px] text-cyan-500 font-mono mt-0.5">
@@ -521,7 +527,7 @@ export const FlightRadarHUD: React.FC = () => {
                 <span className="block text-[10px] font-mono text-muted uppercase">
                   {dict.hero.telemetryBar.speed}
                 </span>
-                <span className="text-xl font-bold font-mono text-title tabular block mt-0.5" dir="ltr">
+                <span className="text-xl font-semibold font-mono text-title tabular block mt-0.5" dir="ltr">
                   {currentSpeed} <span className="text-xs text-cyan-500 font-normal">KTS</span>
                 </span>
                 <span className="block text-[10px] text-muted font-mono mt-0.5">
@@ -533,10 +539,10 @@ export const FlightRadarHUD: React.FC = () => {
                 <span className="block text-[10px] font-mono text-muted uppercase">
                   {dict.radar.heading}
                 </span>
-                <span className="text-lg font-bold font-mono text-title tabular block mt-0.5" dir="ltr">
+                <span className="text-lg font-semibold font-mono text-title tabular block mt-0.5" dir="ltr">
                   {activeFlight.headingDeg}° <span className="text-xs text-muted font-normal">MAG</span>
                 </span>
-                <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
+                <span className="block text-[10px] text-[var(--c-ok)] font-mono mt-0.5">
                   ILS {activeFlight.assignedRunway} CAPTURE
                 </span>
               </div>
@@ -545,7 +551,7 @@ export const FlightRadarHUD: React.FC = () => {
                 <span className="block text-[10px] font-mono text-muted uppercase">
                   {dict.radar.verticalSpeed}
                 </span>
-                <span className="text-lg font-bold font-mono text-title tabular block mt-0.5" dir="ltr">
+                <span className="text-lg font-semibold font-mono text-title tabular block mt-0.5" dir="ltr">
                   <span className="flex items-center gap-1">
                     <ArrowDownRight className="w-4 h-4 text-cyan-500" />
                     {activeFlight.verticalSpeedFpm} <span className="text-xs text-muted font-normal">FPM</span>
@@ -573,7 +579,7 @@ export const FlightRadarHUD: React.FC = () => {
               </div>
               <div className="flex justify-between items-center text-muted">
                 <span>ACID REFERENCE · DEMO:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 flex items-center gap-1" dir="ltr">
+                <span className="text-[var(--c-ok)] font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 flex items-center gap-1" dir="ltr">
                   <FileCheck className="w-3 h-3" />
                   {activeFlight.acidNumber}
                 </span>
@@ -582,12 +588,12 @@ export const FlightRadarHUD: React.FC = () => {
           </div>
 
           {/* Active Cold-Chain Telemetry Card with Real-Time Sparkline Curve */}
-          <div className="glass-panel rounded-3xl p-5 border border-teal-500/30 bg-gradient-to-br from-teal-500/10 to-[var(--glass-bg)] shadow-lg relative overflow-hidden">
+          <div className="glass-panel relative overflow-hidden rounded-3xl border border-[var(--c-border)] p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Thermometer className="w-5 h-5 text-teal-500" />
                 <div>
-                  <h3 className="font-bold text-sm text-title">
+                  <h3 className="font-semibold text-sm text-title">
                     {dict.radar.pharmaCooling}
                   </h3>
                   <span className="text-[10px] font-mono text-muted block">
@@ -595,7 +601,7 @@ export const FlightRadarHUD: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-teal-500/15 text-teal-600 dark:text-teal-300 border border-teal-500/30">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-teal-500/15 text-[var(--c-cold)] border border-teal-500/30">
                 <ShieldCheck className="w-3 h-3" />
                 {activeFlight.isTempControlled ? dict.radar.stable : 'AMBIENT'}
               </span>
@@ -603,14 +609,14 @@ export const FlightRadarHUD: React.FC = () => {
 
             <div className="flex items-baseline justify-between mb-2">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-extrabold font-mono text-teal-600 dark:text-teal-300 tabular" dir="ltr">
+                <span className="text-3xl font-semibold font-mono text-[var(--c-cold)] tabular" dir="ltr">
                   +{currentTemp}°C
                 </span>
                 <span className="text-xs text-muted font-mono" dir="ltr">
                   TARGET: {activeFlight.isTempControlled ? '+4.0°C (SIMULATED)' : 'CONTROLLED AMBIENT'}
                 </span>
               </div>
-              <span className="text-xs font-mono text-teal-600 dark:text-teal-400 font-medium">
+              <span className="text-xs font-mono text-[var(--c-cold)] font-medium">
                 EXCURSION: {activeFlight.isTempControlled ? '0.0°C' : 'N/A'}
               </span>
             </div>
@@ -629,27 +635,27 @@ export const FlightRadarHUD: React.FC = () => {
                     <SensorIcon className="h-3 w-3" /> {label}
                   </span>
                   <span className="relative mt-1 flex items-baseline gap-1 font-mono">
-                    <span className="text-base font-black text-white tabular">{value}</span>
-                    <span className="text-[8px] font-bold text-slate-400">{unit}</span>
+                    <span className="text-base font-semibold text-title tabular">{value}</span>
+                    <span className="text-[8px] font-semibold text-muted">{unit}</span>
                   </span>
-                  <div className="relative mt-1.5 h-0.5 overflow-hidden rounded bg-white/10"><span className="sensor-level block h-full w-[78%] rounded" /></div>
+                  <div className="relative mt-1.5 h-0.5 overflow-hidden rounded bg-[var(--c-border)]"><span className="sensor-level block h-full w-[78%] rounded" /></div>
                 </div>
               ))}
             </div>
 
             {/* Live Thermal History Sparkline Graph */}
-            <div className="p-3 rounded-2xl bg-[#040a10]/80 border border-teal-500/20 mb-3 shadow-[inset_0_0_24px_rgba(20,184,166,.08)]">
+            <div className="mb-3 rounded-2xl border border-[var(--c-border)] bg-[var(--c-subcard)] p-3">
               <div className="flex items-center justify-between text-[9px] font-mono text-muted mb-1">
                 <span>{isRtl ? 'سجل درجات الحرارة (آخر 6 ساعات)' : '6-HOUR FLIGHT TEMPERATURE TREND'}</span>
-                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                <span className="text-emerald-400 font-semibold flex items-center gap-1">
                   <CheckCircle2 className="w-2.5 h-2.5" />
                   <span>{activeFlight.isTempControlled ? 'NO EXCURSIONS' : 'WITHIN BAND'}</span>
                 </span>
               </div>
-              <div className="relative h-20 overflow-hidden rounded-lg border border-white/5 bg-[linear-gradient(rgba(20,184,166,.06)_1px,transparent_1px),linear-gradient(90deg,rgba(20,184,166,.06)_1px,transparent_1px)] [background-size:100%_16px,25%_100%]">
+              <div className="sensor-chart-grid relative h-20 overflow-hidden rounded-lg border border-[var(--c-border)]">
                 <div className="absolute inset-x-0 top-[22%] h-[55%] border-y border-dashed border-emerald-400/15 bg-emerald-400/[.035]" />
-                <span className="absolute left-1 top-1 font-mono text-[7px] text-teal-400/50">8°C MAX</span>
-                <span className="absolute bottom-1 left-1 font-mono text-[7px] text-teal-400/50">2°C MIN</span>
+                <span className="absolute left-1 top-1 font-mono text-[7px] text-[var(--c-pharma)] opacity-60">8°C MAX</span>
+                <span className="absolute bottom-1 left-1 font-mono text-[7px] text-[var(--c-pharma)] opacity-60">2°C MIN</span>
                 <svg viewBox="0 0 100 36" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-label="Simulated temperature trace">
                   <defs>
                     <linearGradient id="thermalArea" x1="0" y1="0" x2="0" y2="1">
@@ -659,10 +665,10 @@ export const FlightRadarHUD: React.FC = () => {
                     <filter id="thermalGlow"><feGaussianBlur stdDeviation=".7" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
                   </defs>
                   <polygon points={`0,36 ${thermalTrace} 100,36`} fill="url(#thermalArea)" />
-                  <polyline points={thermalTrace} fill="none" stroke="#5eead4" strokeWidth="1" vectorEffect="non-scaling-stroke" filter="url(#thermalGlow)" className="sensor-trace" />
-                  <circle cx="100" cy="20" r="1.4" fill="#67e8f9" className="sensor-pulse-dot" />
+                  <polyline points={thermalTrace} fill="none" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" filter="url(#thermalGlow)" className="sensor-trace text-[var(--c-pharma)]" />
+                  <circle cx="100" cy="20" r="1.4" fill="currentColor" className="sensor-pulse-dot text-[var(--c-accent)]" />
                 </svg>
-                <div className="sensor-chart-scan absolute inset-y-0 w-12 bg-gradient-to-r from-transparent via-cyan-300/10 to-transparent" aria-hidden="true" />
+                <div className="sensor-chart-scan sensor-chart-scan-bg absolute inset-y-0 w-12" aria-hidden="true" />
               </div>
             </div>
 

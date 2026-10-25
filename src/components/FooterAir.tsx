@@ -1,6 +1,5 @@
 import React from 'react';
 import { useLang } from '../lib/i18n';
-import { useTheme } from '../lib/theme';
 import { BrandMarkAir } from './BrandAir';
 import {
   Phone,
@@ -49,17 +48,9 @@ const SOCIAL_CHANNELS = [
 
 export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
   const { dict, isRtl } = useLang();
-  const { theme } = useTheme();
 
   return (
-    <footer className={`relative border-t transition-colors duration-300 pt-16 pb-12 overflow-hidden ${
-      theme === 'dark'
-        ? 'border-white/10 bg-[#05080E] text-slate-400'
-        : 'border-slate-200 bg-slate-50 text-slate-600'
-    }`}>
-      {/* Ambient background glow */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-cyan-500/5 blur-3xl pointer-events-none" />
-
+    <footer className="relative overflow-hidden border-t border-[var(--c-border)] bg-[var(--c-bg)] pt-16 pb-12 text-muted">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 pb-12 border-b border-[var(--glass-brd)]">
           {/* Brand Column (5 Cols) */}
@@ -67,10 +58,10 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
             <div className="flex items-center gap-3">
               <BrandMarkAir className="w-10 h-10" />
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xl text-title font-sans tracking-[0.08em] block" dir="ltr">
+                <span className="font-semibold text-xl text-title font-sans tracking-[0.08em] block" dir="ltr">
                   YASLOGIST
                 </span>
-                <span className="rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider text-cyan-400">
+                <span className="rounded-full border border-[var(--c-border)] bg-[var(--c-subcard)] px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider text-[var(--c-accent)]">
                   AIR
                 </span>
               </div>
@@ -78,7 +69,7 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
 
             {/* Founder Profile Block with Real Photography */}
             <div className="pt-3 flex items-center gap-3.5">
-              <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-cyan-500/40 shrink-0 shadow-md bg-slate-900">
+              <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[var(--c-border)] shrink-0 bg-[var(--c-subcard)]">
                 <img
                   src="/assets/founder.jpg?v=2"
                   alt="Ahmed Yasser Ali"
@@ -91,7 +82,7 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
                 <span className="block text-muted text-[10px] uppercase font-mono">
                   {dict.footer.founderLabel}:
                 </span>
-                <span className="font-bold text-title text-sm block">
+                <span className="font-semibold text-title text-sm block">
                   {dict.footer.founderName}
                 </span>
               </div>
@@ -111,7 +102,7 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
                     rel="noopener noreferrer"
                     aria-label={s.name}
                     title={s.name}
-                    className="grid h-8 w-8 place-items-center rounded-lg glass-subcard hover:border-cyan-400 hover:text-cyan-500 transition-all text-muted"
+                    className="grid h-8 w-8 place-items-center rounded-lg glass-subcard hover:border-[var(--c-accent)] hover:text-[var(--c-accent)] transition-colors text-muted"
                   >
                     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current" aria-hidden="true">
                       <path d={s.path} />
@@ -124,37 +115,37 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
 
           {/* Unified Contact Column (4 Cols) */}
           <div className="lg:col-span-4 space-y-3 font-mono text-xs">
-            <span className="block font-bold text-title uppercase tracking-wider text-xs border-b border-[var(--glass-brd)] pb-2">
+            <span className="block font-semibold text-title uppercase tracking-wider text-xs border-b border-[var(--glass-brd)] pb-2">
               {dict.footer.contactHeading}
             </span>
 
             <div className="space-y-3 pt-1">
               <a
                 href={`tel:${dict.footer.phone.replace(/\s+/g, '')}`}
-                className="flex items-center gap-2.5 text-muted hover:text-cyan-500 transition-colors"
+                className="flex items-center gap-2.5 text-muted hover:text-[var(--c-accent)] transition-colors"
               >
-                <Phone className="w-4 h-4 text-cyan-500 shrink-0" />
+                <Phone className="w-4 h-4 text-[var(--c-accent)] shrink-0" />
                 <span dir="ltr">{dict.footer.phone}</span>
               </a>
 
               <a
                 href={`mailto:${dict.footer.email}`}
-                className="flex items-center gap-2.5 text-muted hover:text-cyan-500 transition-colors"
+                className="flex items-center gap-2.5 text-muted hover:text-[var(--c-accent)] transition-colors"
               >
-                <Mail className="w-4 h-4 text-cyan-500 shrink-0" />
+                <Mail className="w-4 h-4 text-[var(--c-accent)] shrink-0" />
                 <span dir="ltr">{dict.footer.email}</span>
               </a>
 
               <a
                 href={`mailto:${dict.footer.supportEmail}`}
-                className="flex items-center gap-2.5 text-muted hover:text-cyan-500 transition-colors"
+                className="flex items-center gap-2.5 text-muted hover:text-[var(--c-accent)] transition-colors"
               >
-                <Mail className="w-4 h-4 text-cyan-500 shrink-0" />
+                <Mail className="w-4 h-4 text-[var(--c-accent)] shrink-0" />
                 <span dir="ltr">{dict.footer.supportEmail}</span>
               </a>
 
               <div className="flex items-center gap-2.5 text-muted">
-                <MapPin className="w-4 h-4 text-cyan-500 shrink-0" />
+                <MapPin className="w-4 h-4 text-[var(--c-accent)] shrink-0" />
                 <span>{dict.footer.address}</span>
               </div>
             </div>
@@ -162,7 +153,7 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
 
           {/* Connected Network Portals (3 Cols) */}
           <div className="lg:col-span-3 space-y-3 font-mono text-xs">
-            <span className="block font-bold text-title uppercase tracking-wider text-xs border-b border-[var(--glass-brd)] pb-2">
+            <span className="block font-semibold text-title uppercase tracking-wider text-xs border-b border-[var(--glass-brd)] pb-2">
               {isRtl ? 'بوابات المنظومة الموحدة' : 'Unified Ecosystem'}
             </span>
 
@@ -171,7 +162,7 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
                 href={SUITE_URLS.hub}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between text-muted hover:text-cyan-500 transition-colors"
+                className="flex items-center justify-between text-muted hover:text-[var(--c-accent)] transition-colors"
               >
                 <span>{dict.nav.ecosystem.corporate}</span>
                 <ExternalLink className="w-3 h-3 opacity-60" />
@@ -181,7 +172,7 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
                 href={SUITE_URLS.ocean}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between text-muted hover:text-cyan-500 transition-colors"
+                className="flex items-center justify-between text-muted hover:text-[var(--c-accent)] transition-colors"
               >
                 <span>{dict.nav.ecosystem.ocean}</span>
                 <ExternalLink className="w-3 h-3 opacity-60" />
@@ -191,7 +182,7 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
                 href={SUITE_URLS.land}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between text-muted hover:text-cyan-500 transition-colors"
+                className="flex items-center justify-between text-muted hover:text-[var(--c-accent)] transition-colors"
               >
                 <span>{dict.nav.ecosystem.land}</span>
                 <ExternalLink className="w-3 h-3 opacity-60" />
@@ -209,21 +200,21 @@ export const FooterAir: React.FC<FooterAirProps> = ({ onOpenLegal }) => {
           <div className="flex items-center gap-5">
             <button
               onClick={() => onOpenLegal('TERMS')}
-              className="hover:text-cyan-500 transition-colors underline-offset-4 hover:underline"
+              className="hover:text-[var(--c-accent)] transition-colors underline-offset-4 hover:underline"
             >
               {dict.footer.termsLink}
             </button>
             <span>·</span>
             <button
               onClick={() => onOpenLegal('PRIVACY')}
-              className="hover:text-cyan-500 transition-colors underline-offset-4 hover:underline"
+              className="hover:text-[var(--c-accent)] transition-colors underline-offset-4 hover:underline"
             >
               {dict.footer.privacyLink}
             </button>
             <span>·</span>
             <button
               onClick={() => onOpenLegal('SECURITY')}
-              className="hover:text-cyan-500 transition-colors underline-offset-4 hover:underline"
+              className="hover:text-[var(--c-accent)] transition-colors underline-offset-4 hover:underline"
             >
               {dict.footer.securityLink}
             </button>

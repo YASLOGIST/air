@@ -23,7 +23,7 @@ const AwbModalAir = lazy(() => import('./components/AwbModalAir').then((module) 
 type LegalTab = 'TERMS' | 'PRIVACY' | 'SECURITY';
 
 function SectionFallback() {
-  return <div className="mx-auto my-8 h-40 max-w-7xl animate-pulse rounded-3xl bg-[var(--c-card)]" aria-hidden="true" />;
+  return <div className="mx-auto my-8 h-40 max-w-7xl animate-pulse rounded-3xl bg-[var(--c-subcard)]" aria-hidden="true" />;
 }
 
 /* One boundary + one Suspense per section. A single shared boundary meant a
@@ -50,7 +50,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-[var(--c-bg)] text-body transition-colors duration-300">
       <a href="#main-content" className="skip-link">
         {isRtl ? 'تخطَّ إلى المحتوى الرئيسي' : 'Skip to main content'}
       </a>

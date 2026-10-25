@@ -27,7 +27,7 @@ export const CorridorsAir: React.FC = () => {
             </span>
             <ModelBadge />
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-title h2-display">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-title h2-display">
             {dict.corridors.title}
           </h2>
           <p className="mt-2 text-sm sm:text-base text-muted max-w-2xl">
@@ -57,18 +57,18 @@ export const CorridorsAir: React.FC = () => {
                 aria-pressed={isSelected}
                 className={`w-full text-left rtl:text-right p-4 rounded-2xl border cursor-pointer transition-all duration-200 glass-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--c-bg)] ${
                   isSelected
-                    ? 'bg-gradient-to-r from-cyan-500/15 via-[var(--glass-bg)] to-[var(--glass-bg)] border-cyan-500 shadow-md'
+                    ? 'bg-[var(--c-subcard)] border-[var(--c-accent)] shadow-sm'
                     : 'glass-panel'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <PlaneTakeoff className={`w-4 h-4 ${isSelected ? 'text-cyan-500' : 'text-muted'}`} />
-                    <span className="font-mono font-bold text-base text-title" dir="ltr">
+                    <span className="font-mono font-semibold text-base text-title" dir="ltr">
                       {corridor.code}
                     </span>
                   </div>
-                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 border border-cyan-500/20 font-semibold" dir="ltr">
+                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-[var(--c-accent)] border border-cyan-500/20 font-semibold" dir="ltr">
                     {corridor.weeklyFrequencies} {isRtl ? 'رحلة/أسبوعياً' : 'weekly'}
                   </span>
                 </div>
@@ -92,7 +92,7 @@ export const CorridorsAir: React.FC = () => {
         <div className="lg:col-span-8 space-y-6">
           {/* WebGL great-circle globe: selecting a card ignites its arc and
               rotates the corridor midpoint to face the camera. */}
-          <div className="glass-panel rounded-3xl p-3 sm:p-4 shadow-xl">
+          <div className="glass-panel rounded-3xl p-3 sm:p-4">
             <div className="flex items-center justify-between px-2 pb-3 font-mono text-[10px] tracking-wider text-muted" dir="ltr">
               <span className="flex items-center gap-1.5">
                 <Globe2 className="h-3.5 w-3.5 text-cyan-500" />
@@ -103,14 +103,14 @@ export const CorridorsAir: React.FC = () => {
             <CorridorGlobe3D activeCorridorId={selectedCorridor.id} />
           </div>
 
-          <div className="glass-panel rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
+          <div className="glass-panel rounded-2xl p-6 sm:p-8 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--glass-brd)] pb-4 gap-3">
             <div>
               <div className="flex items-center gap-3">
-                <span className="text-2xl sm:text-3xl font-black font-mono text-title" dir="ltr">
+                <span className="text-2xl sm:text-3xl font-semibold font-mono text-title" dir="ltr">
                   {selectedCorridor.code}
                 </span>
-                <span className="text-xs font-mono px-2.5 py-1 rounded bg-sky-500/15 text-sky-600 dark:text-sky-300 font-bold" dir="ltr">
+                <span className="text-xs font-mono px-2.5 py-1 rounded bg-sky-500/15 text-[var(--c-accent)] font-semibold" dir="ltr">
                   {selectedCorridor.fromIata} ➔ {selectedCorridor.toIata}
                 </span>
               </div>
@@ -119,7 +119,7 @@ export const CorridorsAir: React.FC = () => {
               </p>
             </div>
 
-            <div className="self-start sm:self-auto px-3 py-1.5 rounded-xl glass-subcard text-xs font-mono text-cyan-600 dark:text-cyan-300 flex items-center gap-1.5">
+            <div className="self-start sm:self-auto px-3 py-1.5 rounded-xl glass-subcard text-xs font-mono text-[var(--c-accent)] flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-cyan-500" />
               <span dir="ltr">{selectedCorridor.weeklyFrequencies} {dict.corridors.weeklyFlights}</span>
             </div>
@@ -131,7 +131,7 @@ export const CorridorsAir: React.FC = () => {
               <span className="block text-[10px] text-muted uppercase">
                 {dict.corridors.distance}
               </span>
-              <span className="text-lg font-bold text-title tabular block mt-0.5" dir="ltr">
+              <span className="text-lg font-semibold text-title tabular block mt-0.5" dir="ltr">
                 {selectedCorridor.distanceKm.toLocaleString()} <span className="text-xs text-muted font-normal">KM</span>
               </span>
             </div>
@@ -140,7 +140,7 @@ export const CorridorsAir: React.FC = () => {
               <span className="block text-[10px] text-muted uppercase">
                 {dict.corridors.flightDuration}
               </span>
-              <span className="text-sm font-bold text-cyan-600 dark:text-cyan-300 block mt-0.5">
+              <span className="text-sm font-semibold text-[var(--c-accent)] block mt-0.5">
                 {isRtl ? selectedCorridor.flightTimeAr : selectedCorridor.flightTimeEn}
               </span>
             </div>
@@ -149,7 +149,7 @@ export const CorridorsAir: React.FC = () => {
               <span className="block text-[10px] text-muted uppercase">
                 {isRtl ? 'المشغل والتحالف' : 'Operating Fleet Alliance'}
               </span>
-              <span className="text-xs font-bold text-title truncate block mt-0.5">
+              <span className="text-xs font-semibold text-title truncate block mt-0.5">
                 {isRtl ? selectedCorridor.carrierAr : selectedCorridor.carrierEn}
               </span>
             </div>
@@ -157,7 +157,7 @@ export const CorridorsAir: React.FC = () => {
 
           {/* Strategic Significance */}
           <div className="p-4 rounded-xl glass-subcard space-y-1.5">
-            <span className="block text-xs font-mono font-bold text-cyan-600 dark:text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="block text-xs font-mono font-semibold text-[var(--c-accent)] uppercase tracking-wider flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-cyan-500" />
               <span>{dict.corridors.corridorRole}:</span>
             </span>
@@ -168,7 +168,7 @@ export const CorridorsAir: React.FC = () => {
 
           {/* Primary Flow Commodities */}
           <div className="p-4 rounded-xl glass-subcard space-y-1.5">
-            <span className="block text-xs font-mono font-bold text-title uppercase tracking-wider flex items-center gap-1.5">
+            <span className="block text-xs font-mono font-semibold text-title uppercase tracking-wider flex items-center gap-1.5">
               <Package className="w-3.5 h-3.5 text-cyan-500" />
               <span>{dict.corridors.primaryCommodities}:</span>
             </span>

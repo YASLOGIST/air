@@ -54,7 +54,13 @@ export const CinematicStage: React.FC = () => {
   const videoNightRef = useRef<HTMLVideoElement>(null);
   const videoDayRef = useRef<HTMLVideoElement>(null);
 
-  const [progress, setProgress] = useState(0);
+  /* The scrub readout used to live in React state and was updated on every
+     animation frame, re-rendering the whole cockpit deck ~60x/s while the user
+     scrolled. React now owns only the phase (three changes across 320vh); the
+     percentage is written straight to its DOM node through a ref. */
+  const [phaseIndex, setPhaseIndex] = useState(0);
+  const percentRef = useRef<HTMLSpanElement>(null);
+  const phaseIndexRef = useRef(0);
   // Keep the first render deterministic for SSR/hydration. Browser media
   // preferences are applied after mount, which also defers the decorative
   // video request until after the critical HTML has rendered.
@@ -77,9 +83,26 @@ export const CinematicStage: React.FC = () => {
     const track = trackRef.current;
     if (!track) return;
 
+    /* The percentage only needs to change when the integer changes, and the
+       denominator only when the viewport or the stage is resized. Reading
+       `offsetHeight` inside the scroll handler forced a layout on every
+       scroll event; it is measured once here and again on resize. */
+    const paint = (value: number) => {
+      const label = `${Math.round(value * 100)}%`;
+      if (percentRef.current && percentRef.current.textContent !== label) {
+        percentRef.current.textContent = label;
+      }
+      const nextPhase = value < 0.33 ? 0 : value < 0.66 ? 1 : 2;
+      if (nextPhase !== phaseIndexRef.current) {
+        phaseIndexRef.current = nextPhase;
+        setPhaseIndex(nextPhase);
+      }
+    };
+
+    let total = Math.max(1, track.offsetHeight - window.innerHeight);
+
     const measure = () => {
       const rect = track.getBoundingClientRect();
-      const total = Math.max(1, track.offsetHeight - window.innerHeight);
       const next = clamp01(-rect.top / total);
       if (next !== targetRef.current) {
         targetRef.current = next;
@@ -87,10 +110,15 @@ export const CinematicStage: React.FC = () => {
       }
     };
 
+    const remeasureStage = () => {
+      total = Math.max(1, track.offsetHeight - window.innerHeight);
+      measure();
+    };
+
     if (reducedMotion) {
       targetRef.current = 0.5;
       currentRef.current = 0.5;
-      setProgress(0.5);
+      paint(0.5);
       return;
     }
 
@@ -113,7 +141,7 @@ export const CinematicStage: React.FC = () => {
       const settled = Math.abs(target - current) < 0.00045;
       if (settled) current = target;
       currentRef.current = current;
-      setProgress(current);
+      paint(current);
 
       let seekPending = false;
       const now = performance.now();
@@ -150,16 +178,16 @@ export const CinematicStage: React.FC = () => {
 
     const onScroll = () => measure();
     const rect = track.getBoundingClientRect();
-    targetRef.current = clamp01(-rect.top / Math.max(1, track.offsetHeight - window.innerHeight));
+    targetRef.current = clamp01(-rect.top / total);
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', remeasureStage);
     start();
 
     return () => {
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('resize', remeasureStage);
     };
   }, [isDark, reelsEnabled, reducedMotion]);
 
@@ -259,7 +287,7 @@ export const CinematicStage: React.FC = () => {
     [dict.cinematic]
   );
 
-  const activeIndex = progress < 0.33 ? 0 : progress < 0.66 ? 1 : 2;
+  const activeIndex = phaseIndex;
   const active = phases[activeIndex];
   const ActiveIcon = active.icon;
   const activeLabel = active.kicker.split('·').pop()?.trim() ?? active.kicker;
@@ -279,7 +307,7 @@ export const CinematicStage: React.FC = () => {
             loop={false}
             preload={reelsEnabled && isDark ? 'metadata' : 'none'}
             aria-hidden="true"
-            className={`absolute inset-0 w-full h-full object-cover scale-105 filter brightness-90 contrast-110 transition-opacity duration-700 ease-in-out ${
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-out ${
               isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
             }`}
           />
@@ -294,20 +322,14 @@ export const CinematicStage: React.FC = () => {
             loop={false}
             preload={reelsEnabled && !isDark ? 'metadata' : 'none'}
             aria-hidden="true"
-            className={`absolute inset-0 w-full h-full object-cover scale-105 filter brightness-100 contrast-105 transition-opacity duration-700 ease-in-out ${
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-out ${
               !isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
             }`}
           />
 
           {/* Atmosphere Tint Gradient */}
-          <div
-            className={`absolute inset-0 z-20 pointer-events-none transition-colors duration-700 ${
-              isDark
-                ? 'bg-gradient-to-b from-[#070c14]/70 via-[#070c14]/30 to-[#070c14]/85'
-                : 'bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/70'
-            }`}
-          />
-          <div className="absolute inset-0 z-20 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_30%,rgba(7,12,20,0.6)_100%)]" />
+          <div className="stage-veil pointer-events-none absolute inset-0 z-20" />
+          <div className="stage-vignette pointer-events-none absolute inset-0 z-20" />
         </div>
 
         {/* Dynamic bottom seam blend into the rest of the site */}
@@ -328,15 +350,15 @@ export const CinematicStage: React.FC = () => {
           <p className="sr-only" role="status">
             {`${activeLabel} — ${active.title}`}
           </p>
-          <article className="w-full rounded-2xl md:rounded-3xl border border-sky-300/20 bg-[linear-gradient(135deg,rgba(6,11,18,0.88),rgba(6,16,28,0.72))] p-4 sm:p-5 md:p-6 text-slate-100 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.95)] backdrop-blur-2xl">
+          <article className="w-full rounded-2xl md:rounded-3xl border border-[var(--c-border)] bg-[var(--c-card-solid)] p-4 sm:p-5 md:p-6 text-body shadow-[0_20px_50px_-32px_rgba(16,24,40,0.35)] sm:p-6">
             {/* Top Bar: Sequence Indicator + Active Phase Badge + Live Progress */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--c-border)] pb-3">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300/25 bg-sky-400/10 px-3 py-1 font-mono text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-sky-200">
-                  <ActiveIcon className="h-3.5 w-3.5 text-cyan-300" aria-hidden="true" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--c-border)] bg-[var(--c-subcard)] px-3 py-1 font-mono text-[10px] sm:text-xs font-medium uppercase tracking-wider text-[var(--c-accent)]">
+                  <ActiveIcon className="h-3.5 w-3.5 text-[var(--c-accent)]" aria-hidden="true" />
                   <span>{activeLabel}</span>
                 </span>
-                <span className="font-mono text-[10px] sm:text-xs tracking-widest text-slate-400" dir="ltr">
+                <span className="font-mono text-[10px] sm:text-xs tracking-widest text-muted" dir="ltr">
                   0{activeIndex + 1} / 03
                 </span>
               </div>
@@ -348,30 +370,31 @@ export const CinematicStage: React.FC = () => {
                     key={phase.id}
                     className={`h-1.5 rounded-full transition-all duration-300 ${
                       i === activeIndex
-                        ? 'w-8 sm:w-12 bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]'
+                        ? 'w-8 sm:w-12 bg-[var(--c-accent)]'
                         : i < activeIndex
-                        ? 'w-4 sm:w-6 bg-cyan-400/40'
-                        : 'w-3 sm:w-4 bg-white/20'
+                        ? 'w-4 sm:w-6 bg-[var(--c-accent)] opacity-40'
+                        : 'w-3 sm:w-4 bg-[var(--c-border)]'
                     }`}
                     aria-hidden="true"
                   />
                 ))}
                 <span
-                  className="font-mono text-[10px] sm:text-xs text-cyan-300 ms-1.5"
+                  ref={percentRef}
+                  className="font-mono text-[10px] sm:text-xs text-[var(--c-accent)] ms-1.5"
                   dir="ltr"
                   aria-hidden="true"
                 >
-                  {Math.round(progress * 100)}%
+                  0%
                 </span>
               </div>
             </div>
 
             {/* Content Body: Balanced Modern Typography */}
             <div className="mt-3.5 md:mt-4">
-              <h1 className="font-sans font-extrabold text-lg sm:text-2xl md:text-3xl text-white tracking-tight leading-snug">
+              <h1 className="font-sans font-semibold text-lg sm:text-2xl md:text-3xl text-title tracking-tight leading-snug">
                 {active.title}
               </h1>
-              <p className="mt-1.5 md:mt-2 text-xs sm:text-sm md:text-[15px] leading-relaxed text-slate-300 max-w-3xl">
+              <p className="mt-1.5 md:mt-2 text-xs sm:text-sm md:text-[15px] leading-relaxed text-muted max-w-3xl">
                 {active.body}
               </p>
             </div>
@@ -381,13 +404,13 @@ export const CinematicStage: React.FC = () => {
               {active.metrics.map(({ label, value, icon: MetricIcon }) => (
                 <div
                   key={label}
-                  className="rounded-xl border border-white/10 bg-black/30 p-2.5 sm:p-3 backdrop-blur-md transition-all hover:border-sky-400/40 hover:bg-black/40"
+                  className="rounded-xl border border-[var(--c-border)] bg-[var(--c-subcard)] p-2.5 transition-colors hover:border-[var(--c-accent)] hover:bg-[var(--c-card-solid)] sm:p-3"
                 >
-                  <dt className="flex items-center gap-1.5 font-mono text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
-                    <MetricIcon className="h-3.5 w-3.5 text-cyan-300 shrink-0" aria-hidden="true" />
+                  <dt className="flex items-center gap-1.5 font-mono text-[10px] font-medium tracking-wider text-muted uppercase">
+                    <MetricIcon className="h-3.5 w-3.5 text-[var(--c-accent)] shrink-0" aria-hidden="true" />
                     <span>{label}</span>
                   </dt>
-                  <dd className="mt-1 font-mono text-xs sm:text-sm font-bold tracking-tight text-sky-200">
+                  <dd className="mt-1 font-mono text-xs sm:text-sm font-semibold tracking-tight text-title">
                     {value}
                   </dd>
                 </div>

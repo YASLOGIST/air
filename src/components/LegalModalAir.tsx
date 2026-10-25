@@ -28,7 +28,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity duration-200"
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/50 transition-opacity duration-200"
       onClick={onClose}
     >
       <div
@@ -48,10 +48,10 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
               <Shield className="w-5 h-5" />
             </span>
             <div>
-              <h3 id={titleId} className="font-bold text-lg text-title">
+              <h3 id={titleId} className="font-semibold text-lg text-title">
                 {dict.legal.modalTitle}
               </h3>
-              <span className="text-xs font-mono text-cyan-600 dark:text-cyan-400 font-semibold" dir="ltr">
+              <span className="text-xs font-mono text-[var(--c-accent)] font-semibold" dir="ltr">
                 {isRtl ? 'ياسلوجست للشحن الجوي · الامتثال التنظيمي 2026' : 'YASLOGIST AIR · REGULATORY COMPLIANCE 2026'}
               </span>
             </div>
@@ -60,7 +60,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-muted hover:text-title hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            className="p-2 rounded-xl text-muted hover:text-title hover:bg-[var(--c-hover)] transition-colors"
             aria-label={isRtl ? 'إغلاق' : 'Close'}
           >
             <X className="w-5 h-5" aria-hidden="true" />
@@ -75,7 +75,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
             aria-pressed={activeTab === 'TERMS'}
             className={`py-3 font-semibold border-b-2 transition-all flex items-center gap-2 ${
               activeTab === 'TERMS'
-                ? 'border-cyan-500 text-cyan-600 dark:text-cyan-300'
+                ? 'border-cyan-500 text-[var(--c-accent)]'
                 : 'border-transparent text-muted hover:text-title'
             }`}
           >
@@ -89,7 +89,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
             aria-pressed={activeTab === 'PRIVACY'}
             className={`py-3 font-semibold border-b-2 transition-all flex items-center gap-2 ${
               activeTab === 'PRIVACY'
-                ? 'border-cyan-500 text-cyan-600 dark:text-cyan-300'
+                ? 'border-cyan-500 text-[var(--c-accent)]'
                 : 'border-transparent text-muted hover:text-title'
             }`}
           >
@@ -103,7 +103,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
             aria-pressed={activeTab === 'SECURITY'}
             className={`py-3 font-semibold border-b-2 transition-all flex items-center gap-2 ${
               activeTab === 'SECURITY'
-                ? 'border-cyan-500 text-cyan-600 dark:text-cyan-300'
+                ? 'border-cyan-500 text-[var(--c-accent)]'
                 : 'border-transparent text-muted hover:text-title'
             }`}
           >
@@ -115,14 +115,14 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
         {/* Modal Scrollable Body */}
         <div className="p-6 overflow-y-auto space-y-6 text-sm text-muted leading-relaxed">
           {/* Prominent Non-Carrier Digital Twin Disclaimer */}
-          <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-start gap-3 text-xs text-slate-900 dark:text-cyan-200 font-mono">
-            <AlertCircle className="w-5 h-5 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5" />
+          <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-start gap-3 text-xs text-body font-mono">
+            <AlertCircle className="w-5 h-5 text-[var(--c-accent)] shrink-0 mt-0.5" />
             <p className="leading-relaxed font-medium">{dict.legal.nonCarrierNotice}</p>
           </div>
 
           {activeTab === 'TERMS' && (
             <div className="space-y-4">
-              <h4 className="font-bold text-title text-base">
+              <h4 className="font-semibold text-title text-base">
                 {isRtl ? '١. نطاق العمليات والتوأم الرقمي للشحن الجوي' : '1. Operational Scope & Air Cargo Digital Twin'}
               </h4>
               <p>
@@ -130,7 +130,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
                   ? 'تقدم منصة YASLOGIST AIR حلول الذكاء البرمجي والنمذجة الرياضية والتنسيق اللوجستي متعدد الوسائط. تُدار كافة العمليات بالتوافق التام مع المعايير الدولية للشحن الجوي الصادرة عن الاتحاد الدولي للنقل الجوي IATA (قواعد TACT ونظام ONE Record) والضوابط التنظيمية لمصلحة الجمارك المصرية (قانون الجمارك رقم 207 لسنة 2020 المنظم للمعلومات المسبقة عن الشحنات عبر منظومة نافذة ورقم ACID).'
                   : 'YASLOGIST AIR delivers software intelligence, mathematical modeling, and multi-modal logistics orchestration. Operations are conducted in alignment with IATA Cargo standards (TACT Rules, ONE Record) and the Egyptian Customs Authority (Law No. 207 of 2020 governing pre-arrival cargo information via the Nafeza ACID platform).'}
               </p>
-              <h4 className="font-bold text-title text-base">
+              <h4 className="font-semibold text-title text-base">
                 {isRtl ? '٢. نزاهة ودقة النمذجة الرياضية' : '2. Calculation Integrity'}
               </h4>
               <p>
@@ -143,7 +143,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
 
           {activeTab === 'PRIVACY' && (
             <div className="space-y-4">
-              <h4 className="font-bold text-title text-base">
+              <h4 className="font-semibold text-title text-base">
                 {isRtl ? '١. حفظ التفضيلات محلياً وتأمين التيليميتري' : '1. Local Persistence & Telemetry Safeguards'}
               </h4>
               <p>
@@ -157,7 +157,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
                   </>
                 )}
               </p>
-              <h4 className="font-bold text-title text-base">
+              <h4 className="font-semibold text-title text-base">
                 {isRtl ? '٢. محاكاة الشحنات والتحقق الآمن من بوالص الشحن (AWB)' : '2. Simulated Cargo & AWB Verification'}
               </h4>
               <p>
@@ -170,7 +170,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
 
           {activeTab === 'SECURITY' && (
             <div className="space-y-4">
-              <h4 className="font-bold text-title text-base">
+              <h4 className="font-semibold text-title text-base">
                 {isRtl ? '١. المعمارية الأمنية والسياسات البرمجية الصارمة' : '1. Architectural Security Posture'}
               </h4>
               <p>
@@ -184,7 +184,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
                   </>
                 )}
               </p>
-              <h4 className="font-bold text-title text-base">
+              <h4 className="font-semibold text-title text-base">
                 {isRtl ? '٢. الإبلاغ عن الثغرات والتكامل التقني' : '2. Vulnerability Disclosure & Technical Communication'}
               </h4>
               <p>
@@ -207,7 +207,7 @@ export const LegalModalAir: React.FC<LegalModalAirProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl text-xs font-mono font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 transition-colors"
+            className="btn-primary px-5 py-2 rounded-xl text-xs font-mono font-semibold transition-opacity hover:opacity-90"
           >
             {dict.legal.closeBtn}
           </button>
