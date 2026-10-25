@@ -172,7 +172,7 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
               AIRWAY NETWORK · SIMULATED ARCS
             </span>
             <span className="block w-fit rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] tracking-wider text-slate-400">
-              SOLAR TERMINATOR · REAL UTC
+              SOLAR TERMINATOR · UTC-TRACKED
             </span>
             {active && (
               <span className="block w-fit rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] tracking-wider text-slate-300">

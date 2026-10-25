@@ -136,6 +136,18 @@ export function facingYawFor(a: Vec3Tuple, b: Vec3Tuple): number {
 }
 
 /**
+ * Tilt (radians about +X) that brings the arc's surface midpoint onto the
+ * equator of the view, so focusing a corridor centres it vertically as well as
+ * horizontally. Pair with `facingYawFor`: together they put the midpoint dead
+ * centre for any lat/lon, which is what makes the focus animation feel
+ * deliberate rather than approximate.
+ */
+export function facingTiltFor(a: Vec3Tuple, b: Vec3Tuple): number {
+  const mid = slerpUnit(normalize3(a), normalize3(b), 0.5);
+  return -Math.asin(Math.max(-1, Math.min(1, mid[1])));
+}
+
+/**
  * Subsolar point (where the sun is exactly overhead) for a given UTC instant,
  * from the standard low-precision solar ephemeris:
  *   · declination via the cosine-of-the-season approximation (±0.3° error);
