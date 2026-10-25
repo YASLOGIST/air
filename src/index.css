@@ -364,6 +364,61 @@ b {
   --c-border: rgba(155, 176, 188, 0.24);
 }
 
+/* ---- Corridor globe stage ----------------------------------------------
+   The one instrument surface that follows the page theme instead of staying
+   dark on principle. In daylight it is a flat white chart with blue coastline
+   ink; after dark, deep navy. Deliberately texture-free beyond a single 66 KiB
+   coastline mask, so scrolling the page never fights a re-rasterised shader.
+
+   The vars style the canvas's chrome (chips, legend, hints). The 3D palette in
+   src/three/airgl/globe/scene.ts mirrors the same two themes, so a flip repaints
+   the scene and its labels together. */
+.globe-stage {
+  color-scheme: dark;
+  isolation: isolate;
+  --globe-edge: rgba(143, 169, 194, 0.2);
+  --globe-chip: rgba(6, 16, 28, 0.62);
+  --globe-chip-line: rgba(103, 232, 249, 0.2);
+  --globe-ink: #9BB0BC;
+  --globe-ink-strong: #E8F1F8;
+  --globe-accent: #67E8F9;
+  --globe-warn: #FCD34D;
+  --globe-scrim: rgba(2, 6, 12, 0.55);
+  --globe-scrim-strong: rgba(2, 6, 12, 0.88);
+  background:
+    radial-gradient(circle at 50% 42%, #0A1B2C 0%, #06121F 55%, #030A13 100%);
+}
+
+[data-theme="light"] .globe-stage {
+  color-scheme: light;
+  --globe-edge: rgba(3, 105, 161, 0.16);
+  --globe-chip: rgba(255, 255, 255, 0.78);
+  --globe-chip-line: rgba(3, 105, 161, 0.18);
+  --globe-ink: #52606D;
+  --globe-ink-strong: #1E2A36;
+  --globe-accent: #0369A1;
+  --globe-warn: #B45309;
+  --globe-scrim: rgba(255, 255, 255, 0.6);
+  --globe-scrim-strong: rgba(255, 255, 255, 0.92);
+  /* White ground so the sphere's pale-blue ocean defines its own silhouette.
+     The faint outer wash keeps the card from dissolving into the page. */
+  background:
+    radial-gradient(circle at 50% 40%, #FFFFFF 0%, #F7FBFE 62%, #EAF2F9 100%);
+}
+
+.globe-chip {
+  border-radius: 9999px;
+  border: 1px solid var(--globe-chip-line);
+  background-color: var(--globe-chip);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.globe-chip--active {
+  border-color: var(--globe-chip-line);
+  background-color: color-mix(in srgb, var(--globe-accent) 12%, transparent);
+}
+
 /* Avionics Screen Well (Cockpit HUD).
    One dark screen that sits on either page: a single flat ground, one hairline
    border and no inner glow, so the radar and the 3D viewports read as

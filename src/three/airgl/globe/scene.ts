@@ -1,34 +1,30 @@
 /* ── AIRGL · great-circle network globe ───────────────────────────────
-   A real Earth, not a diagram of one: an equirectangular land mask rasterised
-   from Natural Earth 1:50m coastlines drives a daylit surface with oceans,
-   climate bands, ice caps and a night side lit by city lights; the terminator
-   comes from the actual subsolar point; clouds drift on their own layer.
+   A chart of the planet, not a photograph of it. One 66 KiB coastline mask
+   rasterised from Natural Earth 1:50m drives flat land, ocean and coastline
+   ink; everything else is drawn as line art on top. The palette follows the
+   page: white ground with blue coastlines in daylight, deep navy after dark.
 
-   Two deliberate departures from a photograph, both for legibility:
-   · the key light is never more than 72° from the viewing axis, so the
-     featured hemisphere always carries light (see updateSunLocal);
-   · far-side corridors stay faintly visible through the planet instead of
-     being clipped by it (see vHidden in ARC_VERTEX).
+   The point of the section is the network, so the sphere is deliberately the
+   quietest thing in the frame and the corridors are the loudest.
 
    Everything that moves on the sphere is a closed-form function of time
    evaluated on the GPU, so the CPU cost of the whole scene is one camera
    update per frame:
 
-     1. Earth surface    — one sphere, one draw. Land/ocean/ice/clouds/terminator
-                           are all composed in the fragment shader.
-     2. Atmosphere       — inverted-hull fresnel shell, sun-biased limb glow.
-     3. Graticule        — one merged LineSegments, faint reference lattice.
-     4. Great-circle arcs— tapered ribbons (two triangles per segment) that fade
+     1. Earth surface    — one sphere, one draw, one texture fetch: land,
+                           ocean, coastline and a limb falloff in one shader.
+     2. Graticule        — one merged LineSegments, faint reference lattice.
+     3. Great-circle arcs— tapered ribbons (two triangles per segment) that fade
                            at the edges, so lines glow instead of stair-stepping.
-     5. Live traffic     — one Points cloud; the shader slerps each aircraft
+     4. Live traffic     — one Points cloud; the shader slerps each aircraft
                            along its great circle and rotates an aircraft
                            silhouette to match its ground track on screen.
-     6. Airport hubs     — one Points cloud with pulsing rings; CAI reads largest.
+     5. Airport hubs     — one Points cloud with pulsing rings; CAI reads largest.
 
-   Cost policy: textures load once (305 KiB total, from public/), the
-   terminator is recomputed once a minute, everything else is per-frame on the
-   GPU, and the loop parks itself whenever the section is off-screen, the tab
-   is hidden or the user prefers reduced motion.
+   Cost policy: five draw calls, no atmosphere shells, no noise, no cloud
+   layer. Textures load once (66 KiB), idle frames are budgeted to 30 fps, and
+   the loop parks itself whenever the section is off-screen, the tab is hidden
+   or the user prefers reduced motion.
 ────────────────────────────────────────────────────────────────────────── */
 
 import * as THREE from 'three';
@@ -41,7 +37,6 @@ import {
   greatCircleAngle,
   greatCirclePoint,
   latLonToVec3,
-  subsolarLatLon,
   type Vec3Tuple,
 } from '../geo';
 
@@ -76,193 +71,113 @@ const ZOOM_SMOOTH = 5.5;
 const REST_RADIUS = 4.35;
 const MIN_RADIUS = 3.4;
 const MAX_RADIUS = 5.9;
-/** The sun moves ~0.25°/min; re-deriving it every minute is invisible. */
-const SUN_REFRESH_MS = 60_000;
-const CLOUD_DRIFT = 0.0016;
+/* Idle redraw budget. The globe drifts slowly, so 30 fps is indistinguishable
+   from 60 while halving the GPU work that competes with page scrolling. Drag,
+   zoom and focus animations still render on every frame. */
+const IDLE_FRAME_MS = 1000 / 30;
 const TEXTURE_BASE = '/assets/earth';
+
+/** One flat palette per theme. The globe is a chart, not a photograph: every
+ *  value here is chosen to keep the corridor network the highest-contrast
+ *  thing on the sphere. */
+export type GlobeTheme = 'light' | 'dark';
+
+interface GlobePalette {
+  ocean: number;
+  land: number;
+  coast: number;
+  limb: number;
+  graticule: number;
+  graticuleOpacity: number;
+  arc: number;
+  arcActive: number;
+  traffic: number;
+  /** Line art is added on dark and painted on light: additive blending over a
+   *  white ground would erase the network. */
+  additive: boolean;
+}
+
+const PALETTES: Record<GlobeTheme, GlobePalette> = {
+  light: {
+    /* Land carries the blue, ocean stays paper-white. The eye reads the
+       smaller, tinted mass as the figure; a pale ocean on a white ground
+       dissolved the coastline entirely. */
+    ocean: 0xffffff,
+    land: 0xc2dbee,
+    coast: 0x2f7aa8,
+    limb: 0x7fb0d0,
+    graticule: 0x7fa8c4,
+    graticuleOpacity: 0.38,
+    arc: 0x3d8fbd,
+    arcActive: 0x0369a1,
+    traffic: 0x0b4a6f,
+    additive: false,
+  },
+  dark: {
+    ocean: 0x08192b,
+    land: 0x13324a,
+    coast: 0x3579a3,
+    limb: 0x2e6e97,
+    graticule: 0x86b6d8,
+    graticuleOpacity: 0.085,
+    arc: 0x3fa8d4,
+    arcActive: 0x63e6ff,
+    traffic: 0xd8f6ff,
+    additive: true,
+  },
+};
 
 /* ── GLSL ───────────────────────────────────────────────────────────────── */
 
 const SURFACE_VERTEX = /* glsl */ `
   varying vec3 vLocal;
-  varying vec3 vNormalW;
-  varying vec3 vViewDir;
+  varying vec3 vNormalV;
   void main() {
     vLocal = normalize(position);
-    vNormalW = normalize(mat3(modelMatrix) * normal);
-    vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    vViewDir = normalize(-mv.xyz);
-    gl_Position = projectionMatrix * mv;
+    vNormalV = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
-/* The whole planet in one fragment shader. Order matters: oceans get depth and
-   a specular glint, land gets climate bands from latitude plus noise, the
-   sun direction paints a soft terminator, and the cloud layer is composited
-   on top with the same light so it dims at dusk instead of glowing. */
+/* A chart of the planet, not a photograph of it. One texture fetch, two
+   smoothsteps and a limb term: no noise, no clouds, no sun simulation, so the
+   shader costs almost nothing to re-rasterise while the page scrolls.
+
+   The coastline is the edge of the same mask, which is why the outline stays
+   crisp at any zoom without a second map or a line layer. */
 const SURFACE_FRAGMENT = /* glsl */ `
-  precision highp float;
+  precision mediump float;
   uniform sampler2D uLand;
-  uniform sampler2D uClouds;
-  uniform vec3 uSunLocal;
   uniform float uLandReady;
-  uniform float uTime;
-  uniform float uCloudDrift;
+  uniform vec3 uOcean;
+  uniform vec3 uLandColor;
+  uniform vec3 uCoast;
+  uniform vec3 uLimb;
   varying vec3 vLocal;
-  varying vec3 vNormalW;
-  varying vec3 vViewDir;
+  varying vec3 vNormalV;
 
   const float PI = 3.14159265359;
-
-  float hash21(vec2 p) {
-    p = fract(p * vec2(123.34, 456.21));
-    p += dot(p, p + 45.32);
-    return fract(p.x * p.y);
-  }
-
-  /* Hash without sine. hash21() above is fine for smooth noise but aliases
-     badly on integer cell coordinates (fract(0.34 * i) repeats every 50), which
-     turned the city lights into a visible lattice. */
-  float cellHash(vec2 cell) {
-    vec3 p3 = fract(vec3(cell.xyx) * 0.1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
-  }
-
-  /* Smooth value noise. Albedo variation has to happen at a scale the eye
-     reads as terrain, not at the pixel scale — per-pixel hashing produced a
-     sandpaper texture across every continent. */
-  float vnoise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    float a = hash21(i);
-    float b = hash21(i + vec2(1.0, 0.0));
-    float c = hash21(i + vec2(0.0, 1.0));
-    float d = hash21(i + vec2(1.0, 1.0));
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-  }
 
   void main() {
     vec3 n = normalize(vLocal);
     float lon = atan(n.x, n.z);
     float lat = asin(clamp(n.y, -1.0, 1.0));
     vec2 uv = vec2(lon / (2.0 * PI) + 0.5, 0.5 - lat / PI);
-    float absLat = abs(n.y);
 
-    /* Coastline. The mask is linearly filtered, then tightened so a 2048-wide
-       texture still reads as a crisp shore rather than a soft gradient. */
     float mask = texture2D(uLand, uv).r * uLandReady;
-    float land = smoothstep(0.485, 0.515, mask);
-    float shelf = smoothstep(0.12, 0.38, mask) * (1.0 - land);
+    float land = smoothstep(0.47, 0.53, mask);
+    float coast = smoothstep(0.455, 0.49, mask) * (1.0 - smoothstep(0.51, 0.545, mask));
 
-    /* Terrain: two octaves of smooth noise at continent and region scale. */
-    float macro = vnoise(vec2(uv.x * 26.0, uv.y * 18.0));
-    float meso = vnoise(vec2(uv.x * 96.0, uv.y * 64.0));
-    float detail = mix(macro, meso, 0.45);
+    vec3 col = mix(uOcean, uLandColor, land);
+    col = mix(col, uCoast, coast * 0.9);
 
-    /* Subtropical dryness: the great deserts sit in bands around 15–33°. */
-    float arid = smoothstep(0.10, 0.30, absLat) * (1.0 - smoothstep(0.38, 0.55, absLat));
-
-    vec3 forest = vec3(0.055, 0.135, 0.078);
-    vec3 grass  = vec3(0.135, 0.205, 0.105);
-    vec3 desert = vec3(0.395, 0.315, 0.180);
-    vec3 tundra = vec3(0.205, 0.215, 0.200);
-    vec3 ice    = vec3(0.820, 0.870, 0.915);
-
-    vec3 landCol = mix(forest, grass, smoothstep(0.25, 0.75, detail));
-    landCol = mix(landCol, desert, clamp(arid * (0.35 + 1.1 * meso), 0.0, 1.0));
-    landCol = mix(landCol, tundra, smoothstep(0.50, 0.68, absLat));
-    landCol = mix(landCol, ice, smoothstep(0.76, 0.90, absLat));
-    landCol *= 0.88 + 0.24 * macro;
-
-    vec3 deep = vec3(0.008, 0.036, 0.082);
-    vec3 mid = vec3(0.016, 0.080, 0.152);
-    vec3 shallow = vec3(0.038, 0.180, 0.250);
-    vec3 oceanCol = mix(deep, mid, smoothstep(0.0, 0.45, macro));
-    oceanCol = mix(oceanCol, shallow, shelf);
-
-    vec3 base = mix(oceanCol, landCol, land);
-
-    vec3 sunDir = normalize(uSunLocal);
-    float sun = dot(n, sunDir);
-    float day = smoothstep(-0.22, 0.30, sun);
-    /* A second, tighter mask for when the sun is actually below the horizon.
-       Reusing the soft day term here made city lights glow over sunlit land. */
-    float nightL = 1.0 - smoothstep(-0.10, 0.08, sun);
-    float dusk = exp(-pow(sun / 0.22, 2.0));
-
-    /* Real terminator, with enough ambient on the dark side to keep coastlines
-       and the corridor geography readable. */
-    vec3 col = base * (0.10 + 1.18 * day) + vec3(0.012, 0.024, 0.052) * nightL * 1.2;
-
-    /* Specular glint on water only. */
-    vec3 halfVec = normalize(sunDir + normalize(vViewDir));
-    float spec = pow(max(dot(n, halfVec), 0.0), 260.0) * (1.0 - land);
-    col += vec3(0.62, 0.80, 1.0) * spec * 0.55;
-
-    /* Settlements: sparse cells, denser near coasts, only where the sun is
-       down. Small enough to read as lights, not as texture. */
-    vec2 cityCell = floor(vec2(uv.x * 1200.0, uv.y * 780.0));
-    float coastal = smoothstep(0.46, 0.57, mask) * (1.0 - smoothstep(0.68, 0.90, mask));
-    float cityPick = cellHash(cityCell);
-    /* Cities belong to deep night only. The night mask still passes a little
-       light at grazing sun angles, where a glowing settlement would be wrong. */
-    float deepNight = 1.0 - smoothstep(0.0, 0.22, day);
-    float cities = step(0.986, cityPick + coastal * 0.04) * land * deepNight;
-    col += vec3(1.0, 0.80, 0.52) * cities * 0.62;
-
-    /* Warm scattering into the night edge. */
-    col += vec3(0.45, 0.20, 0.08) * dusk * 0.22;
-
-    /* Clouds drift eastward; they are lit by the same sun so they darken into
-       the night side instead of glowing over it. */
-    float cloudMask = texture2D(uClouds, vec2(fract(uv.x + uCloudDrift), uv.y)).r;
-    /* The map stores soft coverage, so a gentle ramp is enough; the threshold
-       only trims the faintest wisps. */
-    float cloud = smoothstep(0.30, 0.88, cloudMask) * 0.82;
-    vec3 cloudCol = vec3(0.97, 0.98, 1.0) * (0.18 + 0.88 * day);
-    col = mix(col, cloudCol, cloud * (0.42 + 0.58 * day));
-
-    /* Atmospheric limb: the horizon scatters blue, and more so by day. */
-    float limb = 1.0 - abs(dot(normalize(vNormalW), normalize(vViewDir)));
-    col += vec3(0.16, 0.36, 0.66) * pow(limb, 3.6) * (0.10 + 0.90 * day) * 0.28;
+    /* One soft falloff toward the silhouette so a flat disc still reads as a
+       sphere, plus a thin rim of atmosphere colour on the very edge. */
+    float facing = clamp(dot(normalize(vNormalV), vec3(0.0, 0.0, 1.0)), 0.0, 1.0);
+    col *= 1.0 - 0.16 * (1.0 - smoothstep(0.0, 0.85, facing));
+    col = mix(col, uLimb, pow(1.0 - facing, 5.0) * 0.6);
 
     gl_FragColor = vec4(col, 1.0);
-    #include <colorspace_fragment>
-  }
-`;
-
-const ATMOSPHERE_VERTEX = /* glsl */ `
-  varying vec3 vNormalV;
-  varying vec3 vLocal;
-  void main() {
-    vNormalV = normalize(normalMatrix * normal);
-    vLocal = normalize(position);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-/* Two-term limb: a tight bright rim plus a wide soft halo, biased toward the
-   lit side so the atmosphere reads as scattered sunlight, not a neon outline. */
-const ATMOSPHERE_FRAGMENT = /* glsl */ `
-  precision mediump float;
-  varying vec3 vNormalV;
-  varying vec3 vLocal;
-  uniform vec3 uColor;
-  uniform vec3 uSunLocal;
-  void main() {
-    /* The shell is a sphere, so the limb is where the view-space normal turns
-       away from the camera. Both terms are zero over the disc and peak in a
-       narrow band at the edge. */
-    /* Only the annulus between the planet's silhouette and this shell's is
-       visible, so the glow should be strongest where the shell turns away
-       (near the planet's limb) and fade out toward its own outer edge. */
-    float facing = abs(dot(vNormalV, vec3(0.0, 0.0, 1.0)));
-    float rim = pow(facing, 1.6);
-    float halo = pow(facing, 5.0);
-    float lit = clamp(dot(normalize(vLocal), normalize(uSunLocal)) * 0.9 + 0.55, 0.15, 1.0);
-    gl_FragColor = vec4(uColor, (rim * 0.075 + halo * 0.10) * lit);
     #include <colorspace_fragment>
   }
 `;
@@ -307,6 +222,7 @@ const ARC_FRAGMENT = /* glsl */ `
   uniform float uTime;
   uniform float uActiveArc;
   uniform float uFocus;
+  uniform float uGlow;
   uniform vec3 uColor;
   uniform vec3 uActiveColor;
   void main() {
@@ -320,11 +236,17 @@ const ARC_FRAGMENT = /* glsl */ `
     float counter = pow(fract(vT + uTime * 0.07), 14.0) * 0.4;
 
     float edge = smoothstep(1.0, 0.1, abs(vSide));
-    vec3 color = mix(uColor, uActiveColor, clamp(focus * 1.4, 0.0, 1.0)) * (0.75 + spark * 2.2 + counter * focus);
+    /* Additive on navy, where extra light is the glow. On the white chart the
+       same maths would clip to white, so the spark only boosts alpha there. */
+    vec3 color = mix(uColor, uActiveColor, clamp(focus * 1.4, 0.0, 1.0))
+      * (0.75 + (spark * 2.2 + counter * focus) * mix(0.22, 1.0, uGlow));
     float alpha = (0.30 + focus * 0.55 + (spark + counter) * (0.45 + focus * 0.5)) * edge;
-    /* Far-side lanes survive at 30%: they are drawn over the disc, which reads
-       as a transparent network globe rather than a solid ball with secrets. */
-    alpha *= mix(1.0, 0.30, vHidden);
+    /* Far-side lanes survive as a faint underlay: they are drawn over the disc,
+       which reads as a transparent network globe rather than a solid ball with
+       secrets. On paper they sit lighter still so the near face stays dominant. */
+    alpha *= mix(1.0, mix(0.16, 0.30, uGlow), vHidden);
+    /* Ink lines are heavier than light lines, so thin them on the white chart. */
+    alpha *= mix(0.58, 1.0, uGlow);
     gl_FragColor = vec4(color, alpha);
     #include <colorspace_fragment>
   }
@@ -376,6 +298,7 @@ const TRAFFIC_FRAGMENT = /* glsl */ `
   varying float vEnroute;
   varying vec2 vHeading;
   uniform vec3 uColor;
+  uniform float uGlow;
   void main() {
     vec2 p = (gl_PointCoord - 0.5) * 2.0;
     p.y = -p.y;
@@ -388,8 +311,10 @@ const TRAFFIC_FRAGMENT = /* glsl */ `
     float tail = smoothstep(0.038, 0.0, abs(p.x + 0.42)) * smoothstep(0.20, 0.10, abs(p.y));
     float body = clamp(fuselage + wings + tail, 0.0, 1.0);
 
-    float glow = smoothstep(0.5, 0.0, length(gl_PointCoord - 0.5)) * 0.30 * vEnroute;
-    float alpha = body * (0.75 + 0.25 * vEnroute) + glow;
+    float glow = smoothstep(0.5, 0.0, length(gl_PointCoord - 0.5)) * 0.30 * vEnroute * uGlow;
+    /* The silhouette is dark ink on paper, so it needs less weight than a
+       glowing sprite on navy. */
+    float alpha = (body * (0.75 + 0.25 * vEnroute) + glow) * mix(0.62, 1.0, uGlow);
     if (alpha < 0.01) discard;
     gl_FragColor = vec4(uColor, alpha);
     #include <colorspace_fragment>
@@ -439,10 +364,6 @@ export class CorridorGlobeScene {
   private readonly globeGroup = new THREE.Group();
   private readonly resizeObserver: ResizeObserver;
 
-  /** The key light is never allowed further than this from the viewing axis.
-   *  See updateSunLocal(). */
-  private static readonly MAX_SUN_ANGLE = 1.256; // 72°
-
   private readonly arcIds: string[] = [];
   private readonly textures: THREE.Texture[] = [];
 
@@ -450,7 +371,6 @@ export class CorridorGlobeScene {
   private arcMaterial: THREE.ShaderMaterial | null = null;
   private hubMaterial: THREE.ShaderMaterial | null = null;
   private trafficMaterial: THREE.ShaderMaterial | null = null;
-  private atmosphereMaterial: THREE.ShaderMaterial | null = null;
   private surfaceMaterial: THREE.ShaderMaterial | null = null;
   private graticuleMaterial: THREE.LineBasicMaterial | null = null;
 
@@ -458,10 +378,9 @@ export class CorridorGlobeScene {
   private focusTarget = 0;
   private focusValue = 0;
 
-  /* Textures arrive asynchronously; the surface fades them in. */
+  /* The coastline arrives asynchronously; the surface fades it in. */
   private landReady = 0;
   private landReadyTarget = 0;
-  private cloudDrift = 0;
   private readyCallback: (() => void) | null = null;
 
   /* Rest pose centres the network's centroid (~30°N, 30°E): the Mediterranean,
@@ -479,20 +398,16 @@ export class CorridorGlobeScene {
   private lastPointerY = 0;
   private idleBefore = 0;
 
-  /* Solar state — world-space direction, refreshed on a slow clock. */
-  private readonly sunWorld = new THREE.Vector3(1, 0, 0);
-  private readonly sunLocal = new THREE.Vector3(1, 0, 0);
-  /** True subsolar direction, before the viewer fill is folded in. */
-  private readonly sunTrue = new THREE.Vector3(1, 0, 0);
-  /** Direction from the globe to the camera, in the globe's local frame. */
-  private readonly eyeLocal = new THREE.Vector3(0, 0, 1);
-  private readonly sunAxis = new THREE.Vector3(1, 0, 0);
-  private readonly sunSwing = new THREE.Quaternion();
-  private readonly inverseSpin = new THREE.Quaternion();
-  private sunLastComputed = 0;
+  /* Theme. The wrapper mirrors documentElement[data-theme] into this; the
+     scene owns nothing but the palette it renders with. */
+  private theme: GlobeTheme = 'dark';
+  private readonly hubColors: number[] = [];
+  /* Rebound to the real attribute once the beacon cloud is built. */
+  private hubGeometryColors = new THREE.BufferAttribute(new Float32Array(0), 3);
 
   private rafId = 0;
   private lastTime = 0;
+  private lastDrawTime = 0;
   private elapsed = 0;
   private visible = false;
   private reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -516,11 +431,10 @@ export class CorridorGlobeScene {
 
     this.scene.add(this.globeGroup);
     this.buildSurface();
-    this.buildAtmosphere();
     this.buildGraticule();
     this.buildHubs(hubs);
     this.buildArcsAndTraffic(corridors);
-    this.refreshSun(true);
+    this.applyPalette();
 
     this.attachPointer(canvas);
     this.stopWatchingContext = watchContextLoss(canvas, {
@@ -559,117 +473,40 @@ export class CorridorGlobeScene {
 
   /* 1 — the planet. */
   private buildSurface(): void {
-    const loader = new THREE.TextureLoader();
-    const land = loader.load(`${TEXTURE_BASE}/earth-land.png`, () => {
+    const land = new THREE.TextureLoader().load(`${TEXTURE_BASE}/earth-land.png`, () => {
       this.landReadyTarget = 1;
       this.readyCallback?.();
       this.wake();
     });
-    const clouds = loader.load(`${TEXTURE_BASE}/clouds.png`, () => {
-      this.cloudReady = true;
-      if (this.landReadyTarget === 1) this.readyCallback?.();
-      this.wake();
-    });
-    for (const texture of [land, clouds]) {
-      texture.colorSpace = THREE.NoColorSpace; // data map: raw values, no sRGB decode
-      texture.wrapS = THREE.RepeatWrapping; // longitude wraps at the antimeridian
-      texture.wrapT = THREE.ClampToEdgeWrapping;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
-      texture.generateMipmaps = true;
-      this.textures.push(texture);
-    }
+    land.colorSpace = THREE.NoColorSpace; // data map: raw coverage, no sRGB decode
+    land.wrapS = THREE.RepeatWrapping; // longitude wraps at the antimeridian
+    land.wrapT = THREE.ClampToEdgeWrapping;
+    land.minFilter = THREE.LinearMipmapLinearFilter;
+    land.magFilter = THREE.LinearFilter;
+    land.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
+    this.textures.push(land);
 
+    const palette = PALETTES[this.theme];
     this.surfaceMaterial = new THREE.ShaderMaterial({
       vertexShader: SURFACE_VERTEX,
       fragmentShader: SURFACE_FRAGMENT,
       uniforms: {
         uLand: { value: land },
-        uClouds: { value: clouds },
-        uSunLocal: { value: this.sunLocal },
         uLandReady: { value: 0 },
-        uTime: { value: 0 },
-        uCloudDrift: { value: 0 },
+        uOcean: { value: new THREE.Color(palette.ocean) },
+        uLandColor: { value: new THREE.Color(palette.land) },
+        uCoast: { value: new THREE.Color(palette.coast) },
+        uLimb: { value: new THREE.Color(palette.limb) },
       },
     });
-    /* 192×96 segments: smooth enough that the limb stays a clean curve at the
-       sizes this canvas is displayed, without inflating the vertex buffer. */
-    const geometry = new THREE.SphereGeometry(GLOBE_RADIUS, 192, 96);
+    /* 96×48 segments: the silhouette is this canvas's only curve, and 48 bands
+       keep it clean at the sizes the card is displayed without a vertex buffer
+       that costs more than the fragment work it feeds. */
+    const geometry = new THREE.SphereGeometry(GLOBE_RADIUS, 96, 48);
     this.globeGroup.add(new THREE.Mesh(geometry, this.surfaceMaterial));
   }
 
-  private cloudReady = false;
-
-  /** Subsolar direction in world space; refreshed on the slow sun clock. */
-  private refreshSun(force = false): void {
-    const now = performance.now();
-    if (!force && now - this.sunLastComputed < SUN_REFRESH_MS) return;
-    this.sunLastComputed = now;
-    const { lat, lon } = subsolarLatLon(new Date());
-    const latRad = THREE.MathUtils.degToRad(lat);
-    const lonRad = THREE.MathUtils.degToRad(lon);
-    this.sunWorld.set(
-      Math.cos(latRad) * Math.sin(lonRad),
-      Math.sin(latRad),
-      Math.cos(latRad) * Math.cos(lonRad),
-    );
-  }
-
-  /** Rotate the world-space sun into the globe's local frame so the terminator
-      stays glued to the geography while the planet spins.
-   *
-   *  On top of the true subsolar direction the key light is pulled part of the
-   *  way toward the camera. Without this the section is a lottery: at some UTC
-   *  values the featured hemisphere is entirely in shadow and every corridor
-   *  sits on a near-black disc. The blend keeps the real terminator tracking
-   *  UTC — it still sweeps across the globe over a day — but guarantees that
-   *  the face the reader is looking at carries enough light to read. */
-  private updateSunLocal(): void {
-    this.inverseSpin.copy(this.globeGroup.quaternion).invert();
-    this.sunTrue.copy(this.sunWorld).applyQuaternion(this.inverseSpin);
-    this.eyeLocal.copy(this.camera.position).applyQuaternion(this.inverseSpin).normalize();
-
-    /* Keep the true subsolar point unless it wanders more than MAX_SUN_ANGLE
-       away from the camera axis, in which case swing it back along the
-       shortest arc. The terminator stays a genuine great circle — it is only
-       re-aimed, never reshaped — so at most a crescent is in shadow and the
-       featured hemisphere always carries enough light to read. */
-    const cosine = THREE.MathUtils.clamp(this.sunTrue.dot(this.eyeLocal), -1, 1);
-    const angle = Math.acos(cosine);
-    this.sunAxis.crossVectors(this.sunTrue, this.eyeLocal);
-    if (angle <= CorridorGlobeScene.MAX_SUN_ANGLE || this.sunAxis.lengthSq() < 1e-8) {
-      this.sunLocal.copy(this.sunTrue);
-      return;
-    }
-    this.sunAxis.normalize();
-    this.sunSwing.setFromAxisAngle(this.sunAxis, angle - CorridorGlobeScene.MAX_SUN_ANGLE);
-    this.sunLocal.copy(this.sunTrue).applyQuaternion(this.sunSwing);
-  }
-
-  /* 2 — atmosphere. */
-  private buildAtmosphere(): void {
-    this.atmosphereMaterial = new THREE.ShaderMaterial({
-      vertexShader: ATMOSPHERE_VERTEX,
-      fragmentShader: ATMOSPHERE_FRAGMENT,
-      uniforms: {
-        uColor: { value: new THREE.Color(0x5aa9f8) },
-        uSunLocal: { value: this.sunLocal },
-      },
-      transparent: true,
-      side: THREE.BackSide,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    this.globeGroup.add(
-      new THREE.Mesh(new THREE.SphereGeometry(1.045, 96, 64), this.atmosphereMaterial),
-    );
-    this.globeGroup.add(
-      new THREE.Mesh(new THREE.SphereGeometry(1.16, 64, 48), this.atmosphereMaterial.clone()),
-    );
-  }
-
-  /* 3 — reference lattice, deliberately faint: the geography is the subject. */
+  /* 2 — reference lattice, deliberately faint: the geography is the subject. */
   private buildGraticule(): void {
     const verts: number[] = [];
     const radius = GLOBE_RADIUS * 1.001;
@@ -692,36 +529,38 @@ export class CorridorGlobeScene {
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    const palette = PALETTES[this.theme];
     this.graticuleMaterial = new THREE.LineBasicMaterial({
-      color: 0x86b6d8,
+      color: palette.graticule,
       transparent: true,
-      opacity: 0.085,
+      opacity: palette.graticuleOpacity,
       depthWrite: false,
     });
     this.globeGroup.add(new THREE.LineSegments(geometry, this.graticuleMaterial));
   }
 
-  /* 4 — airport beacons. */
+  /* 3 — airport beacons. */
   private buildHubs(hubs: GlobeHub[]): void {
     const count = hubs.length;
     const positions = new Float32Array(count * 3);
     const eminence = new Float32Array(count);
     const phase = new Float32Array(count);
     const colors = new Float32Array(count * 3);
-    const scratch = new THREE.Color();
     hubs.forEach((hub, i) => {
       const [x, y, z] = latLonToVec3(hub.lat, hub.lon, GLOBE_RADIUS * 1.004);
       positions.set([x, y, z], i * 3);
       eminence[i] = 15 * hub.eminence;
       phase[i] = (i * 0.37) % 1;
-      scratch.setHex(hub.color);
-      colors.set([scratch.r, scratch.g, scratch.b], i * 3);
+      /* Hues are authored by the wrapper; applyPalette() derives the ink that
+         actually reads against the current ground. */
+      this.hubColors.push(hub.color);
     });
     const geometry = new THREE.BufferGeometry();
+    this.hubGeometryColors = new THREE.BufferAttribute(colors, 3);
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('aEminence', new THREE.BufferAttribute(eminence, 1));
     geometry.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1));
-    geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('aColor', this.hubGeometryColors);
     this.hubMaterial = new THREE.ShaderMaterial({
       vertexShader: HUB_VERTEX,
       fragmentShader: HUB_FRAGMENT,
@@ -733,7 +572,7 @@ export class CorridorGlobeScene {
     this.globeGroup.add(new THREE.Points(geometry, this.hubMaterial));
   }
 
-  /* 5+6 — corridors as tapered ribbons, and the traffic riding them. */
+  /* 4+5 — corridors as tapered ribbons, and the traffic riding them. */
   private buildArcsAndTraffic(corridors: GlobeCorridor[]): void {
     const origin: Vec3Tuple = [0, 0, 0];
     const dest: Vec3Tuple = [0, 0, 0];
@@ -823,6 +662,7 @@ export class CorridorGlobeScene {
         uTime: { value: 0 },
         uActiveArc: { value: -1 },
         uFocus: { value: 0 },
+        uGlow: { value: 1 },
         uColor: { value: new THREE.Color(0x3fa8d4) },
         uActiveColor: { value: new THREE.Color(0x63e6ff) },
         uGlobeViewZ: { value: -REST_RADIUS },
@@ -851,6 +691,7 @@ export class CorridorGlobeScene {
         uTime: { value: 0 },
         uPointScale: this.pointScale,
         uColor: { value: new THREE.Color(0xd8f6ff) },
+        uGlow: { value: 1 },
       },
       transparent: true,
       depthWrite: false,
@@ -887,6 +728,19 @@ export class CorridorGlobeScene {
     this.wake();
   }
 
+  /**
+   * Follow the page theme. The wrapper mirrors `documentElement[data-theme]`
+   * into this, so the globe is white-with-blue in daylight and deep navy after
+   * dark without either side owning the other's state.
+   */
+  setTheme(theme: GlobeTheme): void {
+    if (theme === this.theme) return;
+    this.theme = theme;
+    this.applyPalette();
+    this.renderOnce();
+    this.wake();
+  }
+
   setVisible(visible: boolean): void {
     this.visible = visible;
     if (visible) this.wake();
@@ -900,6 +754,55 @@ export class CorridorGlobeScene {
 
   onStats(callback: (stats: { fps: number; draws: number; dpr: number }) => void): void {
     this.statsCallback = callback;
+  }
+
+  /**
+   * Push one palette onto every material. Kept in one place so the surface,
+   * the lattice, the corridors, the traffic and the beacons can never drift
+   * into different themes, and so a theme flip costs a handful of uniform
+   * writes rather than a rebuild.
+   */
+  private applyPalette(): void {
+    const palette = PALETTES[this.theme];
+    const blending = palette.additive ? THREE.AdditiveBlending : THREE.NormalBlending;
+
+    if (this.surfaceMaterial) {
+      this.surfaceMaterial.uniforms.uOcean.value.setHex(palette.ocean);
+      this.surfaceMaterial.uniforms.uLandColor.value.setHex(palette.land);
+      this.surfaceMaterial.uniforms.uCoast.value.setHex(palette.coast);
+      this.surfaceMaterial.uniforms.uLimb.value.setHex(palette.limb);
+    }
+    if (this.graticuleMaterial) {
+      this.graticuleMaterial.color.setHex(palette.graticule);
+      this.graticuleMaterial.opacity = palette.graticuleOpacity;
+    }
+    if (this.arcMaterial) {
+      this.arcMaterial.uniforms.uColor.value.setHex(palette.arc);
+      this.arcMaterial.uniforms.uActiveColor.value.setHex(palette.arcActive);
+      this.arcMaterial.uniforms.uGlow.value = palette.additive ? 1 : 0;
+      this.arcMaterial.blending = blending;
+    }
+    if (this.trafficMaterial) {
+      this.trafficMaterial.uniforms.uColor.value.setHex(palette.traffic);
+      this.trafficMaterial.uniforms.uGlow.value = palette.additive ? 1 : 0;
+      this.trafficMaterial.blending = blending;
+    }
+    if (this.hubMaterial) {
+      this.hubMaterial.blending = blending;
+      /* Beacons keep their own hues but are deepened for the white chart: the
+         bright cyan that reads on navy drops below 3:1 on paper. */
+      const colors = this.hubGeometryColors;
+      this.hubColors.forEach((hex, i) => {
+        const color = new THREE.Color(hex);
+        if (this.theme === 'light') {
+          const hsl = { h: 0, s: 0, l: 0 };
+          color.getHSL(hsl);
+          color.setHSL(hsl.h, Math.min(1, hsl.s * 0.9), hsl.l * 0.42);
+        }
+        colors.setXYZ(i, color.r, color.g, color.b);
+      });
+      colors.needsUpdate = true;
+    }
   }
 
   /* ── Loop ───────────────────────────────────────────────────────────── */
@@ -946,30 +849,28 @@ export class CorridorGlobeScene {
       this.arcMaterial.uniforms.uFocus.value = this.focusValue;
     }
     if (this.surfaceMaterial) {
-      this.surfaceMaterial.uniforms.uTime.value = this.elapsed;
       this.landReady = damp(this.landReady, this.landReadyTarget, 2.4, dt);
       this.surfaceMaterial.uniforms.uLandReady.value = this.landReady;
-      /* Clouds drift eastward; pause the drift when only one layer is in. */
-      if (this.cloudReady) this.cloudDrift = (this.cloudDrift + CLOUD_DRIFT * dt) % 1;
-      this.surfaceMaterial.uniforms.uCloudDrift.value = this.cloudDrift;
     }
     if (this.hubMaterial) this.hubMaterial.uniforms.uTime.value = this.elapsed;
     if (this.trafficMaterial) this.trafficMaterial.uniforms.uTime.value = this.elapsed;
 
-    this.draw(time);
+    /* Idle frames are budgeted to 30 fps; anything the reader is actively
+       steering renders at the display's own rate. */
+    const steering =
+      this.dragging ||
+      Math.abs(this.spinVelocity) > 5e-4 ||
+      Math.abs(this.focusValue - this.focusTarget) > 1e-3;
+    if (steering || time - this.lastDrawTime >= IDLE_FRAME_MS) {
+      this.lastDrawTime = time;
+      this.draw(time);
+    }
     this.rafId = requestAnimationFrame(this.tick);
   };
 
   private draw(time: number): void {
-    /* Sun state belongs here, not only in the loop: the reduced-motion path
-       renders via renderOnce() and still deserves a correct terminator. */
-    this.refreshSun();
-    this.updateSunLocal();
     if (this.arcMaterial) this.arcMaterial.uniforms.uFocus.value = this.focusValue;
-    if (this.surfaceMaterial) {
-      this.surfaceMaterial.uniforms.uLandReady.value = this.landReady;
-      this.surfaceMaterial.uniforms.uCloudDrift.value = this.cloudDrift;
-    }
+    if (this.surfaceMaterial) this.surfaceMaterial.uniforms.uLandReady.value = this.landReady;
     this.camera.position.set(0, 0.052 * this.radius, this.radius);
     this.camera.lookAt(0, 0, 0);
     this.renderer.render(this.scene, this.camera);
