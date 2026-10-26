@@ -84,6 +84,8 @@ export type GlobeTheme = 'light' | 'dark';
 
 interface GlobePalette {
   ocean: number;
+  /** Continental shelf: a slightly deeper wash than the open ocean. */
+  shelf: number;
   land: number;
   coast: number;
   limb: number;
@@ -103,6 +105,7 @@ const PALETTES: Record<GlobeTheme, GlobePalette> = {
        smaller, tinted mass as the figure; a pale ocean on a white ground
        dissolved the coastline entirely. */
     ocean: 0xffffff,
+    shelf: 0xdce9f5,
     land: 0xc2dbee,
     coast: 0x2f7aa8,
     limb: 0x7fb0d0,
@@ -115,6 +118,7 @@ const PALETTES: Record<GlobeTheme, GlobePalette> = {
   },
   dark: {
     ocean: 0x08192b,
+    shelf: 0x0c2136,
     land: 0x13324a,
     coast: 0x3579a3,
     limb: 0x2e6e97,
@@ -150,6 +154,7 @@ const SURFACE_FRAGMENT = /* glsl */ `
   uniform sampler2D uLand;
   uniform float uLandReady;
   uniform vec3 uOcean;
+  uniform vec3 uOceanShelf;
   uniform vec3 uLandColor;
   uniform vec3 uCoast;
   uniform vec3 uLimb;
@@ -164,11 +169,22 @@ const SURFACE_FRAGMENT = /* glsl */ `
     float lat = asin(clamp(n.y, -1.0, 1.0));
     vec2 uv = vec2(lon / (2.0 * PI) + 0.5, 0.5 - lat / PI);
 
-    float mask = texture2D(uLand, uv).r * uLandReady;
-    float land = smoothstep(0.47, 0.53, mask);
-    float coast = smoothstep(0.455, 0.49, mask) * (1.0 - smoothstep(0.51, 0.545, mask));
+    vec4 sample_ = texture2D(uLand, uv);
+    float mask = sample_.r * uLandReady;
+    float shelf = sample_.a * uLandReady;
 
-    vec3 col = mix(uOcean, uLandColor, land);
+    float land = smoothstep(0.47, 0.53, mask);
+    /* Screen-space coastline width from the mask gradient, so the outline is a
+       constant hairline at every zoom instead of a band that disappears under
+       filtering. The gradient is clamped: under mip reduction fwidth() explodes
+       and an unclamped width paints the entire ocean in coastline ink. */
+    float coastWidth = clamp(fwidth(mask) * 1.2, 0.006, 0.045);
+    float coast = 1.0 - smoothstep(0.0, coastWidth, abs(mask - 0.5));
+
+    /* Ocean depth comes from the shelf channel: the pale continental shelf of
+       an atlas gives the coast its outline without a second texture. */
+    vec3 col = mix(uOcean, uOceanShelf, shelf * (1.0 - land) * 0.75);
+    col = mix(col, uLandColor, land);
     col = mix(col, uCoast, coast * 0.9);
 
     /* One soft falloff toward the silhouette so a flat disc still reads as a
@@ -479,11 +495,17 @@ export class CorridorGlobeScene {
       this.wake();
     });
     land.colorSpace = THREE.NoColorSpace; // data map: raw coverage, no sRGB decode
+    /* Three flips loaded images by default, but the shader's UV convention
+       (see SURFACE_FRAGMENT) is already image-space: v = 0 is the north pole
+       because the raster's row 0 is the north pole. Leaving flipY on sampled
+       the sheet upside down, so the globe rendered Antarctica where the Arctic
+       belongs and every beacon sat on the wrong continent. */
+    land.flipY = false;
     land.wrapS = THREE.RepeatWrapping; // longitude wraps at the antimeridian
     land.wrapT = THREE.ClampToEdgeWrapping;
     land.minFilter = THREE.LinearMipmapLinearFilter;
     land.magFilter = THREE.LinearFilter;
-    land.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
+    land.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     this.textures.push(land);
 
     const palette = PALETTES[this.theme];
@@ -494,6 +516,7 @@ export class CorridorGlobeScene {
         uLand: { value: land },
         uLandReady: { value: 0 },
         uOcean: { value: new THREE.Color(palette.ocean) },
+        uOceanShelf: { value: new THREE.Color(palette.shelf) },
         uLandColor: { value: new THREE.Color(palette.land) },
         uCoast: { value: new THREE.Color(palette.coast) },
         uLimb: { value: new THREE.Color(palette.limb) },
@@ -768,6 +791,7 @@ export class CorridorGlobeScene {
 
     if (this.surfaceMaterial) {
       this.surfaceMaterial.uniforms.uOcean.value.setHex(palette.ocean);
+      this.surfaceMaterial.uniforms.uOceanShelf.value.setHex(palette.shelf);
       this.surfaceMaterial.uniforms.uLandColor.value.setHex(palette.land);
       this.surfaceMaterial.uniforms.uCoast.value.setHex(palette.coast);
       this.surfaceMaterial.uniforms.uLimb.value.setHex(palette.limb);
