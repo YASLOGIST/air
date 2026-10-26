@@ -59,18 +59,28 @@ export interface GlobeHub {
 }
 
 const GLOBE_RADIUS = 1;
-const ARC_SEGMENTS = 96;
-const PLANES_PER_CORRIDOR = 3;
+const ARC_SEGMENTS = 64;
+/* One aircraft per route, riding the head of that route's packet. Three per
+   route at unrelated phases and unrelated on-screen angles was what made the
+   network read as scattered debris. */
+const PLANES_PER_CORRIDOR = 1;
+/** Packets per second for a 2,910 km hop. Longer routes are slowed by the
+ *  square root of their length, not linearly: a faithful 2.4x spread left the
+ *  Shanghai packet almost stationary, while a flat rate would pretend every
+ *  corridor takes the same time. */
+const PACKET_SPEED_UNIT = 0.78;
 /** Slow, stately drift — a planet seen from orbit, not a carousel. */
-const AUTO_SPIN = 0.021;
-const ROTATION_SMOOTH = 3.2;
-const ZOOM_SMOOTH = 5.5;
+const AUTO_SPIN = 0.015;
+/* Lower stiffness = softer, later settling. The globe is scenery, not a
+   control that should snap back at you. */
+const ROTATION_SMOOTH = 2.4;
+const ZOOM_SMOOTH = 3.4;
 /* A 34° vertical FOV puts the sphere's limb at asin(1/d) from centre; d = 4.35
    frames the planet with enough margin above the northern limb for corridors
    to arc clear of it without being cropped by the canvas. */
-const REST_RADIUS = 4.35;
-const MIN_RADIUS = 3.4;
-const MAX_RADIUS = 5.9;
+const REST_RADIUS = 4.62;
+const MIN_RADIUS = 3.6;
+const MAX_RADIUS = 6.2;
 /* Idle redraw budget. The globe drifts slowly, so 30 fps is indistinguishable
    from 60 while halving the GPU work that competes with page scrolling. Drag,
    zoom and focus animations still render on every frame. */
@@ -111,8 +121,8 @@ const PALETTES: Record<GlobeTheme, GlobePalette> = {
     limb: 0x7fb0d0,
     graticule: 0x7fa8c4,
     graticuleOpacity: 0.38,
-    arc: 0x3d8fbd,
-    arcActive: 0x0369a1,
+    arc: 0x1f6f9e,
+    arcActive: 0x035d8a,
     traffic: 0x0b4a6f,
     additive: false,
   },
@@ -202,15 +212,23 @@ const ARC_VERTEX = /* glsl */ `
   attribute float aT;
   attribute float aArc;
   attribute float aSide;
+  attribute float aPacketPhase;
+  attribute float aPacketSpeed;
   varying float vT;
   varying float vArc;
   varying float vSide;
   varying float vHidden;
+  varying float vPacketPhase;
+  varying float vPacketSpeed;
   uniform float uGlobeViewZ;
   void main() {
     vT = aT;
     vArc = aArc;
     vSide = aSide;
+    /* Constant across every vertex of one route, so interpolation returns that
+       route's own value: one packet per corridor, no per-vertex cost. */
+    vPacketPhase = aPacketPhase;
+    vPacketSpeed = aPacketSpeed;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mv;
 
@@ -229,40 +247,58 @@ const ARC_VERTEX = /* glsl */ `
 
 /* A ribbon rather than a hairline: the alpha falls off to both edges, which is
    what makes a corridor read as a beam of light with a bright core. */
+/* A route, drawn the way an operations chart draws a movement: a quiet
+   permanent line for the corridor itself, a bright packet travelling from
+   origin to destination, and a soft tail behind it that shows which way it is
+   going. One packet per route at a staggered, deterministic phase — the old
+   version ran two counter-rotating sparks at irregular rates, which is what
+   made the network look random. */
 const ARC_FRAGMENT = /* glsl */ `
   precision mediump float;
   varying float vT;
   varying float vArc;
   varying float vSide;
   varying float vHidden;
+  varying float vPacketPhase;
+  varying float vPacketSpeed;
   uniform float uTime;
   uniform float uActiveArc;
   uniform float uFocus;
   uniform float uGlow;
   uniform vec3 uColor;
   uniform vec3 uActiveColor;
+
   void main() {
     float noneSelected = step(uActiveArc, -0.5);
     float isActive = (1.0 - min(abs(vArc - uActiveArc), 1.0)) * uFocus;
-    float focus = max(noneSelected * 0.25, isActive);
+    /* Every route stays plainly legible; the selected one is simply the
+       loudest, rather than the only one you can see. */
+    float focus = max(noneSelected * 0.18, isActive);
 
-    /* A packet travelling origin -> destination, plus a faint return flow. */
-    float travel = fract(vT - uTime * 0.14);
-    float spark = pow(1.0 - travel, 9.0);
-    float counter = pow(fract(vT + uTime * 0.07), 14.0) * 0.4;
+    /* Distance behind the packet's head, along the route. 0 at the head,
+       growing toward the origin, wrapping at the departure point. */
+    float head = fract(uTime * vPacketSpeed + vPacketPhase);
+    float behind = head - vT;
+    behind = behind < 0.0 ? behind + 1.0 : behind;
 
-    float edge = smoothstep(1.0, 0.1, abs(vSide));
-    /* Additive on navy, where extra light is the glow. On the white chart the
-       same maths would clip to white, so the spark only boosts alpha there. */
-    vec3 color = mix(uColor, uActiveColor, clamp(focus * 1.4, 0.0, 1.0))
-      * (0.75 + (spark * 2.2 + counter * focus) * mix(0.22, 1.0, uGlow));
-    float alpha = (0.30 + focus * 0.55 + (spark + counter) * (0.45 + focus * 0.5)) * edge;
-    /* Far-side lanes survive as a faint underlay: they are drawn over the disc,
-       which reads as a transparent network globe rather than a solid ball with
-       secrets. On paper they sit lighter still so the near face stays dominant. */
-    alpha *= mix(1.0, mix(0.16, 0.30, uGlow), vHidden);
-    /* Ink lines are heavier than light lines, so thin them on the white chart. */
-    alpha *= mix(0.58, 1.0, uGlow);
+    float tail = exp(-behind * 4.6);
+    float core = exp(-behind * 55.0);
+
+    /* Both ends sit a touch brighter, so a route reads as a connection between
+       two airports rather than a stroke with no subject. */
+    float cap = 1.0 - smoothstep(0.0, 0.05, vT) * smoothstep(1.0, 0.95, vT);
+
+    float edge = smoothstep(1.0, 0.25, abs(vSide));
+    vec3 color = mix(uColor, uActiveColor, clamp(focus * 1.5 + core * 0.5, 0.0, 1.0));
+    float alpha = 0.60 + 0.30 * focus + 0.26 * cap + tail * (0.60 + 0.40 * focus);
+    alpha *= edge;
+
+    /* Far-side routes survive as a faint underlay, so the network reads as a
+       transparent globe rather than a solid ball with secrets. */
+    alpha *= mix(1.0, mix(0.14, 0.28, uGlow), vHidden);
+    /* Ink is heavier than light. */
+    alpha *= mix(0.74, 1.0, uGlow);
+
     gl_FragColor = vec4(color, alpha);
     #include <colorspace_fragment>
   }
@@ -277,7 +313,7 @@ const TRAFFIC_VERTEX = /* glsl */ `
   varying float vEnroute;
   varying vec2 vHeading;
   uniform float uTime;
-  uniform float uPointScale;
+  uniform float uPlaneSize;
 
   vec3 gcPos(vec3 a, vec3 b, float t, float lift) {
     float omega = acos(clamp(dot(a, b), -1.0, 1.0));
@@ -301,7 +337,10 @@ const TRAFFIC_VERTEX = /* glsl */ `
     vec2 delta = clipAhead.xy / max(0.001, clipAhead.w) - clip.xy / max(0.001, clip.w);
     vHeading = length(delta) > 1e-5 ? normalize(delta) : vec2(0.0, 1.0);
 
-    gl_PointSize = (15.0 + 9.0 * vEnroute) * uPointScale / max(0.6, -mv.z);
+    /* Constant screen size. Dividing by view depth made each aircraft a
+       different size depending on where it happened to be on the sphere, which
+       read as noise rather than as traffic. */
+    gl_PointSize = uPlaneSize;
     gl_Position = clip;
   }
 `;
@@ -309,29 +348,38 @@ const TRAFFIC_VERTEX = /* glsl */ `
 /* Aircraft silhouette drawn inside the point sprite, rotated onto the ground
    track computed above. Reads as traffic in motion at 10 px, which a dot does
    not. */
+/* A 20-pixel airliner. Detail does not survive at this size, so the shape is
+   reduced to the three masses the eye actually reads — swept wings, a tapered
+   fuselage and a tailplane — with a soft halo that separates it from busy
+   coastline underneath. */
 const TRAFFIC_FRAGMENT = /* glsl */ `
   precision mediump float;
   varying float vEnroute;
   varying vec2 vHeading;
   uniform vec3 uColor;
   uniform float uGlow;
+
   void main() {
     vec2 p = (gl_PointCoord - 0.5) * 2.0;
     p.y = -p.y;
+
+    /* Rotate the sprite onto its on-screen ground track. */
     float angle = atan(vHeading.y, vHeading.x);
     float ca = cos(-angle), sa = sin(-angle);
     p = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
 
-    float fuselage = smoothstep(0.085, 0.015, abs(p.y)) * smoothstep(0.68, 0.50, p.x) * smoothstep(-0.58, -0.42, p.x);
-    float wings = smoothstep(0.055, 0.0, abs(p.x + 0.02)) * smoothstep(0.44, 0.30, abs(p.y));
-    float tail = smoothstep(0.038, 0.0, abs(p.x + 0.42)) * smoothstep(0.20, 0.10, abs(p.y));
-    float body = clamp(fuselage + wings + tail, 0.0, 1.0);
+    float fuselage = smoothstep(0.115, 0.045, abs(p.y))
+      * smoothstep(0.72, 0.58, p.x) * smoothstep(-0.62, -0.48, p.x);
+    float wing = smoothstep(0.075, 0.015, abs(p.y - (p.x - 0.06) * 0.16))
+      * smoothstep(0.62, 0.34, abs(p.x + 0.06))
+      * smoothstep(0.30, 0.20, abs(p.x + 0.06));
+    float tail = smoothstep(0.055, 0.010, abs(p.y))
+      * smoothstep(0.22, 0.12, abs(p.x + 0.48));
+    float body = clamp(fuselage + wing * 0.95 + tail * 0.8, 0.0, 1.0);
 
-    float glow = smoothstep(0.5, 0.0, length(gl_PointCoord - 0.5)) * 0.30 * vEnroute * uGlow;
-    /* The silhouette is dark ink on paper, so it needs less weight than a
-       glowing sprite on navy. */
-    float alpha = (body * (0.75 + 0.25 * vEnroute) + glow) * mix(0.62, 1.0, uGlow);
-    if (alpha < 0.01) discard;
+    float halo = smoothstep(0.62, 0.10, length(p)) * 0.16 * vEnroute;
+    float alpha = (body + halo) * mix(0.86, 1.0, uGlow);
+    if (alpha < 0.02) discard;
     gl_FragColor = vec4(uColor, alpha);
     #include <colorspace_fragment>
   }
@@ -384,6 +432,9 @@ export class CorridorGlobeScene {
   private readonly textures: THREE.Texture[] = [];
 
   private readonly pointScale = { value: 1 };
+  /** Aircraft sprite size in device pixels: constant, so every aircraft is the
+   *  same size regardless of where it sits on the sphere. */
+  private readonly planeSize = { value: 24 };
   private arcMaterial: THREE.ShaderMaterial | null = null;
   private hubMaterial: THREE.ShaderMaterial | null = null;
   private trafficMaterial: THREE.ShaderMaterial | null = null;
@@ -404,8 +455,8 @@ export class CorridorGlobeScene {
      disc instead of being foreshortened against the limb. */
   private yaw = -0.62;
   private yawGoal = -0.62;
-  private tilt = 0.56;
-  private tiltGoal = 0.56;
+  private tilt = 0.45;
+  private tiltGoal = 0.45;
   private radius = REST_RADIUS;
   private radiusGoal = REST_RADIUS;
   private spinVelocity = 0;
@@ -606,6 +657,8 @@ export class CorridorGlobeScene {
     const ribbonT: number[] = [];
     const ribbonArc: number[] = [];
     const ribbonSide: number[] = [];
+    const ribbonPhase: number[] = [];
+    const ribbonSpeed: number[] = [];
 
     const trafficCount = corridors.length * PLANES_PER_CORRIDOR;
     const tOrigin = new Float32Array(trafficCount * 3);
@@ -617,13 +670,18 @@ export class CorridorGlobeScene {
 
     /* Ribbon half-width in world units. Wide enough to read as a beam at rest
        zoom, narrow enough that it never swallows the coastline. */
-    const HALF_WIDTH = 0.0052;
+    const HALF_WIDTH = 0.0046;
 
     corridors.forEach((corridor, arcIndex) => {
       this.arcIds.push(corridor.id);
       const from = latLonToVec3(corridor.fromLat, corridor.fromLon, GLOBE_RADIUS, origin);
       const to = latLonToVec3(corridor.toLat, corridor.toLon, GLOBE_RADIUS, dest);
       const lift = arcApexHeight(greatCircleAngle(from, to), GLOBE_RADIUS);
+      /* One packet per route. Phases are evenly spaced around the cycle rather
+         than pseudo-random, so the four packets are never coincident and never
+         look like they were placed by eye. */
+      const packetSpeed = PACKET_SPEED_UNIT / Math.sqrt(Math.max(400, corridor.distanceKm));
+      const packetPhase = arcIndex / Math.max(1, corridors.length);
 
       for (let s = 0; s < ARC_SEGMENTS; s++) {
         const t0 = s / ARC_SEGMENTS;
@@ -642,9 +700,11 @@ export class CorridorGlobeScene {
         wy /= wlen;
         wz /= wlen;
         /* Taper: thin at both ends so a corridor leaves and joins the field
-           cleanly instead of stopping in mid-air. */
-        const taper0 = Math.sin(Math.PI * t0) ** 0.55;
-        const taper1 = Math.sin(Math.PI * t1) ** 0.55;
+           cleanly instead of stopping in mid-air. The exponent keeps body over
+           most of the length — a steeper taper pinched the route to a hair for
+           the half of its run nearest each airport. */
+        const taper0 = Math.sin(Math.PI * t0) ** 0.34;
+        const taper1 = Math.sin(Math.PI * t1) ** 0.34;
         const w0 = HALF_WIDTH * taper0;
         const w1 = HALF_WIDTH * taper1;
 
@@ -654,6 +714,8 @@ export class CorridorGlobeScene {
           ribbonT.push(t);
           ribbonArc.push(arcIndex);
           ribbonSide.push(side);
+          ribbonPhase.push(packetPhase);
+          ribbonSpeed.push(packetSpeed);
         };
         v(p0, w0, -1, t0);
         v(p0, w0, 1, t0);
@@ -667,8 +729,10 @@ export class CorridorGlobeScene {
         const idx = arcIndex * PLANES_PER_CORRIDOR + plane;
         tOrigin.set(from, idx * 3);
         tDest.set(dest, idx * 3);
-        tPhase[idx] = plane / PLANES_PER_CORRIDOR + ((arcIndex * 0.17) % 1);
-        tSpeed[idx] = 2200 / (corridor.distanceKm * 60);
+        /* Identical to the ribbon's packet, so the aircraft rides the head of
+           its own trail instead of drifting separately from it. */
+        tPhase[idx] = packetPhase;
+        tSpeed[idx] = packetSpeed;
         tLift[idx] = lift;
       }
     });
@@ -678,6 +742,8 @@ export class CorridorGlobeScene {
     arcGeometry.setAttribute('aT', new THREE.Float32BufferAttribute(ribbonT, 1));
     arcGeometry.setAttribute('aArc', new THREE.Float32BufferAttribute(ribbonArc, 1));
     arcGeometry.setAttribute('aSide', new THREE.Float32BufferAttribute(ribbonSide, 1));
+    arcGeometry.setAttribute('aPacketPhase', new THREE.Float32BufferAttribute(ribbonPhase, 1));
+    arcGeometry.setAttribute('aPacketSpeed', new THREE.Float32BufferAttribute(ribbonSpeed, 1));
     this.arcMaterial = new THREE.ShaderMaterial({
       vertexShader: ARC_VERTEX,
       fragmentShader: ARC_FRAGMENT,
@@ -712,7 +778,7 @@ export class CorridorGlobeScene {
       fragmentShader: TRAFFIC_FRAGMENT,
       uniforms: {
         uTime: { value: 0 },
-        uPointScale: this.pointScale,
+        uPlaneSize: this.planeSize,
         uColor: { value: new THREE.Color(0xd8f6ff) },
         uGlow: { value: 1 },
       },
@@ -948,11 +1014,10 @@ export class CorridorGlobeScene {
 
   private readonly onWheel = (event: WheelEvent): void => {
     event.preventDefault();
-    this.radiusGoal = THREE.MathUtils.clamp(
-      this.radiusGoal + event.deltaY * 0.0016,
-      MIN_RADIUS,
-      MAX_RADIUS,
-    );
+    /* Clamp the per-event delta: a trackpad flick can arrive as a single 400
+       unit jump, which reads as the globe teleporting rather than easing. */
+    const step = THREE.MathUtils.clamp(event.deltaY, -100, 100) * 0.0024;
+    this.radiusGoal = THREE.MathUtils.clamp(this.radiusGoal + step, MIN_RADIUS, MAX_RADIUS);
     this.wake();
   };
 
@@ -964,8 +1029,14 @@ export class CorridorGlobeScene {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    const heightPx = height * Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const heightPx = height * dpr;
     this.pointScale.value = (0.5 * heightPx * this.camera.projectionMatrix.elements[5]) / 240;
+    /* Scale the sprite to the card, then clamp to a readable band: below about
+       12 CSS px an airliner silhouette is a smudge, above ~22 px it dominates
+       the routes it is meant to annotate. */
+    const cssSize = THREE.MathUtils.clamp(Math.min(width, height) * 0.03, 13, 22);
+    this.planeSize.value = cssSize * dpr;
     this.renderOnce();
   }
 
