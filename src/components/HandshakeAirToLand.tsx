@@ -29,7 +29,7 @@ export const HandshakeAirToLand: React.FC = () => {
             </span>
             <ModelBadge />
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-title h2-display">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-title h2-display">
             {dict.handshake.title}
           </h2>
           <p className="mt-2 text-sm sm:text-base text-muted max-w-2xl">
@@ -38,16 +38,14 @@ export const HandshakeAirToLand: React.FC = () => {
         </div>
 
         {/* Multimodal Pill */}
-        <div className="self-start md:self-auto flex items-center gap-2 px-3 py-1.5 rounded-xl glass-subcard text-xs font-mono text-cyan-600 dark:text-cyan-300">
+        <div className="self-start md:self-auto flex items-center gap-2 px-3 py-1.5 rounded-xl glass-subcard text-xs font-mono text-[var(--c-accent)]">
           <Radio className="w-3.5 h-3.5 text-cyan-500 animate-pulse" />
           <span dir="ltr">CAI TARMAC ➔ NATIONAL ROAD NETWORK</span>
         </div>
       </div>
 
       {/* Main Wide Handshake Card */}
-      <div className="glass-panel rounded-3xl p-6 sm:p-10 border border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 via-[var(--glass-bg)] to-[var(--glass-bg)] shadow-xl relative overflow-hidden">
-        {/* Top Glow Line */}
-        <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+      <div className="glass-panel relative overflow-hidden rounded-3xl border border-[var(--c-border)] p-6 sm:p-10">
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Left 8 Cols: Handshake Details & Status Nodes */}
@@ -60,13 +58,13 @@ export const HandshakeAirToLand: React.FC = () => {
               <span className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
                 <Truck className="w-6 h-6" />
               </span>
-              <span className="text-xs font-mono text-cyan-600 dark:text-cyan-300 px-3 py-1 rounded-full glass-subcard">
+              <span className="text-xs font-mono text-[var(--c-accent)] px-3 py-1 rounded-full glass-subcard">
                 DISPATCH SYNCHRONIZED
               </span>
             </div>
 
             <div>
-              <h3 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-title leading-tight">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-title leading-tight">
                 {dict.handshake.cardHeadline}
               </h3>
               <p className="mt-2 text-sm text-muted max-w-2xl font-sans leading-relaxed">
@@ -109,12 +107,12 @@ export const HandshakeAirToLand: React.FC = () => {
           </div>
 
           {/* Right 4 Cols: Prominent Call-to-Action to land.yaslogist.com */}
-          <div className="lg:col-span-4 flex flex-col justify-center p-6 rounded-2xl glass-subcard border border-cyan-500/30 text-center space-y-4 shadow-lg">
+          <div className="lg:col-span-4 flex flex-col justify-center p-6 rounded-2xl glass-subcard border border-[var(--c-border)] text-center space-y-4">
             <div className="space-y-1">
-              <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-300 uppercase tracking-wider block font-semibold">
+              <span className="text-[11px] font-mono text-[var(--c-accent)] uppercase tracking-wider block font-semibold">
                 {isRtl ? 'المنصة الشقيقة المتصلة' : 'Connected Sister Portal'}
               </span>
-              <span className="text-lg font-black font-mono text-title block" dir="ltr">
+              <span className="text-lg font-semibold font-mono text-title block" dir="ltr">
                 land.yaslogist.com
               </span>
             </div>
@@ -123,11 +121,11 @@ export const HandshakeAirToLand: React.FC = () => {
               href={SUITE_URLS.land}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full inline-flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-cyan-400 via-sky-300 to-teal-300 hover:from-cyan-300 hover:to-teal-200 shadow-[0_0_30px_rgba(56,189,248,0.35)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="btn-primary w-full inline-flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl font-semibold text-sm transition-opacity hover:opacity-90"
             >
-              <Truck className="w-4 h-4 text-slate-950" />
+              <Truck className="w-4 h-4" />
               <span>{dict.handshake.ctaLand}</span>
-              <ExternalLink className="w-4 h-4 text-slate-950" />
+              <ExternalLink className="w-4 h-4" />
             </a>
 
             <span className="text-[10px] font-mono text-muted block leading-tight">

@@ -233,22 +233,22 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
   };
 
   return (
-    <div className="relative rounded-3xl border border-cyan-500/30 bg-[#060b14] overflow-hidden shadow-2xl flex flex-col">
+    <div className="avionics-panel relative rounded-3xl border border-cyan-500/30 bg-[#060b14] overflow-hidden shadow-2xl flex flex-col">
       {/* 3D Viewport Header Bar */}
-      <div className="flex flex-wrap items-center justify-between p-4 border-b border-cyan-500/20 bg-[#09121f]/80 backdrop-blur-md gap-3 z-10">
+      <div className="flex flex-wrap items-center justify-between p-4 border-b border-cyan-500/20 bg-[#09121f]/80 gap-3 z-10">
         <div className="flex items-center gap-2.5">
           <span className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400">
             <Layers className="w-5 h-5" />
           </span>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono font-bold text-sm text-white">
+              <span className="font-mono font-semibold text-sm text-white">
                 {uld.code} · {isRtl ? 'المجسم التفاعلي 3D' : '3D DIGITAL TWIN'}
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
                 {isInsideView ? (isRtl ? 'وضع الاستكشاف الداخلي' : 'INSIDE VIEW') : (isRtl ? 'المظهر الخارجي' : 'ORBIT')}
               </span>
-              <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-400/10 text-emerald-300 border border-emerald-400/25">
+              <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-400/10 text-emerald-300 border border-emerald-400/25">
                 <Cpu className="w-3 h-3" />
                 WEBGL
               </span>
@@ -266,7 +266,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           <button
             type="button"
             onClick={() => setIsDoorOpen((value) => !value)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold transition-all shadow-md active:scale-95 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-semibold transition-all shadow-md active:scale-95 ${
               isDoorOpen
                 ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-amber-500/10'
                 : 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-cyan-500/10 hover:bg-cyan-500/30'
@@ -279,10 +279,10 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           <button
             type="button"
             onClick={() => setPresetView(isInsideView ? 'iso' : 'inside')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold transition-all active:scale-95 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-semibold transition-all active:scale-95 ${
               isInsideView
                 ? 'bg-teal-500/30 border-teal-400 text-teal-200'
-                : 'glass-subcard border-white/10 text-slate-300 hover:text-white hover:border-cyan-400'
+                : 'bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:border-cyan-400'
             }`}
           >
             <Eye className="w-4 h-4 text-cyan-400" />
@@ -293,7 +293,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
             type="button"
             onClick={() => setIsAutoRotate((value) => !value)}
             title={isAutoRotate ? 'إيقاف الدوران' : 'تشغيل الدوران'}
-            className="p-2 rounded-xl glass-subcard border-white/10 text-slate-300 hover:text-white hover:border-cyan-400"
+            className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:border-cyan-400"
           >
             {isAutoRotate ? <Pause className="w-4 h-4 text-cyan-400" /> : <Play className="w-4 h-4" />}
           </button>
@@ -302,7 +302,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
             type="button"
             onClick={() => setPresetView('iso')}
             title="إعادة ضبط زاوية الرؤية"
-            className="p-2 rounded-xl glass-subcard border-white/10 text-slate-300 hover:text-white hover:border-cyan-400"
+            className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:border-cyan-400"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -350,7 +350,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           <div
             role="status"
             aria-live="polite"
-            className="absolute inset-0 z-20 grid place-items-center bg-[#060b14]/90 backdrop-blur-sm"
+            className="absolute inset-0 z-20 grid place-items-center bg-[#060b14]/90"
           >
             <div className="flex items-center gap-2.5 rounded-full border border-amber-400/30 bg-black/60 px-4 py-2 font-mono text-[11px] text-amber-200">
               <Cpu className="h-3.5 w-3.5 animate-pulse" />
@@ -374,7 +374,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
               <div key={i} ref={ref} className="absolute left-0 top-0" style={{ display: 'none', willChange: 'transform' }}>
                 <div className="flex flex-col items-center gap-1.5">
                   <span
-                    className="whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[8px] font-bold tracking-wider text-white backdrop-blur-md"
+                    className="whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[8px] font-semibold tracking-wider text-white"
                     style={{ borderColor: color, background: 'rgba(6,11,18,.82)', color }}
                   >
                     {i === 0
@@ -409,7 +409,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
                       ? 'تعذّر تحميل عارض الوحدة ثلاثي الأبعاد — بيانات الوحدة متاحة أدناه.'
                       : 'The 3D viewer could not be loaded — the unit specifications remain available below.')}
               </p>
-              <p className="font-mono text-[10px] text-slate-500" dir="ltr">
+              <p className="font-mono text-[10px] text-slate-400" dir="ltr">
                 {uld.code} · {uld.internalCm.lengthCm}×{uld.internalCm.widthCm}×{uld.internalCm.heightCm} CM ·{' '}
                 {uld.volumeCbm} CBM · {(uld.maxGrossWeightKg - uld.tareWeightKg).toLocaleString()} KG NET
               </p>
@@ -421,7 +421,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
           <>
             <div className="pointer-events-none absolute right-4 top-4 hidden text-right font-mono sm:block" dir="ltr">
               <span className="block text-[9px] tracking-[.22em] text-teal-300/70">ENVIROTAINER · ACTIVE UNIT</span>
-              <span className="mt-1 block text-[8px] text-slate-500">PBR SHELL · IBL STUDIO / SIMULATION</span>
+              <span className="mt-1 block text-[8px] text-slate-400">PBR SHELL · IBL STUDIO / SIMULATION</span>
             </div>
             <div className="pointer-events-none absolute inset-x-[18%] bottom-14 hidden items-center font-mono text-[8px] text-cyan-200/60 sm:flex" dir="ltr">
               <span className="h-2 border-l border-cyan-300/40" />
@@ -434,7 +434,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         )}
 
         {/* Smart visualization layers */}
-        <div className="absolute left-1/2 top-4 z-20 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-cyan-300/20 bg-[#030912]/75 p-1 font-mono text-[9px] shadow-2xl backdrop-blur-xl" dir="ltr">
+        <div className="absolute left-1/2 top-4 z-20 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-cyan-300/20 bg-[#030912]/75 p-1 font-mono text-[9px] shadow-2xl" dir="ltr">
           {[
             { id: 'material' as const, label: 'MATERIAL', icon: Box },
             { id: 'thermal' as const, label: 'THERMAL', icon: ThermometerSnowflake },
@@ -473,13 +473,13 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         </div>
 
         {isExploded && (
-          <div className="pointer-events-none absolute left-1/2 top-16 z-20 -translate-x-1/2 rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 font-mono text-[8px] tracking-[.16em] text-amber-200 backdrop-blur" dir="ltr">
+          <div className="pointer-events-none absolute left-1/2 top-16 z-20 -translate-x-1/2 rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 font-mono text-[8px] tracking-[.16em] text-amber-200" dir="ltr">
             ASSEMBLY SEPARATION · E TO COLLAPSE
           </div>
         )}
 
         {renderMode === 'thermal' && (
-          <div className="pointer-events-none absolute right-4 top-20 z-20 hidden rounded-xl border border-white/10 bg-black/55 p-2 font-mono text-[8px] text-white backdrop-blur sm:block" dir="ltr">
+          <div className="pointer-events-none absolute right-4 top-20 z-20 hidden rounded-xl border border-white/10 bg-black/55 p-2 font-mono text-[8px] text-white sm:block" dir="ltr">
             <span className="block mb-1 tracking-wider">SURFACE THERMAL MAP · GLSL</span>
             <div className="h-2 w-28 rounded-full bg-gradient-to-r from-indigo-800 via-cyan-500 to-red-500" />
             <div className="mt-1 flex justify-between text-slate-400"><span>2°C</span><span>8°C</span><span>24°C</span></div>
@@ -487,15 +487,15 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         )}
 
         {renderMode === 'xray' && (
-          <div className="pointer-events-none absolute right-4 top-20 z-20 hidden rounded-xl border border-cyan-300/20 bg-cyan-950/30 px-3 py-2 font-mono text-[8px] tracking-wider text-cyan-200 backdrop-blur sm:block" dir="ltr">
+          <div className="pointer-events-none absolute right-4 top-20 z-20 hidden rounded-xl border border-cyan-300/20 bg-cyan-950/30 px-3 py-2 font-mono text-[8px] tracking-wider text-cyan-200 sm:block" dir="ltr">
             FRESNEL SHELL TRANSPARENCY · SCAN APERTURE SWEEPING
           </div>
         )}
 
         {/* Floating Telemetry & Information HUD */}
-        <div className="absolute top-4 left-4 rtl:left-auto rtl:right-4 z-10 pointer-events-none space-y-2">
-          <div className="glass-panel p-3 rounded-2xl border border-cyan-500/30 max-w-[230px] space-y-1.5 shadow-lg backdrop-blur-xl">
-            <div className="flex items-center justify-between text-[10px] font-mono text-cyan-400 font-bold">
+        <div className="absolute top-4 left-4 z-10 pointer-events-none space-y-2">
+          <div className="rounded-2xl border border-cyan-500/30 bg-[#06101d]/90 p-3 max-w-[230px] space-y-1.5 shadow-lg">
+            <div className="flex items-center justify-between text-[10px] font-mono text-cyan-400 font-semibold">
               <span className="flex items-center gap-1.5">
                 <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
                 <span>{isRtl ? 'حالة تيليميتري محاكاة' : 'SIMULATED TELEMETRY'}</span>
@@ -506,17 +506,17 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
             <div className="space-y-1 font-mono text-xs text-white">
               <div className="flex justify-between">
                 <span className="text-slate-400 text-[10px]">{isRtl ? 'درجة الحرارة:' : 'TEMP:'}</span>
-                <span className="font-bold text-teal-300" dir="ltr">
+                <span className="font-semibold text-teal-300" dir="ltr">
                   {uld.activeCooling ? '+4.2°C (±0.5°C)' : 'PASSIVE AMBIENT'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400 text-[10px]">{isRtl ? 'نسبة الامتلاء:' : 'VOLUME:'}</span>
-                <span className="font-bold text-cyan-300" dir="ltr">{uld.volumeCbm} m³ (84%)</span>
+                <span className="font-semibold text-cyan-300" dir="ltr">{uld.volumeCbm} m³ (84%)</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400 text-[10px]">{isRtl ? 'مستشعر الصدمة:' : 'G-SENSOR:'}</span>
-                <span className="font-bold text-emerald-300" dir="ltr">0.02G (NOMINAL)</span>
+                <span className="font-semibold text-emerald-300" dir="ltr">0.02G (NOMINAL)</span>
               </div>
             </div>
           </div>
@@ -525,7 +525,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         {/* GPU load verifier — emitted by the render loop at 2 Hz. */}
         {stats && (
           <div
-            className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 font-mono text-[8px] tracking-wider text-slate-400 backdrop-blur"
+            className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 font-mono text-[8px] tracking-wider text-slate-400"
             dir="ltr"
             data-scene-fps={stats.fps}
             data-scene-draws={stats.draws}
@@ -535,45 +535,45 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
         )}
 
         {/* Camera Preset Quick Buttons (Bottom Left) */}
-        <div className="absolute bottom-4 left-4 rtl:left-auto rtl:right-4 z-10 flex items-center gap-1.5 font-mono text-[10px] pointer-events-auto">
+        <div className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 font-mono text-[10px] pointer-events-auto">
           <span className="text-slate-400 mr-1 hidden sm:inline">{isRtl ? 'زوايا الرؤية:' : 'CAMERA:'}</span>
           <button
             type="button"
             onClick={() => setPresetView('iso')}
-            className="px-2.5 py-1 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white backdrop-blur-md transition-colors"
+            className="px-2.5 py-1 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white transition-colors"
           >
             {isRtl ? 'منظور مائل' : 'ISO'}
           </button>
           <button
             type="button"
             onClick={() => setPresetView('front')}
-            className="px-2.5 py-1 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white backdrop-blur-md transition-colors"
+            className="px-2.5 py-1 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white transition-colors"
           >
             {isRtl ? 'الواجهة' : 'FRONT'}
           </button>
           <button
             type="button"
             onClick={() => setPresetView('side')}
-            className="px-2.5 py-1 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white backdrop-blur-md transition-colors"
+            className="px-2.5 py-1 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white transition-colors"
           >
             {isRtl ? 'الجانب' : 'SIDE'}
           </button>
           <button
             type="button"
             onClick={() => setPresetView('inside')}
-            className="px-2.5 py-1 rounded-lg bg-teal-500/20 border border-teal-400/50 hover:border-teal-300 text-teal-300 backdrop-blur-md transition-colors font-bold"
+            className="px-2.5 py-1 rounded-lg bg-teal-500/20 border border-teal-400/50 hover:border-teal-300 text-teal-300 transition-colors font-semibold"
           >
             {isRtl ? 'الدخول للحاوية 🔍' : 'INSIDE 🔍'}
           </button>
         </div>
 
         {/* Zoom Controls (Bottom Right) */}
-        <div className="absolute bottom-4 right-4 rtl:right-auto rtl:left-4 z-10 flex items-center gap-1 font-mono pointer-events-auto">
+        <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 font-mono pointer-events-auto">
           <button
             type="button"
             onClick={() => sceneRef.current?.zoomBy(-0.55)}
             title="تكبير"
-            className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white backdrop-blur-md"
+            className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
@@ -581,7 +581,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
             type="button"
             onClick={() => sceneRef.current?.zoomBy(0.55)}
             title="تصغير"
-            className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white backdrop-blur-md"
+            className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:border-cyan-400 text-white"
           >
             <ZoomOut className="w-4 h-4" />
           </button>
@@ -611,7 +611,7 @@ export const ULDViewer3D: React.FC<ULDViewer3DProps> = ({ uld }) => {
 
       {customModelNotice && (
         <div className="p-4 bg-[#0a1424] border-t border-cyan-500/30 text-xs font-mono text-slate-300 space-y-2">
-          <div className="flex items-center justify-between font-bold text-cyan-300">
+          <div className="flex items-center justify-between font-semibold text-cyan-300">
             <span>{isRtl ? 'تعليمات ربط ودمج مجسمات الحاويات المخصصة:' : 'Custom 3D ULD Model Plug-In Interface:'}</span>
             <button
               type="button"

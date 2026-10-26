@@ -1,24 +1,30 @@
-/* ── AIRGL · corridor network globe ───────────────────────────────
-   The airway network rendered the way the data actually exists: great
-   circles on a sphere, over a dot-shell planet whose dots know whether
-   they are land or water (see landmask.ts) and whether the sun is above
-   them right now (see geo.ts subsolarLatLon). One scene, six draw calls,
-   zero CPU animation — every moving element (arc sparks, aircraft traffic,
-   hub pulses) is a closed-form function of time evaluated in the vertex
-   shader.
+/* ── AIRGL · great-circle network globe ───────────────────────────────
+   A chart of the planet, not a photograph of it. One 66 KiB coastline mask
+   rasterised from Natural Earth 1:50m drives flat land, ocean and coastline
+   ink; everything else is drawn as line art on top. The palette follows the
+   page: white ground with blue coastlines in daylight, deep navy after dark.
 
-   Draw calls (steady state):
-     1. Land/ocean dot-shell (the planet, ~8 k classified points, one Points)
-     2. Graticule (one merged LineSegments)
-     3. Atmosphere rim (one inverted-hull additive sphere)
-     4. Airport hubs (one Points, per-point shader pulse; CAI reads largest)
-     5. Corridor arcs (all arcs merged into one LineSegments)
-     6. Live traffic (one Points; GLSL great-circle slerp per aircraft)
+   The point of the section is the network, so the sphere is deliberately the
+   quietest thing in the frame and the corridors are the loudest.
 
-   The terminator is geography-locked, not screen-locked: the subsolar
-   direction is computed in world space, then rotated into the globe's
-   local frame each frame so night follows the continents as the user
-   spins the planet — the way the real planet behaves.
+   Everything that moves on the sphere is a closed-form function of time
+   evaluated on the GPU, so the CPU cost of the whole scene is one camera
+   update per frame:
+
+     1. Earth surface    — one sphere, one draw, one texture fetch: land,
+                           ocean, coastline and a limb falloff in one shader.
+     2. Graticule        — one merged LineSegments, faint reference lattice.
+     3. Great-circle arcs— tapered ribbons (two triangles per segment) that fade
+                           at the edges, so lines glow instead of stair-stepping.
+     4. Live traffic     — one Points cloud; the shader slerps each aircraft
+                           along its great circle and rotates an aircraft
+                           silhouette to match its ground track on screen.
+     5. Airport hubs     — one Points cloud with pulsing rings; CAI reads largest.
+
+   Cost policy: five draw calls, no atmosphere shells, no noise, no cloud
+   layer. Textures load once (66 KiB), idle frames are budgeted to 30 fps, and
+   the loop parks itself whenever the section is off-screen, the tab is hidden
+   or the user prefers reduced motion.
 ────────────────────────────────────────────────────────────────────────── */
 
 import * as THREE from 'three';
@@ -26,15 +32,13 @@ import { createAirRenderer, releaseWebGL, watchContextLoss } from '../gl';
 import { damp, dampAngle } from '../easing';
 import {
   arcApexHeight,
+  facingTiltFor,
   facingYawFor,
-  fibonacciSpherePoint,
   greatCircleAngle,
   greatCirclePoint,
   latLonToVec3,
-  subsolarLatLon,
   type Vec3Tuple,
 } from '../geo';
-import { isLand } from './landmask';
 
 export interface GlobeCorridor {
   id: string;
@@ -55,81 +59,151 @@ export interface GlobeHub {
 }
 
 const GLOBE_RADIUS = 1;
-/** Candidate lattice; ocean points are thinned below, land points all kept. */
-const SHELL_CANDIDATES = 13000;
-/** Fraction of ocean candidates retained — land carries the information. */
-const OCEAN_KEEP_NUMERATOR = 4;
-const OCEAN_KEEP_DENOMINATOR = 7;
-const ARC_SEGMENTS = 72;
-const PLANES_PER_CORRIDOR = 2;
-const AUTO_SPIN = 0.05;
-const ROTATION_SMOOTH = 4.2;
-const ZOOM_SMOOTH = 5.5;
-const REST_RADIUS = 3.05;
-const MIN_RADIUS = 2.25;
-const MAX_RADIUS = 4.2;
-/** The sun moves ~0.25°/min; re-deriving it every minute is invisible. */
-const SUN_REFRESH_MS = 60_000;
+const ARC_SEGMENTS = 64;
+/* One aircraft per route, riding the head of that route's packet. Three per
+   route at unrelated phases and unrelated on-screen angles was what made the
+   network read as scattered debris. */
+const PLANES_PER_CORRIDOR = 1;
+/** Packets per second for a 2,910 km hop. Longer routes are slowed by the
+ *  square root of their length, not linearly: a faithful 2.4x spread left the
+ *  Shanghai packet almost stationary, while a flat rate would pretend every
+ *  corridor takes the same time. */
+const PACKET_SPEED_UNIT = 0.78;
+/** Slow, stately drift — a planet seen from orbit, not a carousel. */
+const AUTO_SPIN = 0.015;
+/* Lower stiffness = softer, later settling. The globe is scenery, not a
+   control that should snap back at you. */
+const ROTATION_SMOOTH = 2.4;
+const ZOOM_SMOOTH = 3.4;
+/* A 34° vertical FOV puts the sphere's limb at asin(1/d) from centre; d = 4.35
+   frames the planet with enough margin above the northern limb for corridors
+   to arc clear of it without being cropped by the canvas. */
+const REST_RADIUS = 4.62;
+const MIN_RADIUS = 4.05;
+const MAX_RADIUS = 6.2;
+/* Idle redraw budget. The globe drifts slowly, so 30 fps is indistinguishable
+   from 60 while halving the GPU work that competes with page scrolling. Drag,
+   zoom and focus animations still render on every frame. */
+const IDLE_FRAME_MS = 1000 / 30;
+const TEXTURE_BASE = '/assets/earth';
+
+/** One flat palette per theme. The globe is a chart, not a photograph: every
+ *  value here is chosen to keep the corridor network the highest-contrast
+ *  thing on the sphere. */
+export type GlobeTheme = 'light' | 'dark';
+
+interface GlobePalette {
+  ocean: number;
+  /** Continental shelf: a slightly deeper wash than the open ocean. */
+  shelf: number;
+  land: number;
+  coast: number;
+  limb: number;
+  graticule: number;
+  graticuleOpacity: number;
+  arc: number;
+  arcActive: number;
+  traffic: number;
+  /** Line art is added on dark and painted on light: additive blending over a
+   *  white ground would erase the network. */
+  additive: boolean;
+}
+
+const PALETTES: Record<GlobeTheme, GlobePalette> = {
+  light: {
+    /* Land carries the blue, ocean stays paper-white. The eye reads the
+       smaller, tinted mass as the figure; a pale ocean on a white ground
+       dissolved the coastline entirely. */
+    ocean: 0xffffff,
+    shelf: 0xdce9f5,
+    land: 0xc2dbee,
+    coast: 0x2f7aa8,
+    limb: 0x7fb0d0,
+    graticule: 0x7fa8c4,
+    graticuleOpacity: 0.38,
+    arc: 0x2a7ba6,
+    arcActive: 0x0369a1,
+    traffic: 0x0b4a6f,
+    additive: false,
+  },
+  dark: {
+    ocean: 0x08192b,
+    shelf: 0x0c2136,
+    land: 0x13324a,
+    coast: 0x3579a3,
+    limb: 0x2e6e97,
+    graticule: 0x86b6d8,
+    graticuleOpacity: 0.085,
+    arc: 0x3fa8d4,
+    arcActive: 0x63e6ff,
+    traffic: 0xd8f6ff,
+    additive: true,
+  },
+};
 
 /* ── GLSL ───────────────────────────────────────────────────────────────── */
 
-const ATMOSPHERE_VERTEX = /* glsl */ `
+const SURFACE_VERTEX = /* glsl */ `
+  varying vec3 vLocal;
   varying vec3 vNormalV;
   void main() {
+    vLocal = normalize(position);
     vNormalV = normalize(normalMatrix * normal);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
-const ATMOSPHERE_FRAGMENT = /* glsl */ `
+/* A chart of the planet, not a photograph of it. One texture fetch, two
+   smoothsteps and a limb term: no noise, no clouds, no sun simulation, so the
+   shader costs almost nothing to re-rasterise while the page scrolls.
+
+   The coastline is the edge of the same mask, which is why the outline stays
+   crisp at any zoom without a second map or a line layer. */
+const SURFACE_FRAGMENT = /* glsl */ `
   precision mediump float;
+  uniform sampler2D uLand;
+  uniform float uLandReady;
+  uniform vec3 uOcean;
+  uniform vec3 uOceanShelf;
+  uniform vec3 uLandColor;
+  uniform vec3 uCoast;
+  uniform vec3 uLimb;
+  varying vec3 vLocal;
   varying vec3 vNormalV;
-  uniform vec3 uColor;
-  void main() {
-    float rim = pow(max(0.68 - dot(vNormalV, vec3(0.0, 0.0, 1.0)), 0.0), 3.2);
-    gl_FragColor = vec4(uColor, rim * 0.85);
-    #include <colorspace_fragment>
-  }
-`;
 
-/* Dot-shell: one program for the whole planet. Per-point attributes carry
-   land/ocean identity and size; the fragment composes the terminator light
-   from the (already globe-local) sun direction. Night-side land keeps a
-   faint warm tone — settlements seen from orbit — while ocean goes near
-   black, which is what makes coastlines pop after dark. */
-const SHELL_VERTEX = /* glsl */ `
-  attribute float aSize;
-  attribute float aLand;
-  varying vec3 vColor;
-  varying float vLand;
-  varying float vSun;
-  uniform float uPointScale;
-  uniform vec3 uSunDir;
-  void main() {
-    vColor = color;
-    vLand = aLand;
-    vSun = dot(normalize(position), uSunDir);
-    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = aSize * uPointScale / max(0.6, -mvPos.z);
-    gl_Position = projectionMatrix * mvPos;
-  }
-`;
+  const float PI = 3.14159265359;
 
-const SHELL_FRAGMENT = /* glsl */ `
-  precision mediump float;
-  varying vec3 vColor;
-  varying float vLand;
-  varying float vSun;
   void main() {
-    float dist = length(gl_PointCoord - vec2(0.5));
-    float disc = smoothstep(0.5, 0.14, dist);
-    // Soft wrap terminator: dusk spans roughly ±25° of arc.
-    float day = clamp(vSun * 1.4 + 0.32, 0.0, 1.0);
-    vec3 lit = vColor * (0.34 + 0.82 * day);
-    vec3 nightLand = vec3(0.36, 0.27, 0.18) * (0.5 + 0.5 * vColor.g);
-    vec3 col = mix(lit, nightLand, (1.0 - day) * vLand * 0.42);
-    float alpha = disc * mix(0.5, 0.95, vLand) * (0.42 + 0.58 * day);
-    gl_FragColor = vec4(col, alpha);
+    vec3 n = normalize(vLocal);
+    float lon = atan(n.x, n.z);
+    float lat = asin(clamp(n.y, -1.0, 1.0));
+    vec2 uv = vec2(lon / (2.0 * PI) + 0.5, 0.5 - lat / PI);
+
+    vec4 sample_ = texture2D(uLand, uv);
+    float mask = sample_.r * uLandReady;
+    float shelf = sample_.a * uLandReady;
+
+    float land = smoothstep(0.47, 0.53, mask);
+    /* Screen-space coastline width from the mask gradient, so the outline is a
+       constant hairline at every zoom instead of a band that disappears under
+       filtering. The gradient is clamped: under mip reduction fwidth() explodes
+       and an unclamped width paints the entire ocean in coastline ink. */
+    float coastWidth = clamp(fwidth(mask) * 1.2, 0.006, 0.045);
+    float coast = 1.0 - smoothstep(0.0, coastWidth, abs(mask - 0.5));
+
+    /* Ocean depth comes from the shelf channel: the pale continental shelf of
+       an atlas gives the coast its outline without a second texture. */
+    vec3 col = mix(uOcean, uOceanShelf, shelf * (1.0 - land) * 0.75);
+    col = mix(col, uLandColor, land);
+    col = mix(col, uCoast, coast * 0.9);
+
+    /* One soft falloff toward the silhouette so a flat disc still reads as a
+       sphere, plus a thin rim of atmosphere colour on the very edge. */
+    float facing = clamp(dot(normalize(vNormalV), vec3(0.0, 0.0, 1.0)), 0.0, 1.0);
+    col *= 1.0 - 0.16 * (1.0 - smoothstep(0.0, 0.85, facing));
+    col = mix(col, uLimb, pow(1.0 - facing, 5.0) * 0.6);
+
+    gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>
   }
 `;
@@ -137,61 +211,100 @@ const SHELL_FRAGMENT = /* glsl */ `
 const ARC_VERTEX = /* glsl */ `
   attribute float aT;
   attribute float aArc;
+  attribute float aSide;
+  attribute float aPacketPhase;
+  attribute float aPacketSpeed;
   varying float vT;
   varying float vArc;
+  varying float vSide;
+  varying float vHidden;
+  varying float vPacketPhase;
+  varying float vPacketSpeed;
+  uniform float uGlobeViewZ;
   void main() {
     vT = aT;
     vArc = aArc;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vSide = aSide;
+    /* Constant across every vertex of one route, so interpolation returns that
+       route's own value: one packet per corridor, no per-vertex cost. */
+    vPacketPhase = aPacketPhase;
+    vPacketSpeed = aPacketSpeed;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mv;
+
+    /* The camera orbits a unit sphere at the origin, so in view space the
+       planet's centre sits at (0, 0, uGlobeViewZ). A point on an arc is behind
+       the planet when the segment from the eye to that point passes within one
+       radius of the centre. That test is three dot products, so corridors on
+       the far side can be dimmed instead of being sliced off by the depth
+       buffer — the whole network stays readable in one draw call. */
+    vec3 eyeToPoint = normalize(mv.xyz);
+    float along = dot(vec3(0.0, 0.0, uGlobeViewZ), eyeToPoint);
+    float missDistance = length(vec3(0.0, 0.0, uGlobeViewZ) - along * eyeToPoint);
+    vHidden = along <= 0.0 ? 0.0 : 1.0 - smoothstep(0.90, 1.10, missDistance);
   }
 `;
 
+/* A ribbon rather than a hairline: the alpha falls off to both edges, which is
+   what makes a corridor read as a beam of light with a bright core. */
+/* A route, drawn the way an operations chart draws a movement: a quiet
+   permanent line for the corridor itself, a bright packet travelling from
+   origin to destination, and a soft tail behind it that shows which way it is
+   going. One packet per route at a staggered, deterministic phase — the old
+   version ran two counter-rotating sparks at irregular rates, which is what
+   made the network look random. */
+/* A route, drawn the way a flight-planning chart draws one: a crisp constant
+   line for the corridor, a short bright segment running ahead of the aircraft
+   to show direction, and closed ends so it terminates at an airport rather
+   than fading out in mid-air. The previous long exponential tail read as a
+   comet smearing across the planet rather than a scheduled movement. */
 const ARC_FRAGMENT = /* glsl */ `
   precision mediump float;
   varying float vT;
   varying float vArc;
+  varying float vSide;
+  varying float vHidden;
+  varying float vPacketPhase;
+  varying float vPacketSpeed;
   uniform float uTime;
   uniform float uActiveArc;
+  uniform float uFocus;
+  uniform float uGlow;
   uniform vec3 uColor;
   uniform vec3 uActiveColor;
+
   void main() {
-    // step() arithmetic keeps the focus test branch-free.
     float noneSelected = step(uActiveArc, -0.5);
-    float focus = max(noneSelected, 1.0 - min(abs(vArc - uActiveArc), 1.0));
-    float spark = pow(1.0 - fract(vT - uTime * 0.16), 6.0) * focus;
-    vec3 color = mix(uColor * 0.22, uActiveColor, focus) * (0.55 + spark * 2.6);
-    float alpha = 0.14 + focus * 0.5 + spark * 0.35;
+    float isActive = (1.0 - min(abs(vArc - uActiveArc), 1.0)) * uFocus;
+    float focus = max(noneSelected * 0.18, isActive);
+
+    /* Distance behind the aircraft's head, wrapped to the route length. */
+    float head = fract(uTime * vPacketSpeed + vPacketPhase);
+    float behind = head - vT;
+    behind = behind < 0.0 ? behind + 1.0 : behind;
+
+    /* A fixed-length leading segment rather than an exponential falloff: the
+       bright run is about a tenth of the route whatever its length. */
+    float lead = smoothstep(0.085, 0.0, behind) * 0.75;
+
+    /* Ends settle at a definite point. */
+    float cap = smoothstep(0.0, 0.012, vT) * smoothstep(1.0, 0.988, vT);
+
+    /* Tight edge falloff keeps the line reading as a drawn stroke rather than
+       a soft beam. */
+    float edge = smoothstep(1.0, 0.55, abs(vSide));
+
+    vec3 color = mix(uColor, uActiveColor, clamp(focus * 1.5 + lead, 0.0, 1.0));
+    float alpha = (0.72 + 0.28 * focus) * cap + lead * (0.65 + 0.35 * focus);
+    alpha *= edge;
+
+    /* Far-side routes survive as a faint underlay, so the network reads as a
+       transparent globe rather than a solid ball with secrets. */
+    alpha *= mix(1.0, mix(0.14, 0.28, uGlow), vHidden);
+    /* Ink is heavier than light. */
+    alpha *= mix(0.78, 1.0, uGlow);
+
     gl_FragColor = vec4(color, alpha);
-    #include <colorspace_fragment>
-  }
-`;
-
-const HUB_VERTEX = /* glsl */ `
-  attribute float aEminence;
-  attribute float aPhase;
-  attribute vec3 aColor;
-  varying vec3 vColor;
-  varying float vPulse;
-  uniform float uTime;
-  uniform float uPointScale;
-  void main() {
-    vPulse = 0.7 + 0.3 * sin(uTime * 2.2 + aPhase * 6.2831);
-    vColor = aColor;
-    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = aEminence * vPulse * uPointScale / max(0.6, -mvPos.z);
-    gl_Position = projectionMatrix * mvPos;
-  }
-`;
-
-const HUB_FRAGMENT = /* glsl */ `
-  precision mediump float;
-  varying vec3 vColor;
-  varying float vPulse;
-  void main() {
-    float dist = length(gl_PointCoord - vec2(0.5));
-    float halo = smoothstep(0.5, 0.08, dist) * 0.5;
-    float core = smoothstep(0.16, 0.02, dist);
-    gl_FragColor = vec4(vColor, (halo * vPulse + core));
     #include <colorspace_fragment>
   }
 `;
@@ -203,10 +316,11 @@ const TRAFFIC_VERTEX = /* glsl */ `
   attribute float aSpeed;
   attribute float aLift;
   varying float vEnroute;
+  varying vec2 vHeading;
   uniform float uTime;
-  uniform float uPointScale;
+  uniform float uPlaneSize;
 
-  vec3 greatCirclePos(vec3 a, vec3 b, float t, float lift) {
+  vec3 gcPos(vec3 a, vec3 b, float t, float lift) {
     float omega = acos(clamp(dot(a, b), -1.0, 1.0));
     float sinOmega = max(sin(omega), 1e-4);
     vec3 dir = normalize((a * sin((1.0 - t) * omega) + b * sin(t * omega)) / sinOmega);
@@ -216,23 +330,126 @@ const TRAFFIC_VERTEX = /* glsl */ `
   void main() {
     float t = fract(uTime * aSpeed + aPhase);
     vEnroute = sin(3.14159 * t);
-    vec3 pos = greatCirclePos(aOrigin, aDest, t, aLift);
-    vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = (5.0 + 3.0 * vEnroute) * uPointScale / max(0.6, -mvPos.z);
-    gl_Position = projectionMatrix * mvPos;
+    vec3 pos = gcPos(aOrigin, aDest, t, aLift);
+
+    /* Project a point slightly ahead to get the on-screen ground track, so the
+       silhouette can point where the aircraft is actually going. */
+    vec3 ahead = gcPos(aOrigin, aDest, min(t + 0.01, 1.0), aLift);
+    vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+    vec4 mvAhead = modelViewMatrix * vec4(ahead, 1.0);
+    vec4 clip = projectionMatrix * mv;
+    vec4 clipAhead = projectionMatrix * mvAhead;
+    vec2 delta = clipAhead.xy / max(0.001, clipAhead.w) - clip.xy / max(0.001, clip.w);
+    vHeading = length(delta) > 1e-5 ? normalize(delta) : vec2(0.0, 1.0);
+
+    /* Constant screen size. Dividing by view depth made each aircraft a
+       different size depending on where it happened to be on the sphere, which
+       read as noise rather than as traffic. */
+    gl_PointSize = uPlaneSize;
+    gl_Position = clip;
   }
 `;
 
+/* Aircraft silhouette drawn inside the point sprite, rotated onto the ground
+   track computed above. Reads as traffic in motion at 10 px, which a dot does
+   not. */
+/* A 20-pixel airliner. Detail does not survive at this size, so the shape is
+   reduced to the three masses the eye actually reads — swept wings, a tapered
+   fuselage and a tailplane — with a soft halo that separates it from busy
+   coastline underneath. */
+/* An airliner drawn in about twenty pixels. The shape is assembled from
+   analytically swept masses rather than smoothstep blobs, because at this size
+   the eye needs the two things that say "aircraft": a long fuselage and wings
+   that sweep back from the root. */
 const TRAFFIC_FRAGMENT = /* glsl */ `
   precision mediump float;
   varying float vEnroute;
+  varying vec2 vHeading;
   uniform vec3 uColor;
+  uniform float uGlow;
+
   void main() {
-    float dist = length(gl_PointCoord - vec2(0.5));
-    float core = smoothstep(0.42, 0.05, dist);
-    float cross = smoothstep(0.06, 0.0, abs(gl_PointCoord.x - 0.5)) + smoothstep(0.06, 0.0, abs(gl_PointCoord.y - 0.5));
-    float alpha = core * (0.55 + 0.45 * vEnroute) + cross * 0.18 * vEnroute;
+    vec2 p = (gl_PointCoord - 0.5) * 2.0;
+    p.y = -p.y;
+
+    /* Rotate the sprite onto its on-screen ground track. */
+    float angle = atan(vHeading.y, vHeading.x);
+    float ca = cos(-angle), sa = sin(-angle);
+    p = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
+
+    /* Fuselage: a long body, tapering behind the wing. */
+    float bodyHalfWidth = mix(0.085, 0.035, smoothstep(0.05, 0.80, p.x));
+    float fuselage = smoothstep(bodyHalfWidth, bodyHalfWidth * 0.45, abs(p.y))
+      * smoothstep(0.80, 0.70, p.x)
+      * smoothstep(-0.66, -0.56, p.x);
+
+    /* Wings: swept back, so the leading edge lags the root as span increases. */
+    float span = abs(p.y);
+    float wingRootX = 0.02;
+    float wingTrailX = wingRootX - span * 1.05;
+    float wing = smoothstep(0.075, 0.020, abs(p.x - wingTrailX))
+      * smoothstep(0.52, 0.44, span)
+      * smoothstep(0.06, 0.12, span);
+
+    /* Tailplane: same idea, much shorter span, well aft. */
+    float tailSpan = abs(p.y);
+    float tail = smoothstep(0.045, 0.010, abs(p.x + 0.50 + tailSpan * 0.30))
+      * smoothstep(0.26, 0.19, tailSpan)
+      * smoothstep(0.03, 0.08, tailSpan);
+
+    float shape = clamp(fuselage + wing + tail, 0.0, 1.0);
+    float alpha = shape * mix(0.88, 1.0, uGlow);
+    if (alpha < 0.03) discard;
     gl_FragColor = vec4(uColor, alpha);
+    #include <colorspace_fragment>
+  }
+`;
+
+/* Airport markers, drawn as a surveyor would draw a fix: a precise hairline
+   ring around a solid centre with a single slow ping travelling outward. The
+   old version scaled with view depth and drew a fat 38 px donut, which
+   dominated the card and merged neighbouring airports into one blob. */
+const HUB_VERTEX = /* glsl */ `
+  attribute float aEminence;
+  attribute float aPhase;
+  attribute vec3 aColor;
+  varying vec3 vColor;
+  varying float vPing;
+  uniform float uTime;
+  uniform float uHubSize;
+
+  void main() {
+    /* One ping per four-second cycle, offset per airport so they never fire
+       together. */
+    vPing = fract(uTime * 0.22 + aPhase);
+    vColor = aColor;
+    /* Constant on screen: a fix marker is a symbol, not an object with
+       perspective. Only CAI (aEminence > 1) reads larger. */
+    gl_PointSize = uHubSize * aEminence;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const HUB_FRAGMENT = /* glsl */ `
+  precision mediump float;
+  varying vec3 vColor;
+  varying float vPing;
+
+  void main() {
+    float r = length(gl_PointCoord - 0.5) * 2.0;
+    if (r > 1.0) discard;
+
+    /* Solidity in the middle, a 1-pixel-weight ring at a fixed radius, and a
+       ping that expands to the edge and fades as it goes. */
+    float center = smoothstep(0.20, 0.08, r);
+    float ring = smoothstep(0.055, 0.0, abs(r - 0.62)) * 0.9;
+
+    float pingRadius = 0.24 + vPing * 0.76;
+    float ping = smoothstep(0.075, 0.0, abs(r - pingRadius)) * (1.0 - vPing) * 0.55;
+
+    float alpha = center + ring + ping;
+    if (alpha < 0.02) discard;
+    gl_FragColor = vec4(vColor, alpha);
     #include <colorspace_fragment>
   }
 `;
@@ -246,35 +463,56 @@ export class CorridorGlobeScene {
   private readonly canvas: HTMLCanvasElement;
   private readonly globeGroup = new THREE.Group();
   private readonly resizeObserver: ResizeObserver;
+
   private readonly arcIds: string[] = [];
+  private readonly textures: THREE.Texture[] = [];
 
   private readonly pointScale = { value: 1 };
+  /** Beacon diameter in device pixels: a symbol size, constant on screen. */
+  private readonly hubSize = { value: 24 };
+  /** Aircraft sprite size in device pixels: constant, so every aircraft is the
+   *  same size regardless of where it sits on the sphere. */
+  private readonly planeSize = { value: 24 };
   private arcMaterial: THREE.ShaderMaterial | null = null;
   private hubMaterial: THREE.ShaderMaterial | null = null;
   private trafficMaterial: THREE.ShaderMaterial | null = null;
-  private atmosphereMaterial: THREE.ShaderMaterial | null = null;
-  private shellMaterial: THREE.ShaderMaterial | null = null;
+  private surfaceMaterial: THREE.ShaderMaterial | null = null;
+  private graticuleMaterial: THREE.LineBasicMaterial | null = null;
 
-  /* Rest yaw presents the Mediterranean (CAI longitude ≈ 31.4°E) head-on. */
-  private yaw = -0.55;
-  private yawGoal = -0.55;
-  private tilt = 0.34;
-  private tiltGoal = 0.34;
+  /* Focus easing: the active arc blooms in rather than snapping. */
+  private focusTarget = 0;
+  private focusValue = 0;
+
+  /* The coastline arrives asynchronously; the surface fades it in. */
+  private landReady = 0;
+  private landReadyTarget = 0;
+  private readyCallback: (() => void) | null = null;
+
+  /* Rest pose centres the network's centroid (~30°N, 30°E): the Mediterranean,
+     with Europe above it and the Gulf below, so every hub sits well inside the
+     disc instead of being foreshortened against the limb. */
+  private yaw = -0.62;
+  private yawGoal = -0.62;
+  private tilt = 0.45;
+  private tiltGoal = 0.45;
   private radius = REST_RADIUS;
   private radiusGoal = REST_RADIUS;
   private spinVelocity = 0;
   private dragging = false;
   private lastPointerX = 0;
   private lastPointerY = 0;
+  private idleBefore = 0;
 
-  /* Solar state — world-space direction, refreshed on a slow clock. */
-  private readonly sunWorld = new THREE.Vector3(1, 0, 0);
-  private readonly sunLocal = new THREE.Vector3(1, 0, 0);
-  private readonly inverseSpin = new THREE.Quaternion();
-  private sunLastComputed = 0;
+  /* Theme. The wrapper mirrors documentElement[data-theme] into this; the
+     scene owns nothing but the palette it renders with. */
+  private theme: GlobeTheme = 'dark';
+  private readonly hubColors: number[] = [];
+  /* Rebound to the real attribute once the beacon cloud is built. */
+  private hubGeometryColors = new THREE.BufferAttribute(new Float32Array(0), 3);
 
   private rafId = 0;
   private lastTime = 0;
+  private lastDrawTime = 0;
   private elapsed = 0;
   private visible = false;
   private reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -285,32 +523,23 @@ export class CorridorGlobeScene {
   private statsAccumulator = 0;
   private lastStatTime = 0;
 
-  /* GPU reset recovery. Every geometry here is a plain typed-array
-     BufferGeometry and every material a ShaderMaterial with scalar/color
-     uniforms — three.js re-uploads all of that automatically once the
-     context is restored (see gl.ts `watchContextLoss`). The only thing
-     this scene owns that three.js can't fix on its own is the rAF loop
-     (it would otherwise keep ticking into a no-op renderer) and the user
-     not knowing the globe went dark. */
   private contextLost = false;
   private contextCallback: ((lost: boolean) => void) | null = null;
   private readonly stopWatchingContext: () => void;
 
   constructor(canvas: HTMLCanvasElement, corridors: GlobeCorridor[], hubs: GlobeHub[]) {
     this.canvas = canvas;
-    // Alpha context: the section's CSS radial backdrop shows through the void.
     this.renderer = createAirRenderer(canvas, { alpha: true });
     this.renderer.setClearColor(0x000000, 0);
     this.camera = new THREE.PerspectiveCamera(34, 1, 0.1, 20);
     this.camera.up.set(0, 1, 0);
 
     this.scene.add(this.globeGroup);
-    this.buildDotShell();
+    this.buildSurface();
     this.buildGraticule();
-    this.buildAtmosphere();
     this.buildHubs(hubs);
     this.buildArcsAndTraffic(corridors);
-    this.refreshSun(true);
+    this.applyPalette();
 
     this.attachPointer(canvas);
     this.stopWatchingContext = watchContextLoss(canvas, {
@@ -323,10 +552,14 @@ export class CorridorGlobeScene {
     this.applySize();
   }
 
-  /** Subscribe to GPU-reset state; see UldScene.onContextChange for the
-   *  same contract. */
   onContextChange(callback: (lost: boolean) => void): void {
     this.contextCallback = callback;
+  }
+
+  /** Fires once both map layers are resident; the wrapper uses it to retire
+      its loading shimmer at the right moment instead of on a timer. */
+  onReady(callback: () => void): void {
+    this.readyCallback = callback;
   }
 
   private handleContextLost(): void {
@@ -343,91 +576,54 @@ export class CorridorGlobeScene {
     this.wake();
   }
 
-  /* 1 — the planet shell: a Fibonacci lattice classified against the
-     landmask. Land is kept whole and reads bright; ocean is thinned and
-     dimmed so the coastlines — the actual geography of the corridors —
-     carry the composition. Still exactly one draw call. */
-  private buildDotShell(): void {
-    const positions: number[] = [];
-    const colors: number[] = [];
-    const sizes: number[] = [];
-    const lands: number[] = [];
-
-    const landColor = new THREE.Color(0x35c9dd);
-    const landAlt = new THREE.Color(0x2ba8b8);
-    const oceanColor = new THREE.Color(0x16436b);
-    const mixed = new THREE.Color();
-    const latLon = new THREE.Vector3();
-
-    for (let i = 0; i < SHELL_CANDIDATES; i++) {
-      const [x, y, z] = fibonacciSpherePoint(i, SHELL_CANDIDATES, GLOBE_RADIUS);
-      latLon.set(x, y, z);
-      const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(y, -1, 1)));
-      const lon = THREE.MathUtils.radToDeg(Math.atan2(x, z));
-      const land = isLand(lat, lon);
-      if (!land && i % OCEAN_KEEP_DENOMINATOR >= OCEAN_KEEP_NUMERATOR) continue;
-
-      positions.push(x, y, z);
-      if (land) {
-        // Slight two-tone variation keeps continents from reading flat.
-        mixed.copy(landColor).lerp(landAlt, (i * 0.37) % 1);
-        sizes.push(1.35);
-        lands.push(1);
-      } else {
-        // Ocean keeps a whisper of the old latitude banding for texture.
-        const band = 0.5 + 0.5 * Math.sin(y * Math.PI * 1.6 + x * 0.5);
-        mixed.copy(oceanColor).multiplyScalar(0.72 + band * 0.28);
-        sizes.push(0.85);
-        lands.push(0);
-      }
-      colors.push(mixed.r, mixed.g, mixed.b);
-    }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    geometry.setAttribute('aSize', new THREE.Float32BufferAttribute(sizes, 1));
-    geometry.setAttribute('aLand', new THREE.Float32BufferAttribute(lands, 1));
-    this.shellMaterial = new THREE.ShaderMaterial({
-      vertexShader: SHELL_VERTEX,
-      fragmentShader: SHELL_FRAGMENT,
-      uniforms: {
-        uPointScale: this.pointScale,
-        uSunDir: { value: this.sunLocal },
-      },
-      vertexColors: true,
-      transparent: true,
-      depthWrite: false,
+  /* 1 — the planet. */
+  private buildSurface(): void {
+    const land = new THREE.TextureLoader().load(`${TEXTURE_BASE}/earth-land.png`, () => {
+      this.landReadyTarget = 1;
+      this.readyCallback?.();
+      this.wake();
     });
-    this.globeGroup.add(new THREE.Points(geometry, this.shellMaterial));
+    land.colorSpace = THREE.NoColorSpace; // data map: raw coverage, no sRGB decode
+    /* Three flips loaded images by default, but the shader's UV convention
+       (see SURFACE_FRAGMENT) is already image-space: v = 0 is the north pole
+       because the raster's row 0 is the north pole. Leaving flipY on sampled
+       the sheet upside down, so the globe rendered Antarctica where the Arctic
+       belongs and every beacon sat on the wrong continent. */
+    land.flipY = false;
+    land.wrapS = THREE.RepeatWrapping; // longitude wraps at the antimeridian
+    land.wrapT = THREE.ClampToEdgeWrapping;
+    land.minFilter = THREE.LinearMipmapLinearFilter;
+    land.magFilter = THREE.LinearFilter;
+    land.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    this.textures.push(land);
+
+    const palette = PALETTES[this.theme];
+    this.surfaceMaterial = new THREE.ShaderMaterial({
+      vertexShader: SURFACE_VERTEX,
+      fragmentShader: SURFACE_FRAGMENT,
+      uniforms: {
+        uLand: { value: land },
+        uLandReady: { value: 0 },
+        uOcean: { value: new THREE.Color(palette.ocean) },
+        uOceanShelf: { value: new THREE.Color(palette.shelf) },
+        uLandColor: { value: new THREE.Color(palette.land) },
+        uCoast: { value: new THREE.Color(palette.coast) },
+        uLimb: { value: new THREE.Color(palette.limb) },
+      },
+    });
+    /* 96×48 segments: the silhouette is this canvas's only curve, and 48 bands
+       keep it clean at the sizes the card is displayed without a vertex buffer
+       that costs more than the fragment work it feeds. */
+    const geometry = new THREE.SphereGeometry(GLOBE_RADIUS, 96, 48);
+    this.globeGroup.add(new THREE.Mesh(geometry, this.surfaceMaterial));
   }
 
-  /** Subsolar direction in world space; refreshed on the slow sun clock. */
-  private refreshSun(force = false): void {
-    const now = performance.now();
-    if (!force && now - this.sunLastComputed < SUN_REFRESH_MS) return;
-    this.sunLastComputed = now;
-    const { lat, lon } = subsolarLatLon(new Date());
-    this.sunWorld.set(
-      Math.cos(THREE.MathUtils.degToRad(lat)) * Math.sin(THREE.MathUtils.degToRad(lon)),
-      Math.sin(THREE.MathUtils.degToRad(lat)),
-      Math.cos(THREE.MathUtils.degToRad(lat)) * Math.cos(THREE.MathUtils.degToRad(lon)),
-    );
-  }
-
-  /** Rotate the world-space sun into the globe's local frame so the
-      terminator stays glued to the geography while the planet spins. */
-  private updateSunLocal(): void {
-    this.inverseSpin.copy(this.globeGroup.quaternion).invert();
-    this.sunLocal.copy(this.sunWorld).applyQuaternion(this.inverseSpin);
-  }
-
-  /* 2 — merged lat/lon lattice. */
+  /* 2 — reference lattice, deliberately faint: the geography is the subject. */
   private buildGraticule(): void {
     const verts: number[] = [];
-    const radius = GLOBE_RADIUS * 0.995;
+    const radius = GLOBE_RADIUS * 1.001;
     const push = (a: Vec3Tuple, b: Vec3Tuple) => verts.push(a[0], a[1], a[2], b[0], b[1], b[2]);
-    for (let latDeg = -60; latDeg <= 60; latDeg += 20) {
+    for (let latDeg = -60; latDeg <= 60; latDeg += 30) {
       let from = latLonToVec3(latDeg, -180, radius);
       for (let i = 1; i <= 120; i++) {
         const to = latLonToVec3(latDeg, -180 + (i / 120) * 360, radius);
@@ -435,9 +631,9 @@ export class CorridorGlobeScene {
         from = to;
       }
     }
-    for (let lonDeg = -180; lonDeg < 180; lonDeg += 20) {
+    for (let lonDeg = -180; lonDeg < 180; lonDeg += 30) {
       let from = latLonToVec3(-85, lonDeg, radius);
-      for (let lat = -85 + 2; lat <= 85; lat += 2) {
+      for (let lat = -85 + 2.5; lat <= 85; lat += 2.5) {
         const to = latLonToVec3(lat, lonDeg, radius);
         push(from, to);
         from = to;
@@ -445,49 +641,42 @@ export class CorridorGlobeScene {
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-    const material = new THREE.LineBasicMaterial({ color: 0x0e2c40, transparent: true, opacity: 0.5 });
-    this.globeGroup.add(new THREE.LineSegments(geometry, material));
-  }
-
-  /* 3 — fresnel atmosphere rim. */
-  private buildAtmosphere(): void {
-    this.atmosphereMaterial = new THREE.ShaderMaterial({
-      vertexShader: ATMOSPHERE_VERTEX,
-      fragmentShader: ATMOSPHERE_FRAGMENT,
-      uniforms: { uColor: { value: new THREE.Color(0x1d9ee0) } },
+    const palette = PALETTES[this.theme];
+    this.graticuleMaterial = new THREE.LineBasicMaterial({
+      color: palette.graticule,
       transparent: true,
-      side: THREE.BackSide,
+      opacity: palette.graticuleOpacity,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
     });
-    this.globeGroup.add(new THREE.Mesh(new THREE.SphereGeometry(1.13, 48, 32), this.atmosphereMaterial));
+    this.globeGroup.add(new THREE.LineSegments(geometry, this.graticuleMaterial));
   }
 
-  /* 4 — airport hub beacons (CAI eminence 2.6 reads as the destination). */
+  /* 3 — airport beacons. */
   private buildHubs(hubs: GlobeHub[]): void {
     const count = hubs.length;
     const positions = new Float32Array(count * 3);
     const eminence = new Float32Array(count);
     const phase = new Float32Array(count);
     const colors = new Float32Array(count * 3);
-    const scratch = new THREE.Color();
     hubs.forEach((hub, i) => {
-      const [x, y, z] = latLonToVec3(hub.lat, hub.lon, GLOBE_RADIUS * 1.002);
+      const [x, y, z] = latLonToVec3(hub.lat, hub.lon, GLOBE_RADIUS * 1.004);
       positions.set([x, y, z], i * 3);
-      eminence[i] = 14 * hub.eminence;
+      eminence[i] = hub.eminence;
       phase[i] = (i * 0.37) % 1;
-      scratch.setHex(hub.color);
-      colors.set([scratch.r, scratch.g, scratch.b], i * 3);
+      /* Hues are authored by the wrapper; applyPalette() derives the ink that
+         actually reads against the current ground. */
+      this.hubColors.push(hub.color);
     });
     const geometry = new THREE.BufferGeometry();
+    this.hubGeometryColors = new THREE.BufferAttribute(colors, 3);
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('aEminence', new THREE.BufferAttribute(eminence, 1));
     geometry.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1));
-    geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('aColor', this.hubGeometryColors);
     this.hubMaterial = new THREE.ShaderMaterial({
       vertexShader: HUB_VERTEX,
       fragmentShader: HUB_FRAGMENT,
-      uniforms: { uTime: { value: 0 }, uPointScale: this.pointScale },
+      uniforms: { uTime: { value: 0 }, uHubSize: this.hubSize },
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
@@ -495,15 +684,19 @@ export class CorridorGlobeScene {
     this.globeGroup.add(new THREE.Points(geometry, this.hubMaterial));
   }
 
-  /* 5+6 — arcs and the traffic riding them. */
+  /* 4+5 — corridors as tapered ribbons, and the traffic riding them. */
   private buildArcsAndTraffic(corridors: GlobeCorridor[]): void {
     const origin: Vec3Tuple = [0, 0, 0];
     const dest: Vec3Tuple = [0, 0, 0];
     const current: Vec3Tuple = [0, 0, 0];
+    const next: Vec3Tuple = [0, 0, 0];
 
-    const arcVertices: number[] = [];
-    const arcT: number[] = [];
-    const arcIndex: number[] = [];
+    const ribbonPositions: number[] = [];
+    const ribbonT: number[] = [];
+    const ribbonArc: number[] = [];
+    const ribbonSide: number[] = [];
+    const ribbonPhase: number[] = [];
+    const ribbonSpeed: number[] = [];
 
     const trafficCount = corridors.length * PLANES_PER_CORRIDOR;
     const tOrigin = new Float32Array(trafficCount * 3);
@@ -513,58 +706,102 @@ export class CorridorGlobeScene {
     const tLift = new Float32Array(trafficCount);
     const tPositions = new Float32Array(trafficCount * 3); // required by three; shader ignores it
 
-    corridors.forEach((corridor, i) => {
+    /* Ribbon half-width in world units. Wide enough to read as a beam at rest
+       zoom, narrow enough that it never swallows the coastline. */
+    const HALF_WIDTH = 0.0058;
+
+    corridors.forEach((corridor, arcIndex) => {
       this.arcIds.push(corridor.id);
       const from = latLonToVec3(corridor.fromLat, corridor.fromLon, GLOBE_RADIUS, origin);
       const to = latLonToVec3(corridor.toLat, corridor.toLon, GLOBE_RADIUS, dest);
       const lift = arcApexHeight(greatCircleAngle(from, to), GLOBE_RADIUS);
+      /* One packet per route. Phases are evenly spaced around the cycle rather
+         than pseudo-random, so the four packets are never coincident and never
+         look like they were placed by eye. */
+      const packetSpeed = PACKET_SPEED_UNIT / Math.sqrt(Math.max(400, corridor.distanceKm));
+      const packetPhase = arcIndex / Math.max(1, corridors.length);
 
-      // GL_LINES pairs; aT drives the inbound spark, aArc the focus test.
-      let px = 0;
-      let py = 0;
-      let pz = 0;
-      for (let s = 0; s <= ARC_SEGMENTS; s++) {
-        const t = s / ARC_SEGMENTS;
-        const dir = greatCirclePoint(from, to, t, GLOBE_RADIUS, lift, current);
-        if (s > 0) {
-          arcVertices.push(px, py, pz, dir[0], dir[1], dir[2]);
-          arcT.push((s - 1) / ARC_SEGMENTS, t);
-          arcIndex.push(i, i);
-        }
-        px = dir[0];
-        py = dir[1];
-        pz = dir[2];
+      for (let s = 0; s < ARC_SEGMENTS; s++) {
+        const t0 = s / ARC_SEGMENTS;
+        const t1 = (s + 1) / ARC_SEGMENTS;
+        const p0 = greatCirclePoint(from, to, t0, GLOBE_RADIUS, lift, current).slice() as Vec3Tuple;
+        const p1 = greatCirclePoint(from, to, t1, GLOBE_RADIUS, lift, next).slice() as Vec3Tuple;
+        const tangent: Vec3Tuple = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+        const up: Vec3Tuple = [p1[0], p1[1], p1[2]];
+        /* width axis = tangent × up, normalised; falls back to the radial
+           direction at degenerate points (never hit in practice). */
+        let wx = tangent[1] * up[2] - tangent[2] * up[1];
+        let wy = tangent[2] * up[0] - tangent[0] * up[2];
+        let wz = tangent[0] * up[1] - tangent[1] * up[0];
+        const wlen = Math.hypot(wx, wy, wz) || 1;
+        wx /= wlen;
+        wy /= wlen;
+        wz /= wlen;
+        /* Taper: thin at both ends so a corridor leaves and joins the field
+           cleanly instead of stopping in mid-air. The exponent keeps body over
+           most of the length — a steeper taper pinched the route to a hair for
+           the half of its run nearest each airport. */
+        const taper0 = Math.sin(Math.PI * t0) ** 0.34;
+        const taper1 = Math.sin(Math.PI * t1) ** 0.34;
+        const w0 = HALF_WIDTH * taper0;
+        const w1 = HALF_WIDTH * taper1;
+
+        // Two triangles: (p0-, p0+, p1+) and (p0-, p1+, p1-)
+        const v = (p: Vec3Tuple, w: number, side: number, t: number) => {
+          ribbonPositions.push(p[0] + wx * w * side, p[1] + wy * w * side, p[2] + wz * w * side);
+          ribbonT.push(t);
+          ribbonArc.push(arcIndex);
+          ribbonSide.push(side);
+          ribbonPhase.push(packetPhase);
+          ribbonSpeed.push(packetSpeed);
+        };
+        v(p0, w0, -1, t0);
+        v(p0, w0, 1, t0);
+        v(p1, w1, 1, t1);
+        v(p0, w0, -1, t0);
+        v(p1, w1, 1, t1);
+        v(p1, w1, -1, t1);
       }
 
       for (let plane = 0; plane < PLANES_PER_CORRIDOR; plane++) {
-        const idx = i * PLANES_PER_CORRIDOR + plane;
+        const idx = arcIndex * PLANES_PER_CORRIDOR + plane;
         tOrigin.set(from, idx * 3);
         tDest.set(dest, idx * 3);
-        tPhase[idx] = plane / PLANES_PER_CORRIDOR + (i * 0.17) % 1;
-        // Long hauls keep aircraft aloft longer between departures.
-        tSpeed[idx] = 2200 / (corridor.distanceKm * 60);
+        /* Identical to the ribbon's packet, so the aircraft rides the head of
+           its own trail instead of drifting separately from it. */
+        tPhase[idx] = packetPhase;
+        tSpeed[idx] = packetSpeed;
         tLift[idx] = lift;
       }
     });
 
     const arcGeometry = new THREE.BufferGeometry();
-    arcGeometry.setAttribute('position', new THREE.Float32BufferAttribute(arcVertices, 3));
-    arcGeometry.setAttribute('aT', new THREE.Float32BufferAttribute(arcT, 1));
-    arcGeometry.setAttribute('aArc', new THREE.Float32BufferAttribute(arcIndex, 1));
+    arcGeometry.setAttribute('position', new THREE.Float32BufferAttribute(ribbonPositions, 3));
+    arcGeometry.setAttribute('aT', new THREE.Float32BufferAttribute(ribbonT, 1));
+    arcGeometry.setAttribute('aArc', new THREE.Float32BufferAttribute(ribbonArc, 1));
+    arcGeometry.setAttribute('aSide', new THREE.Float32BufferAttribute(ribbonSide, 1));
+    arcGeometry.setAttribute('aPacketPhase', new THREE.Float32BufferAttribute(ribbonPhase, 1));
+    arcGeometry.setAttribute('aPacketSpeed', new THREE.Float32BufferAttribute(ribbonSpeed, 1));
     this.arcMaterial = new THREE.ShaderMaterial({
       vertexShader: ARC_VERTEX,
       fragmentShader: ARC_FRAGMENT,
       uniforms: {
         uTime: { value: 0 },
         uActiveArc: { value: -1 },
-        uColor: { value: new THREE.Color(0x155e75) },
-        uActiveColor: { value: new THREE.Color(0x22d3ee) },
+        uFocus: { value: 0 },
+        uGlow: { value: 1 },
+        uColor: { value: new THREE.Color(0x3fa8d4) },
+        uActiveColor: { value: new THREE.Color(0x63e6ff) },
+        uGlobeViewZ: { value: -REST_RADIUS },
       },
       transparent: true,
       depthWrite: false,
+      depthTest: false,
+      side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
     });
-    this.globeGroup.add(new THREE.LineSegments(arcGeometry, this.arcMaterial));
+    this.globeGroup.add(new THREE.Mesh(arcGeometry, this.arcMaterial));
+
 
     const trafficGeometry = new THREE.BufferGeometry();
     trafficGeometry.setAttribute('position', new THREE.BufferAttribute(tPositions, 3));
@@ -573,15 +810,15 @@ export class CorridorGlobeScene {
     trafficGeometry.setAttribute('aPhase', new THREE.BufferAttribute(tPhase, 1));
     trafficGeometry.setAttribute('aSpeed', new THREE.BufferAttribute(tSpeed, 1));
     trafficGeometry.setAttribute('aLift', new THREE.BufferAttribute(tLift, 1));
-    const bounding = new THREE.Sphere(new THREE.Vector3(), 3);
-    trafficGeometry.boundingSphere = bounding;
+    trafficGeometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 3);
     this.trafficMaterial = new THREE.ShaderMaterial({
       vertexShader: TRAFFIC_VERTEX,
       fragmentShader: TRAFFIC_FRAGMENT,
       uniforms: {
         uTime: { value: 0 },
-        uPointScale: this.pointScale,
-        uColor: { value: new THREE.Color(0xa5f3fc) },
+        uPlaneSize: this.planeSize,
+        uColor: { value: new THREE.Color(0xd8f6ff) },
+        uGlow: { value: 1 },
       },
       transparent: true,
       depthWrite: false,
@@ -593,18 +830,41 @@ export class CorridorGlobeScene {
   }
 
   /* ── Public API (react wrapper intents) ─────────────────────────────── */
-  setActiveCorridor(id: string | null, endpoints?: { fromLat: number; fromLon: number; toLat: number; toLon: number }): void {
+  setActiveCorridor(
+    id: string | null,
+    endpoints?: { fromLat: number; fromLon: number; toLat: number; toLon: number },
+  ): void {
     const index = id ? this.arcIds.indexOf(id) : -1;
     if (this.arcMaterial) this.arcMaterial.uniforms.uActiveArc.value = index;
+    this.focusTarget = index >= 0 ? 1 : 0;
+    this.focusValue = 0;
     if (index >= 0 && endpoints) {
       const from = latLonToVec3(endpoints.fromLat, endpoints.fromLon, GLOBE_RADIUS);
       const to = latLonToVec3(endpoints.toLat, endpoints.toLon, GLOBE_RADIUS);
+      /* Centre the corridor both ways: yaw brings it around, tilt lifts or
+         drops it to the middle of the view. */
       this.yawGoal = facingYawFor(from, to);
+      this.tiltGoal = THREE.MathUtils.clamp(facingTiltFor(from, to) * 0.85 + 0.12, -1.05, 1.05);
     }
     if (this.reducedMotion) {
       this.yaw = this.yawGoal;
+      this.tilt = this.tiltGoal;
+      this.focusValue = this.focusTarget;
       this.renderOnce();
     }
+    this.wake();
+  }
+
+  /**
+   * Follow the page theme. The wrapper mirrors `documentElement[data-theme]`
+   * into this, so the globe is white-with-blue in daylight and deep navy after
+   * dark without either side owning the other's state.
+   */
+  setTheme(theme: GlobeTheme): void {
+    if (theme === this.theme) return;
+    this.theme = theme;
+    this.applyPalette();
+    this.renderOnce();
     this.wake();
   }
 
@@ -623,7 +883,57 @@ export class CorridorGlobeScene {
     this.statsCallback = callback;
   }
 
-  /* ── Loop: damped spin/tilt/zoom + three uniforms + camera. The frame. ── */
+  /**
+   * Push one palette onto every material. Kept in one place so the surface,
+   * the lattice, the corridors, the traffic and the beacons can never drift
+   * into different themes, and so a theme flip costs a handful of uniform
+   * writes rather than a rebuild.
+   */
+  private applyPalette(): void {
+    const palette = PALETTES[this.theme];
+    const blending = palette.additive ? THREE.AdditiveBlending : THREE.NormalBlending;
+
+    if (this.surfaceMaterial) {
+      this.surfaceMaterial.uniforms.uOcean.value.setHex(palette.ocean);
+      this.surfaceMaterial.uniforms.uOceanShelf.value.setHex(palette.shelf);
+      this.surfaceMaterial.uniforms.uLandColor.value.setHex(palette.land);
+      this.surfaceMaterial.uniforms.uCoast.value.setHex(palette.coast);
+      this.surfaceMaterial.uniforms.uLimb.value.setHex(palette.limb);
+    }
+    if (this.graticuleMaterial) {
+      this.graticuleMaterial.color.setHex(palette.graticule);
+      this.graticuleMaterial.opacity = palette.graticuleOpacity;
+    }
+    if (this.arcMaterial) {
+      this.arcMaterial.uniforms.uColor.value.setHex(palette.arc);
+      this.arcMaterial.uniforms.uActiveColor.value.setHex(palette.arcActive);
+      this.arcMaterial.uniforms.uGlow.value = palette.additive ? 1 : 0;
+      this.arcMaterial.blending = blending;
+    }
+    if (this.trafficMaterial) {
+      this.trafficMaterial.uniforms.uColor.value.setHex(palette.traffic);
+      this.trafficMaterial.uniforms.uGlow.value = palette.additive ? 1 : 0;
+      this.trafficMaterial.blending = blending;
+    }
+    if (this.hubMaterial) {
+      this.hubMaterial.blending = blending;
+      /* Beacons keep their own hues but are deepened for the white chart: the
+         bright cyan that reads on navy drops below 3:1 on paper. */
+      const colors = this.hubGeometryColors;
+      this.hubColors.forEach((hex, i) => {
+        const color = new THREE.Color(hex);
+        if (this.theme === 'light') {
+          const hsl = { h: 0, s: 0, l: 0 };
+          color.getHSL(hsl);
+          color.setHSL(hsl.h, Math.min(1, hsl.s * 0.9), hsl.l * 0.42);
+        }
+        colors.setXYZ(i, color.r, color.g, color.b);
+      });
+      colors.needsUpdate = true;
+    }
+  }
+
+  /* ── Loop ───────────────────────────────────────────────────────────── */
   private wake(): void {
     if (this.disposed || this.reducedMotion || !this.visible || this.contextLost) return;
     if (this.rafId === 0) {
@@ -644,26 +954,51 @@ export class CorridorGlobeScene {
     this.lastTime = time;
     this.elapsed += dt;
 
-    if (!this.dragging) this.yawGoal += AUTO_SPIN * dt + this.spinVelocity;
+    /* Auto-spin only when the reader is not steering, and it eases back in
+       after a gesture rather than snapping the moment the pointer lifts. */
+    if (!this.dragging) {
+      this.idleBefore = Math.min(1, this.idleBefore + dt * 0.35);
+      this.yawGoal += AUTO_SPIN * dt * this.idleBefore;
+    } else {
+      this.idleBefore = 0;
+    }
     this.spinVelocity *= Math.exp(-4.5 * dt);
-    this.yaw = dampAngle(this.yaw, this.yawGoal, ROTATION_SMOOTH, dt);
+    this.yaw += this.spinVelocity * dt;
+    this.yaw = dampAngle(this.yaw, this.yawGoal + this.spinVelocity * 18, ROTATION_SMOOTH, dt);
     this.tilt = damp(this.tilt, this.tiltGoal, ROTATION_SMOOTH, dt);
     this.radius = damp(this.radius, this.radiusGoal, ZOOM_SMOOTH, dt);
     this.globeGroup.rotation.set(this.tilt, this.yaw, 0);
 
-    if (this.arcMaterial) this.arcMaterial.uniforms.uTime.value = this.elapsed;
+    /* Focus bloom and texture fade-in. */
+    if (this.arcMaterial) {
+      this.arcMaterial.uniforms.uTime.value = this.elapsed;
+      this.arcMaterial.uniforms.uGlobeViewZ.value = -this.radius;
+      this.focusValue = damp(this.focusValue, this.focusTarget, 5.5, dt);
+      this.arcMaterial.uniforms.uFocus.value = this.focusValue;
+    }
+    if (this.surfaceMaterial) {
+      this.landReady = damp(this.landReady, this.landReadyTarget, 2.4, dt);
+      this.surfaceMaterial.uniforms.uLandReady.value = this.landReady;
+    }
     if (this.hubMaterial) this.hubMaterial.uniforms.uTime.value = this.elapsed;
     if (this.trafficMaterial) this.trafficMaterial.uniforms.uTime.value = this.elapsed;
 
-    this.draw(time);
+    /* Idle frames are budgeted to 30 fps; anything the reader is actively
+       steering renders at the display's own rate. */
+    const steering =
+      this.dragging ||
+      Math.abs(this.spinVelocity) > 5e-4 ||
+      Math.abs(this.focusValue - this.focusTarget) > 1e-3;
+    if (steering || time - this.lastDrawTime >= IDLE_FRAME_MS) {
+      this.lastDrawTime = time;
+      this.draw(time);
+    }
     this.rafId = requestAnimationFrame(this.tick);
   };
 
   private draw(time: number): void {
-    /* Sun state belongs here, not only in the loop: the reduced-motion path
-       renders via renderOnce() and still deserves a correct terminator. */
-    this.refreshSun();
-    this.updateSunLocal();
+    if (this.arcMaterial) this.arcMaterial.uniforms.uFocus.value = this.focusValue;
+    if (this.surfaceMaterial) this.surfaceMaterial.uniforms.uLandReady.value = this.landReady;
     this.camera.position.set(0, 0.052 * this.radius, this.radius);
     this.camera.lookAt(0, 0, 0);
     this.renderer.render(this.scene, this.camera);
@@ -706,9 +1041,8 @@ export class CorridorGlobeScene {
     this.lastPointerX = event.clientX;
     this.lastPointerY = event.clientY;
     this.yawGoal += dx * 0.005;
-    this.spinVelocity = dx * 0.0016;
-    // Vertical drag pitches the view between a low horizon and polar overview.
-    this.tiltGoal = THREE.MathUtils.clamp(this.tiltGoal + dy * 0.0035, 0.06, 1.15);
+    this.spinVelocity = dx * 0.0012;
+    this.tiltGoal = THREE.MathUtils.clamp(this.tiltGoal + dy * 0.0035, -1.15, 1.15);
     this.wake();
   };
 
@@ -718,11 +1052,10 @@ export class CorridorGlobeScene {
 
   private readonly onWheel = (event: WheelEvent): void => {
     event.preventDefault();
-    this.radiusGoal = THREE.MathUtils.clamp(
-      this.radiusGoal + event.deltaY * 0.0016,
-      MIN_RADIUS,
-      MAX_RADIUS,
-    );
+    /* Clamp the per-event delta: a trackpad flick can arrive as a single 400
+       unit jump, which reads as the globe teleporting rather than easing. */
+    const step = THREE.MathUtils.clamp(event.deltaY, -100, 100) * 0.0024;
+    this.radiusGoal = THREE.MathUtils.clamp(this.radiusGoal + step, MIN_RADIUS, MAX_RADIUS);
     this.wake();
   };
 
@@ -734,8 +1067,16 @@ export class CorridorGlobeScene {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    const heightPx = height * Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const heightPx = height * dpr;
     this.pointScale.value = (0.5 * heightPx * this.camera.projectionMatrix.elements[5]) / 240;
+    /* Scale the sprite to the card, then clamp to a readable band: below about
+       12 CSS px an airliner silhouette is a smudge, above ~22 px it dominates
+       the routes it is meant to annotate. */
+    const planeCss = THREE.MathUtils.clamp(Math.min(width, height) * 0.026, 11, 18);
+    this.planeSize.value = planeCss * dpr;
+    const hubCss = THREE.MathUtils.clamp(Math.min(width, height) * 0.019, 9, 15);
+    this.hubSize.value = hubCss * dpr;
     this.renderOnce();
   }
 
@@ -751,6 +1092,7 @@ export class CorridorGlobeScene {
     window.removeEventListener('pointermove', this.onPointerMove);
     window.removeEventListener('pointerup', this.onPointerUp);
     window.removeEventListener('pointercancel', this.onPointerUp);
+    for (const texture of this.textures) texture.dispose();
     releaseWebGL(this.renderer, this.scene);
   }
 }

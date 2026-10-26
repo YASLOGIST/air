@@ -126,6 +126,22 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
     };
   }, []);
 
+  /* The globe is the one instrument that follows the page: a white chart with
+     blue coastlines by day, a navy one after dark. The theme lives on
+     documentElement, so this mirrors it rather than duplicating the state —
+     it also means a toggle repaints the scene without remounting it. */
+  useEffect(() => {
+    const root = document.documentElement;
+    const sync = () => {
+      const theme = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      sceneRef.current?.setTheme?.(theme);
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+    return () => observer.disconnect();
+  }, [sceneReady, webGlFailed]);
+
   useEffect(() => {
     if (!sceneRef.current || !activeCorridorId) return;
     const corridor = GLOBE_CORRIDORS.find((c) => c.id === activeCorridorId) ?? null;
@@ -142,7 +158,7 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
   return (
     <div
       ref={hostRef}
-      className="relative aspect-square w-full overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_50%_42%,#081726_0%,#040a13_58%,#02060c_100%)]"
+      className="globe-stage relative aspect-square w-full overflow-hidden rounded-2xl border border-[var(--globe-edge)]"
     >
       <canvas
         ref={canvasRef}
@@ -155,10 +171,10 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
           aria-hidden={!sceneLoading}
           role={sceneLoading ? 'status' : undefined}
           aria-live={sceneLoading ? 'polite' : undefined}
-          className="pointer-events-none absolute inset-0 z-[5] grid place-items-center bg-[#02060c]/45"
+          className="pointer-events-none absolute inset-0 z-[5] grid place-items-center bg-[var(--globe-scrim)]"
         >
-          <div className="flex flex-col items-center gap-2 font-mono text-[10px] tracking-wider text-cyan-200/80">
-            <Globe2 className="h-6 w-6 text-cyan-400/80" />
+          <div className="flex flex-col items-center gap-2 font-mono text-[10px] tracking-wider text-[var(--globe-ink)]">
+            <Globe2 className="h-6 w-6 text-[var(--globe-accent)]" />
             {sceneLoading && <span>{isRtl ? 'جارٍ تحميل شبكة الممرات ثلاثية الأبعاد…' : 'Loading the 3D corridor network…'}</span>}
           </div>
         </div>
@@ -167,25 +183,25 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
       {!webGlFailed && (
         <>
           <div className="pointer-events-none absolute left-3 top-3 space-y-1 font-mono" dir="ltr">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/25 bg-black/45 px-2.5 py-1 text-[9px] font-bold tracking-[.18em] text-cyan-300 backdrop-blur">
+            <span className="globe-chip inline-flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-semibold tracking-[.18em] text-[var(--globe-accent)]">
               <Compass className="h-3 w-3" />
               AIRWAY NETWORK · SIMULATED ARCS
             </span>
-            <span className="block w-fit rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] tracking-wider text-slate-400 backdrop-blur">
-              SOLAR TERMINATOR · REAL UTC
+            <span className="globe-chip block w-fit px-2.5 py-1 text-[9px] tracking-wider text-[var(--globe-ink)]">
+              {isRtl ? 'شبكة النقل الجوي · مسارات محاكاة' : 'GREAT-CIRCLE ROUTES · CAI HUB'}
             </span>
             {active && (
-              <span className="block w-fit rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] tracking-wider text-slate-300 backdrop-blur">
+              <span className="globe-chip block w-fit px-2.5 py-1 text-[9px] tracking-wider text-[var(--globe-ink-strong)]">
                 FOCUS ⇢ {active.code}
               </span>
             )}
           </div>
 
-          <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5 font-mono text-[8px] text-slate-400" dir="ltr">
-            <MousePointer2 className="h-3 w-3 text-cyan-400/70" />
+          <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5 font-mono text-[8px] text-[var(--globe-ink)]" dir="ltr">
+            <MousePointer2 className="h-3 w-3 text-[var(--globe-accent)]" />
             <span>{isRtl ? 'اسحب للتدوير · حرّك العجلة للتقريب' : 'DRAG TO SPIN · SCROLL TO ZOOM'}</span>
             {stats && (
-              <span className="ml-2 rounded-full border border-white/10 bg-black/45 px-2 py-0.5 backdrop-blur">
+              <span className="globe-chip ml-2 px-2 py-0.5">
                 {stats.fps} FPS · {stats.draws} DRAWS · DPR ×{stats.dpr}
               </span>
             )}
@@ -194,11 +210,11 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
           {/* Hub legend pins — DOM text stays razor sharp above the canvas. */}
           <div className="pointer-events-none absolute bottom-3 right-3 flex gap-1 font-mono text-[8px]" dir="ltr">
             {['FRA', 'DXB', 'AMS', 'PVG'].map((iata) => (
-              <span key={iata} className="rounded-full border border-white/10 bg-black/45 px-1.5 py-0.5 text-sky-300/80 backdrop-blur">
+              <span key={iata} className="globe-chip px-1.5 py-0.5 text-[var(--globe-ink)]">
                 {iata}
               </span>
             ))}
-            <span className="rounded-full border border-cyan-300/40 bg-cyan-400/15 px-1.5 py-0.5 font-bold text-cyan-200 backdrop-blur">
+            <span className="globe-chip globe-chip--active px-1.5 py-0.5 font-semibold text-[var(--globe-accent)]">
               CAI
             </span>
           </div>
@@ -208,8 +224,8 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
       {webGlFailed && (
         <div className="absolute inset-0 grid place-items-center p-6 text-center">
           <div className="max-w-xs space-y-2">
-            <Globe2 className="mx-auto h-6 w-6 text-cyan-400" />
-            <p className="font-mono text-xs text-slate-300">
+            <Globe2 className="mx-auto h-6 w-6 text-[var(--globe-accent)]" />
+            <p className="font-mono text-xs text-[var(--globe-ink-strong)]">
               {webGlFailure === 'unsupported'
                 ? (isRtl
                     ? 'عارض WebGL غير متاح — الممرات الجوية المجدولة متاحة في البطاقات أدناه.'
@@ -229,9 +245,9 @@ export const CorridorGlobe3D: React.FC<CorridorGlobe3DProps> = ({ activeCorridor
         <div
           role="status"
           aria-live="polite"
-          className="absolute inset-0 z-20 grid place-items-center bg-[#02060c]/85 backdrop-blur-sm"
+          className="absolute inset-0 z-20 grid place-items-center bg-[var(--globe-scrim-strong)]"
         >
-          <div className="flex items-center gap-2.5 rounded-full border border-amber-400/30 bg-black/60 px-4 py-2 font-mono text-[11px] text-amber-200">
+          <div className="globe-chip flex items-center gap-2.5 px-4 py-2 font-mono text-[11px] text-[var(--globe-warn)]">
             <Compass className="h-3.5 w-3.5 animate-pulse" />
             <span>
               {isRtl

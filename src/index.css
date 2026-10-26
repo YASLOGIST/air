@@ -1,24 +1,28 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+/* `dist/` is committed in this repository (a static host serves the build
+   directly), so the previous build's markup, CSS and sourcemaps are on disk
+   whenever the next build runs. Tailwind's automatic content detection would
+   read those files as source and regenerate utility classes the app no longer
+   uses — measured ~30 KiB of dead rules, enough to break the bundle budget on
+   its own. The output directory must never feed itself back in. */
+@source not "../dist";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme {
-  --font-serif: "Archivo", "IBM Plex Sans", system-ui, sans-serif;
-  --font-display: "Archivo", "IBM Plex Sans", system-ui, sans-serif;
-  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  /* One Latin type system for the whole site: Inter for interface, prose and
+     display text, IBM Plex Mono for telemetry, Cairo for Arabic. The legacy
+     `--font-serif` name is kept because the heading classes below reference it;
+     it deliberately resolves to the same family so no rule can fall back to a
+     different typeface. */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-arabic: "Cairo", "IBM Plex Sans Arabic", system-ui, sans-serif;
   --font-ruqaa: "Cairo", "IBM Plex Sans Arabic", sans-serif;
   --font-ar-tech: "Cairo", "IBM Plex Sans Arabic", system-ui, sans-serif;
-
-  --color-steel: #9BB0BC;
-  --color-strato: #0A0F16;
-  --color-strato-card: #0F1722;
-  --color-altitude-blue: #0284c7;
-  --color-aero-cyan: #38bdf8;
-  --color-pharma-teal: #14b8a6;
-  --color-hud-green: #34d399;
-  --color-warning-amber: #f59e0b;
 }
 
 :root {
@@ -29,6 +33,17 @@
   --z-nav: 9000;
   --z-modal: 10000;
 
+  /* Instrument screens (radar scope, 3D viewports) are the same in both
+     themes, so their four ink levels and three signal colours live here
+     rather than being re-declared per theme. */
+  --hud-ink: #E6F3FF;
+  --hud-ink-dim: #8FA9C2;
+  --hud-line: rgba(143, 169, 194, 0.26);
+  --hud-line-strong: rgba(143, 169, 194, 0.5);
+  --hud-accent: #4FC3F7;
+  --hud-ok: #34D399;
+  --hud-warn: #FBBF24;
+
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
   --dur-fast: 180ms;
@@ -36,7 +51,52 @@
   --dur-slow: 700ms;
 }
 
+/* Daylight is the product's default surface: a clean white page, near-black
+   ink, and a single blue accent. `:root` carries the same values as the light
+   theme so the correct palette is already painted before the pre-paint
+   bootstrap in public/theme-init.js runs (and if scripting is unavailable). */
 :root,
+[data-theme="light"] {
+  color-scheme: light;
+  --c-bg: #FFFFFF;
+  --c-deep: #F7F8FA;
+  --c-card: #FFFFFF;
+  --c-card-solid: #FFFFFF;
+  --c-subcard: #F8FAFC;
+  --c-border: #E5E7EB;
+  --c-border-hover: #0369A1;
+  --c-text: #1F2937;
+  --c-heading: #0B1220;
+  --c-muted: #52606D;
+  --c-accent: #0369A1;
+  --c-accent-secondary: #0284C7;
+  --c-pharma: #0F766E;
+
+  /* Status inks. These are the only non-neutral hues left in the system, and
+     each one carries a meaning (compliance, cold chain, warning, alert) rather
+     than decoration. Dark theme lifts the same four along the lightness axis,
+     so a component needs one class in both themes instead of a `dark:` pair. */
+  --c-ok: #047857;
+  --c-cold: #0F766E;
+  --c-warn: #B45309;
+  --c-alert: #BE123C;
+
+  --c-track: #E2E8F0;
+  --c-hover: rgba(16, 24, 40, 0.05);
+
+  --glass-bg: #FFFFFF;
+  --glass-brd: #E5E7EB;
+  --glass-inset: #FFFFFF;
+  --glass-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 12px 32px -24px rgba(16, 24, 40, 0.18);
+
+  --hud-bg: #06101C; /* Avionics screens stay dark in both themes by design */
+  --hud-glow: rgba(3, 105, 161, 0.18);
+  --hud-green-glow: rgba(13, 148, 136, 0.22);
+  --radar-sweep-color: rgba(3, 105, 161, 0.12);
+  --grid-line: rgba(100, 116, 139, 0.1);
+  --hero-veil: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.18) 55%, #FFFFFF 100%);
+}
+
 [data-theme="dark"] {
   color-scheme: dark;
   --c-bg: #070C14;
@@ -52,13 +112,21 @@
   --c-accent: #38bdf8;
   --c-accent-secondary: #0284c7;
   --c-pharma: #14b8a6;
-  
+
+  --c-ok: #34D399;
+  --c-cold: #5EEAD4;
+  --c-warn: #FCD34D;
+  --c-alert: #FDA4AF;
+
+  --c-track: #1E293B;
+  --c-hover: rgba(255, 255, 255, 0.10);
+
   --glass-bg: rgba(13, 21, 34, 0.72);
   --glass-brd: rgba(155, 176, 188, 0.18);
   --glass-inset: rgba(255, 255, 255, 0.05);
   --glass-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.7);
-  
-  --hud-bg: #060B12;
+
+  --hud-bg: #06101C;
   --hud-glow: rgba(56, 189, 248, 0.25);
   --hud-green-glow: rgba(52, 211, 153, 0.3);
   --radar-sweep-color: rgba(56, 189, 248, 0.15);
@@ -66,77 +134,42 @@
   --hero-veil: linear-gradient(180deg, rgba(7, 12, 20, 0.75) 0%, rgba(10, 18, 30, 0.88) 60%, #070C14 100%);
 }
 
-[data-theme="light"] {
-  color-scheme: light;
-  --c-bg: #F8FAFC;
-  --c-deep: #F1F5F9;
-  --c-card: rgba(255, 255, 255, 0.92);
-  --c-card-solid: #FFFFFF;
-  --c-subcard: rgba(241, 245, 249, 0.95);
-  --c-border: rgba(148, 163, 184, 0.28);
-  --c-border-hover: rgba(2, 132, 199, 0.5);
-  --c-text: #0F172A;
-  --c-heading: #090E17;
-  --c-muted: #475569;
-  --c-accent: #0284c7;
-  --c-accent-secondary: #0369a1;
-  --c-pharma: #0d9488;
-  
-  --glass-bg: rgba(255, 255, 255, 0.9);
-  --glass-brd: rgba(148, 163, 184, 0.3);
-  --glass-inset: rgba(255, 255, 255, 0.95);
-  --glass-shadow: 0 16px 40px -10px rgba(15, 23, 42, 0.08);
-  
-  --hud-bg: #060B12; /* Avionics screen stays dark in both themes by design */
-  --hud-glow: rgba(2, 132, 199, 0.2);
-  --hud-green-glow: rgba(13, 148, 136, 0.25);
-  --radar-sweep-color: rgba(2, 132, 199, 0.12);
-  --grid-line: rgba(100, 116, 139, 0.1);
-  --hero-veil: linear-gradient(180deg, rgba(248, 250, 252, 0.82) 0%, rgba(241, 245, 249, 0.92) 60%, #F8FAFC 100%);
-}
-
 /* The specialized telemetry palette stays bright on dark HUD surfaces, but
    the same utility classes need darker ink on the daylight ground to preserve
-   WCAG AA / AAA contrast for labels, alerts, callouts, and status text. */
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-cyan-200,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-cyan-300,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-cyan-400,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-cyan-500,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-cyan-600 {
-  color: #0369a1 !important; /* Deep ocean cyan/sky */
+   WCAG AA / AAA contrast for labels, alerts, callouts, and status text.
+   Cyan and sky both resolve to the single accent blue, which is what makes the
+   daylight palette read as one accent instead of a gradient of related hues.
+   Teal, emerald, amber and rose remain because they carry meaning (cold chain,
+   compliance, warning, alert) rather than decoration. */
+[data-theme="light"] :not(.avionics-well, .avionics-well *, .avionics-panel, .avionics-panel *):is([class*="text-cyan-"], [class*="text-sky-"]) {
+  color: #0369A1 !important;
 }
 
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-sky-200,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-sky-300,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-sky-400,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-sky-500,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-sky-600 {
-  color: #0284c7 !important;
+[data-theme="light"] :not(.avionics-well, .avionics-well *, .avionics-panel, .avionics-panel *) [class*="text-teal-"] {
+  color: #0F766E !important; /* Deep pharma teal */
 }
 
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-teal-200,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-teal-300,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-teal-400,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-teal-500 {
-  color: #0f766e !important; /* Deep pharma teal */
-}
-
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-emerald-300,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-emerald-400,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-emerald-500 {
+[data-theme="light"] :not(.avionics-well, .avionics-well *, .avionics-panel, .avionics-panel *) [class*="text-emerald-"] {
   color: #047857 !important; /* Deep compliance emerald */
 }
 
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-amber-300,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-amber-400,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-amber-500 {
-  color: #b45309 !important; /* Deep warning amber */
+[data-theme="light"] :not(.avionics-well, .avionics-well *, .avionics-panel, .avionics-panel *) [class*="text-amber-"] {
+  color: #B45309 !important; /* Deep warning amber */
 }
 
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-rose-300,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-rose-400,
-[data-theme="light"] :not(.avionics-well, .avionics-well *) .text-rose-500 {
-  color: #be123c !important; /* Deep alert rose */
+[data-theme="light"] :not(.avionics-well, .avionics-well *, .avionics-panel, .avionics-panel *) [class*="text-rose-"] {
+  color: #BE123C !important; /* Deep alert rose */
+}
+
+/* Slate is the one neutral ramp in the system. The lighter steps exist for
+   dark HUD surfaces; on white they fall below 4.5:1, so they are remapped to
+   the two ink steps. Violets are not part of the palette at all. */
+[data-theme="light"] :not(.avionics-well, .avionics-well *, .avionics-panel, .avionics-panel *):is([class*="text-slate-300"], [class*="text-slate-400"]) {
+  color: #52606D !important;
+}
+
+[data-theme="light"] :not(.avionics-well, .avionics-well *, .avionics-panel, .avionics-panel *) [class*="text-slate-500"] {
+  color: #3F4B59 !important;
 }
 
 *,
@@ -150,43 +183,62 @@
   display: none !important;
 }
 
+/* Single source of truth for where an in-page anchor lands: far enough below
+   the fixed navbar to clear it with air to spare. SECTION_ANCHOR_OFFSET_PX in
+   src/lib/use-active-section.ts is derived from this value. */
 html {
-  scroll-behavior: smooth;
-  /* Single source of truth for where an in-page anchor lands: far enough
-     below the floating navbar to clear it with air to spare. Sections used to
-     *also* carry `scroll-mt-24`, which stacked on top of this and parked them
-     176px down — out of step with the two sections that had no such class and
-     with the navbar's section tracking. The per-section margins are gone;
-     SECTION_ANCHOR_OFFSET_PX in src/lib/use-active-section.ts is derived from
-     this value. */
   scroll-padding-top: 7rem;
+  /* Dialogs lock `body { overflow: hidden }`; reserving the scrollbar track
+     stops the whole page from shifting sideways by the scrollbar width when
+     one opens, which otherwise re-lays out every section mid-interaction. */
+  scrollbar-gutter: stable;
+}
+
+/* Page-wide smooth scrolling. Declared inside the no-preference query so the
+   reduced-motion block below does not have to win a specificity fight, and so
+   browsers that honour the OS setting never animate a 10-section jump. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {
   background-color: var(--c-bg);
   color: var(--c-text);
   font-family: var(--font-sans);
+  font-weight: 400;
+  font-synthesis-weight: none;
   overflow-x: hidden;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* Typography Hierarchy */
+/* Typography hierarchy. Three weights, deliberately: 400 for prose, 500 for
+   interface labels, 600 for headings and emphasis. 700 is reserved for the
+   hero wordmark. Inter's widths are not synthetic, so the old Archivo
+   `font-stretch: 76%` declaration was removed rather than allowed to distort
+   a family that has no width axis. */
 .h1-hero {
-  font-family: var(--font-serif);
-  font-stretch: 76%;
+  font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   line-height: 1.08;
   color: var(--c-heading);
+  text-wrap: balance;
 }
 
 .h2-display {
-  font-family: var(--font-serif);
-  font-stretch: 76%;
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
   line-height: 1.15;
   color: var(--c-heading);
+  text-wrap: balance;
+}
+
+strong,
+b {
+  font-weight: 600;
 }
 
 .text-title {
@@ -237,7 +289,7 @@ body {
 [lang="ar"] .font-ruqaa {
   font-family: var(--font-ruqaa);
   font-stretch: normal;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0 !important;
   line-height: 1.45;
 }
@@ -247,24 +299,36 @@ body {
   letter-spacing: 0 !important;
 }
 
-/* Card & Screen Styling */
+/* Card & Screen Styling.
+   Daylight panels are opaque white: no backdrop filter, no translucent haze.
+   Blurring the whole page behind every card forces the compositor to re-sample
+   the scroll surface continuously. The dark theme keeps the original glass
+   treatment, where it reads as cockpit glass rather than haze. */
 .glass-panel {
   background: var(--glass-bg);
+  border: 1px solid var(--glass-brd);
+  box-shadow: var(--glass-shadow);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+[data-theme="dark"] .glass-panel {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-brd);
   box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-inset);
-  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .glass-subcard {
   background: var(--c-subcard);
   border: 1px solid var(--c-border);
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .glass-panel-hover {
-  transition: all var(--dur-base) var(--ease-out-expo);
+  transition:
+    border-color var(--dur-base) var(--ease-out-expo),
+    background-color var(--dur-base) var(--ease-out-expo),
+    box-shadow var(--dur-base) var(--ease-out-expo),
+    transform var(--dur-base) var(--ease-out-expo);
 }
 
 .glass-panel-hover:hover {
@@ -272,17 +336,183 @@ body {
   transform: translateY(-2px);
 }
 
-/* Avionics Screen Well (Cockpit HUD) */
+/* Marker for a self-contained dark instrument surface (3D canvases, printed
+   manifest). Light-theme colour remapping must not reach inside: the ink the
+   daylight page needs would be invisible on these dark grounds.
+
+   The surface also re-scopes the palette tokens on itself, so a component that
+   says `text-muted` or `text-[var(--c-ok)]` keeps the night ink — bright enough
+   for a dark ground — even while the surrounding page is white. Without this
+   the shared tokens would resolve to their daylight values here and the
+   instrument text would drop to roughly half its required contrast. */
+.avionics-panel,
+.avionics-well {
+  color-scheme: dark;
+  isolation: isolate;
+  --c-text: #E8F1F8;
+  --c-heading: #FFFFFF;
+  --c-muted: #9BB0BC;
+  --c-accent: #38BDF8;
+  --c-ok: #34D399;
+  --c-cold: #5EEAD4;
+  --c-warn: #FCD34D;
+  --c-alert: #FDA4AF;
+  --c-track: #1E293B;
+  --c-hover: rgba(255, 255, 255, 0.10);
+  --c-subcard: rgba(255, 255, 255, 0.06);
+  --c-card-solid: #0B1320;
+  --c-border: rgba(155, 176, 188, 0.24);
+}
+
+/* ---- Corridor globe stage ----------------------------------------------
+   The one instrument surface that follows the page theme instead of staying
+   dark on principle. In daylight it is a flat white chart with blue coastline
+   ink; after dark, deep navy. Deliberately texture-free beyond a single 66 KiB
+   coastline mask, so scrolling the page never fights a re-rasterised shader.
+
+   The vars style the canvas's chrome (chips, legend, hints). The 3D palette in
+   src/three/airgl/globe/scene.ts mirrors the same two themes, so a flip repaints
+   the scene and its labels together. */
+.globe-stage {
+  color-scheme: dark;
+  isolation: isolate;
+  --globe-edge: rgba(143, 169, 194, 0.2);
+  --globe-chip: rgba(6, 16, 28, 0.62);
+  --globe-chip-line: rgba(103, 232, 249, 0.2);
+  --globe-ink: #9BB0BC;
+  --globe-ink-strong: #E8F1F8;
+  --globe-accent: #67E8F9;
+  --globe-warn: #FCD34D;
+  --globe-scrim: rgba(2, 6, 12, 0.55);
+  --globe-scrim-strong: rgba(2, 6, 12, 0.88);
+  background:
+    radial-gradient(circle at 50% 42%, #0A1B2C 0%, #06121F 55%, #030A13 100%);
+}
+
+[data-theme="light"] .globe-stage {
+  color-scheme: light;
+  --globe-edge: rgba(3, 105, 161, 0.16);
+  --globe-chip: rgba(255, 255, 255, 0.78);
+  --globe-chip-line: rgba(3, 105, 161, 0.18);
+  --globe-ink: #52606D;
+  --globe-ink-strong: #1E2A36;
+  --globe-accent: #0369A1;
+  --globe-warn: #B45309;
+  --globe-scrim: rgba(255, 255, 255, 0.6);
+  --globe-scrim-strong: rgba(255, 255, 255, 0.92);
+  /* White ground so the sphere's pale-blue ocean defines its own silhouette.
+     The faint outer wash keeps the card from dissolving into the page. */
+  background:
+    radial-gradient(circle at 50% 40%, #FFFFFF 0%, #F7FBFE 62%, #EAF2F9 100%);
+}
+
+.globe-chip {
+  border-radius: 9999px;
+  border: 1px solid var(--globe-chip-line);
+  background-color: var(--globe-chip);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.globe-chip--active {
+  border-color: var(--globe-chip-line);
+  background-color: color-mix(in srgb, var(--globe-accent) 12%, transparent);
+}
+
+/* Avionics Screen Well (Cockpit HUD).
+   One dark screen that sits on either page: a single flat ground, one hairline
+   border and no inner glow, so the radar and the 3D viewports read as
+   instruments rather than as glowing ornaments. */
 .avionics-well {
   background-color: var(--hud-bg);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.8), inset 0 0 40px rgba(6, 182, 212, 0.12);
+  border: 1px solid var(--hud-line);
+  box-shadow: 0 18px 40px -28px rgba(2, 8, 20, 0.55);
+}
+
+/* ---- Radar scope -------------------------------------------------------
+   Four ink levels and three signal colours, no more. Every mark on the scope
+   is drawn from this scale so a target, a ring and a label never compete. */
+.radar-scope {
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 50% 50%, #0A1929 0%, #06101C 62%, #040C15 100%);
+  box-shadow: inset 0 0 0 1px var(--hud-line), inset 0 0 60px rgba(4, 12, 24, 0.9);
+  touch-action: pan-y;
+}
+
+.radar-numeral {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* The sweep and the beam are one rotating layer; the gradient is a conic
+   gradient rather than a blurred element so the trail costs no filter pass.
+   It advances in 30 steps per revolution, matching a real PPI raster, which
+   reads as motion while staying cheap on a 60 Hz compositor. */
+.radar-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  animation: radarSweep 8s linear infinite;
+  will-change: transform;
+}
+
+.radar-sweep-idle {
+  animation-play-state: paused;
+}
+
+.radar-sweep-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(79, 195, 247, 0.24) 0deg,
+    rgba(79, 195, 247, 0.10) 18deg,
+    rgba(79, 195, 247, 0.03) 42deg,
+    transparent 60deg,
+    transparent 360deg
+  );
+  mask-image: radial-gradient(circle, #000 96%, transparent 100%);
+  -webkit-mask-image: radial-gradient(circle, #000 96%, transparent 100%);
+}
+
+.radar-sweep-beam {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 50%;
+  width: 1.5px;
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, rgba(125, 211, 252, 0.9), rgba(125, 211, 252, 0.15));
+  box-shadow: 0 0 6px rgba(125, 211, 252, 0.55);
+}
+
+/* A contact brightens exactly as the beam crosses its bearing: the animation
+   delay is the negative time it takes the sweep to reach that angle. */
+.radar-contact {
+  display: block;
+  animation: radarContact 8s linear infinite;
+}
+
+.radar-contact-idle {
+  animation-play-state: paused;
+}
+
+@keyframes radarContact {
+  0% { opacity: 1; filter: brightness(1.9); }
+  6% { opacity: 0.92; filter: brightness(1.35); }
+  35% { opacity: 0.62; filter: brightness(1); }
+  100% { opacity: 0.4; filter: brightness(0.85); }
 }
 
 /* Radar Animations */
+/* Stepped once per 12°: a real PPI paints in discrete sweeps, and stepping the
+   transform keeps the trail crisp instead of smearing it through a filter. */
 @keyframes radarSweep {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes pingPulse {
@@ -299,10 +529,6 @@ body {
 @keyframes altitudeFlight {
   0%, 100% { transform: translateY(0px) rotate(0deg); }
   50% { transform: translateY(-5px) rotate(0.5deg); }
-}
-
-.animate-radar-sweep {
-  animation: radarSweep 8s linear infinite;
 }
 
 .animate-ping-pulse {
@@ -327,12 +553,14 @@ body {
     scroll-behavior: auto !important;
   }
 
-  .animate-radar-sweep,
+  .radar-sweep,
+  .radar-contact,
   .animate-ping-pulse,
   .animate-hud-blink,
   .animate-flight-float {
     animation: none !important;
     opacity: 1;
+    filter: none !important;
   }
 }
 
@@ -351,8 +579,8 @@ select:focus-visible {
   font-size: 0.75rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #0284c7;
-  font-weight: 700;
+  color: var(--c-accent);
+  font-weight: 600;
 }
 
 [data-theme="dark"] .kicker {
@@ -364,7 +592,8 @@ select:focus-visible {
 }
 
 .display {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
+  font-weight: 600;
   letter-spacing: -0.025em;
   color: var(--c-heading);
 }
@@ -421,10 +650,10 @@ select:focus-visible {
   z-index: 11000;
   transform: translateY(-200%);
   border-radius: 0.75rem;
-  background: #38bdf8;
-  color: #07101c;
+  background: var(--c-accent);
+  color: #FFFFFF;
   padding: 0.65rem 1rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 .skip-link:focus { transform: translateY(0); }
 
@@ -450,7 +679,8 @@ select:focus-visible {
 }
 
 /* Sensor bus tiles use color as reinforcement only; labels and values remain explicit. */
-.sensor-tile { background: rgba(2, 8, 18, 0.82); border-color: rgba(148, 163, 184, 0.14); }
+.sensor-tile { background: var(--c-subcard); border-color: var(--c-border); }
+[data-theme="dark"] .sensor-tile { background: rgba(2, 8, 18, 0.82); border-color: rgba(148, 163, 184, 0.14); }
 .sensor-cyan { border-color: rgba(34, 211, 238, 0.28); }
 .sensor-cyan .sensor-glow, .sensor-cyan .sensor-level { background: #22d3ee; }
 .sensor-emerald { border-color: rgba(52, 211, 153, 0.28); }
@@ -500,17 +730,14 @@ select:focus-visible {
   to { transform: translateX(calc(100vw - 5rem)); opacity: .85; }
 }
 
-/* Cohesive premium page experience: composited reveals and restrained ambient depth. */
-body {
-  background:
-    radial-gradient(circle at 8% 18%, color-mix(in srgb, var(--c-accent) 8%, transparent), transparent 28rem),
-    radial-gradient(circle at 92% 62%, color-mix(in srgb, var(--c-pharma) 7%, transparent), transparent 32rem),
-    var(--c-bg);
-}
+/* Composited section reveals only. The page-wide ambient radial gradients that
+   used to live here forced a full-document gradient paint behind every
+   section; on a white ground they added tint without adding depth, so they are
+   gone. Opacity + transform are handled by the compositor. */
 .section-reveal {
   opacity: 0;
-  transform: translateY(28px) scale(.992);
-  transition: opacity 800ms var(--ease-out-expo), transform 800ms var(--ease-out-expo);
+  transform: translateY(20px);
+  transition: opacity 600ms var(--ease-out-expo), transform 600ms var(--ease-out-expo);
 }
 .section-reveal.section-visible { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {

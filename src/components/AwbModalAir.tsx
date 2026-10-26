@@ -40,7 +40,7 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
 
   return (
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/50"
       onClick={onClose}
     >
       <div
@@ -51,7 +51,7 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
         tabIndex={-1}
         className="w-full max-w-lg rounded-3xl border border-[var(--glass-brd)] bg-[var(--c-card-solid)] shadow-2xl p-6 text-body space-y-5 focus:outline-none"
         onClick={(e) => e.stopPropagation()}
-        dir={isRtl ? 'rtl' : 'ltr'}
+        dir="ltr"
       >
         <div className="flex items-center justify-between border-b border-[var(--glass-brd)] pb-4">
           <div className="flex items-center gap-2.5">
@@ -59,10 +59,10 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
               <FileCheck className="w-5 h-5" aria-hidden="true" />
             </span>
             <div>
-              <h3 id={titleId} className="font-bold text-base text-title">
+              <h3 id={titleId} className="font-semibold text-base text-title">
                 {isRtl ? 'فحص بوليصة الشحن الجوي e-AWB' : 'Validate IATA e-AWB Number'}
               </h3>
-              <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-400 font-semibold" dir="ltr">
+              <span className="text-[11px] font-mono text-[var(--c-accent)] font-semibold" dir="ltr">
                 MOD-7 CHECKSUM & NAFEZA ACID PRE-CLEAR
               </span>
             </div>
@@ -71,20 +71,20 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
             type="button"
             onClick={onClose}
             aria-label={isRtl ? 'إغلاق' : 'Close'}
-            className="p-1.5 rounded-lg text-muted hover:text-title hover:bg-black/5 dark:hover:bg-white/10"
+            className="p-1.5 rounded-lg text-muted hover:text-title hover:bg-[var(--c-hover)]"
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Demo Capability Notice */}
-        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs font-mono text-amber-950 dark:text-amber-300 flex items-start gap-2">
-          <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs font-mono text-[var(--c-warn)] flex items-start gap-2">
+          <Sparkles className="w-4 h-4 text-[var(--c-warn)] shrink-0 mt-0.5" />
           <div>
-            <span className="font-bold block text-amber-950 dark:text-amber-200">
+            <span className="font-semibold block text-[var(--c-warn)]">
               {isRtl ? 'نموذج محاكاة تشغيلي للقدرات:' : 'Operational Simulation & Capability Demo:'}
             </span>
-            <span className="text-[11px] text-amber-900/90 dark:text-slate-400">
+            <span className="text-[11px] text-muted">
               {isRtl
                 ? 'محاكاة تقنية لربط تدقيق معايير IATA وخوارزمية Mod-7 مع إشعار نافذة الجمركي بمطار القاهرة.'
                 : 'Simulating IATA Mod-7 checksum validation integrated with Cairo Airport Nafeza pre-clearance.'}
@@ -111,7 +111,7 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
               />
               <button
                 type="submit"
-                className="absolute inset-y-1.5 right-1.5 rtl:right-auto rtl:left-1.5 px-4 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-mono text-xs font-bold transition-colors flex items-center gap-1"
+                className="btn-primary absolute inset-y-1.5 right-1.5 px-4 rounded-lg font-mono text-xs font-semibold transition-opacity hover:opacity-90 flex items-center gap-1"
               >
                 <Search className="w-3.5 h-3.5" />
                 <span>{isRtl ? 'فحص' : 'Check'}</span>
@@ -155,11 +155,11 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
             role="status"
             className={`p-4 rounded-2xl border text-xs font-mono space-y-2 ${
               result
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
-                : 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-[var(--c-ok)]'
+                : 'bg-rose-500/10 border-rose-500/30 text-[var(--c-alert)]'
             }`}
           >
-            <div className="flex items-center gap-2 font-bold text-sm">
+            <div className="flex items-center gap-2 font-semibold text-sm">
               {result ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -183,7 +183,7 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
                 <button
                   type="button"
                   onClick={applySuggestion}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 font-bold hover:bg-cyan-500/20 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-[var(--c-accent)] font-semibold hover:bg-cyan-500/20 transition-colors"
                 >
                   <Wand2 className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>
@@ -197,16 +197,16 @@ export const AwbModalAir: React.FC<AwbModalAirProps> = ({ isOpen, onClose }) => 
 
             {result && (
               <div className="pt-2 border-t border-emerald-500/20 space-y-1.5 text-[11px] text-muted">
-                <p className="rounded-lg bg-amber-500/10 p-2 text-amber-700 dark:text-amber-300">Checksum validation does not confirm a booking, carrier record, customs clearance, or shipment status.</p>
+                <p className="rounded-lg bg-amber-500/10 p-2 text-[var(--c-warn)]">Checksum validation does not confirm a booking, carrier record, customs clearance, or shipment status.</p>
                 <div className="flex justify-between">
                   <span>{isRtl ? 'شركة الطيران الناقلة:' : 'AIRLINE CARRIER:'}</span>
-                  <span className="text-title font-bold" dir="ltr">
+                  <span className="text-title font-semibold" dir="ltr">
                     {airline.nameEn} ({airline.iataCode} · {airline.prefix})
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>{isRtl ? 'المقر والمركز الرئيسي:' : 'CARRIER MAIN HUB:'}</span>
-                  <span className="text-cyan-600 dark:text-cyan-400 font-semibold" dir="ltr">{airline.hub}</span>
+                  <span className="text-[var(--c-accent)] font-semibold" dir="ltr">{airline.hub}</span>
                 </div>
 
 

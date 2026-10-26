@@ -9,7 +9,7 @@ export const MissionAir: React.FC = () => {
       <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] items-start">
         <div>
           <p className="kicker text-sky-400">{dict.mission.kicker}</p>
-          <h2 className="display mt-3 text-[clamp(1.8rem,3.4vw,3rem)] font-bold text-title">
+          <h2 className="display mt-3 text-[clamp(1.8rem,3.4vw,3rem)] font-semibold text-title">
             {dict.mission.title}
           </h2>
         </div>
@@ -19,7 +19,7 @@ export const MissionAir: React.FC = () => {
               key={item}
               className="glass-panel flex gap-4 rounded-2xl p-5 border border-[var(--c-border)] transition-transform hover:-translate-y-0.5"
             >
-              <span className="mono text-lg font-bold text-sky-400">0{i + 1}</span>
+              <span className="mono text-lg font-semibold text-sky-400">0{i + 1}</span>
               <p className="text-sm leading-relaxed text-body font-medium">{item}</p>
             </li>
           ))}

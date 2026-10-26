@@ -203,7 +203,7 @@ export const ConsignmentTracker: React.FC = () => {
             <p className="kicker text-sky-400">{dict.tracker.kicker}</p>
             <ModelBadge />
           </div>
-          <h2 className="display text-[clamp(1.8rem,3.4vw,3rem)] font-bold text-title">
+          <h2 className="display text-[clamp(1.8rem,3.4vw,3rem)] font-semibold text-title">
             {dict.tracker.title}
           </h2>
           <p className="mt-2 text-muted text-base leading-relaxed">
@@ -233,7 +233,7 @@ export const ConsignmentTracker: React.FC = () => {
         />
         <button
           type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-400 hover:bg-cyan-300 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-400/20 transition-all active:scale-95 font-mono"
+          className="btn-primary inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-opacity hover:opacity-90 font-mono"
         >
           <Search className="h-4 w-4" />
           <span>{dict.tracker.search}</span>
@@ -255,7 +255,7 @@ export const ConsignmentTracker: React.FC = () => {
             }}
             className={`mono rounded-xl border px-3 py-1 text-xs transition-all ${
               result?.awb === s.awb
-                ? 'border-sky-400 bg-sky-400/15 text-sky-700 dark:text-sky-300 font-bold'
+                ? 'border-sky-400 bg-sky-400/15 text-[var(--c-accent)] font-semibold'
                 : 'border-[var(--c-border)] text-muted hover:border-sky-400/50'
             }`}
           >
@@ -265,7 +265,7 @@ export const ConsignmentTracker: React.FC = () => {
       </div>
 
       {notFound && (
-        <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-800 dark:text-rose-300 max-w-2xl font-mono">
+        <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-[var(--c-alert)] max-w-2xl font-mono">
           {dict.tracker.notFound}
         </div>
       )}
@@ -278,22 +278,22 @@ export const ConsignmentTracker: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <Plane className="h-4 w-4 text-sky-400" />
-                <span className="mono text-xs tracking-widest text-sky-400 uppercase font-bold">
+                <span className="mono text-xs tracking-widest text-sky-400 uppercase font-semibold">
                   MASTER AIR WAYBILL · {result.awb}
                 </span>
               </div>
-              <p className="mono mt-2 text-2xl md:text-3xl font-bold text-white tracking-tight">
+              <p className="mono mt-2 text-2xl md:text-3xl font-semibold text-white tracking-tight">
                 {result.flightNo} · {result.origin} → {result.destination}
               </p>
             </div>
-            <span className={`rounded-full border px-4 py-1.5 font-mono text-xs font-bold tracking-wider ${result.statusColor}`}>
+            <span className={`rounded-full border px-4 py-1.5 font-mono text-xs font-semibold tracking-wider ${result.statusColor}`}>
               {result.status}
             </span>
           </div>
 
           {/* Visual Milestone Stepper (5 Stages) */}
           <div className="py-6 border-b border-sky-400/15">
-            <span className="block text-[10px] font-mono text-cyan-400 uppercase tracking-wider mb-4 font-bold">
+            <span className="block text-[10px] font-mono text-cyan-400 uppercase tracking-wider mb-4 font-semibold">
               CONSIGNMENT FLIGHT & CUSTOMS PIPELINE
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
@@ -314,7 +314,7 @@ export const ConsignmentTracker: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className={`w-6 h-6 rounded-full border grid place-items-center text-[10px] font-mono font-bold ${
+                      <span className={`w-6 h-6 rounded-full border grid place-items-center text-[10px] font-mono font-semibold ${
                         isCurrent
                           ? 'border-cyan-400 bg-cyan-400 text-black animate-pulse'
                           : isPassed
@@ -326,7 +326,7 @@ export const ConsignmentTracker: React.FC = () => {
                       <Icon className={`w-4 h-4 ${isCurrent ? 'text-cyan-300' : isPassed ? 'text-emerald-400' : 'text-slate-500'}`} />
                     </div>
                     <div>
-                      <span className="block text-xs font-bold text-white leading-tight font-sans">
+                      <span className="block text-xs font-semibold text-white leading-tight font-sans">
                         {isRtl ? m.titleAr : m.titleEn}
                       </span>
                       <span className="block text-[10px] font-mono text-slate-400 mt-0.5">

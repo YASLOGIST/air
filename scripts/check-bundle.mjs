@@ -38,8 +38,14 @@ const perFileLimits = { js: 270_000, css: 112_000 };
  *     switching the minifier to terser (two compress passes). Net measurement
  *     is 492.3 KiB raw / 165.0 KiB gzip, i.e. BELOW the previous ceiling, so
  *     this ratchet tightens rather than loosens. CSS fell to 107.2 KiB with
- *     the removal of the dead HeroAir component's utility classes. */
-const totalLimits = { js: 515_000, css: 112_000 };
+ *     the removal of the dead HeroAir component's utility classes.
+ *   · RadarScope: the CSS-div scope was replaced by a true plan-position
+ *     indicator (bearing/range geometry, swept afterglow, cursor readout,
+ *     bilingual copy, rAF glide for the selected target) — ~6.5 KiB raw of app
+ *     code. The same pass removed every `dark:` pair and the rtl: mirror set,
+ *     so CSS fell another 5 KiB to 75.4 KiB. Measured 501.4 KiB raw /
+ *     168.1 KiB gzip. */
+const totalLimits = { js: 522_000, css: 112_000 };
 
 /* three r186, minified by terser: raw is ~5 KiB larger than the esbuild output
    but gzip — what the browser actually downloads — is ~3.3 KiB smaller

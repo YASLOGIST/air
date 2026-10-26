@@ -17,22 +17,56 @@ export const ExperienceLayer: React.FC = () => {
      that flips at most twice per page traversal — still goes through React. */
   useEffect(() => {
     let frame = 0;
+    /* Document length is measured when it can actually change — on resize and
+       when lazy sections mount — not on every scroll frame. The old handler
+       read `scrollHeight` (a forced layout) ~60×/s during a smooth scroll. */
+    let total = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+
+    const measureTotal = () => {
+      total = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    };
+
     const update = () => {
       frame = 0;
-      const total = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
       const progress = Math.min(1, Math.max(0, window.scrollY / total));
       if (barRef.current) barRef.current.style.transform = `scaleX(${progress})`;
-      setShowTopButton(progress > 0.16);
+      /* Only a boolean that flips at most twice per traversal goes through
+         React, and only when it actually changes. */
+      setShowTopButton((previous) => {
+        const next = progress > 0.16;
+        return next === previous ? previous : next;
+      });
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(update);
     };
+    const onResize = () => {
+      measureTotal();
+      onScroll();
+    };
+
     update();
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', onResize);
+
+    /* Sections are lazy; their arrival changes the document length. */
+    const main = document.querySelector('main');
+    const sizeObserver =
+      typeof ResizeObserver !== 'undefined' && document.body
+        ? new ResizeObserver(() => {
+            measureTotal();
+            onScroll();
+          })
+        : null;
+    if (sizeObserver && document.body) sizeObserver.observe(document.body);
+    const mutations = main ? new MutationObserver(measureTotal) : null;
+    if (main && mutations) mutations.observe(main, { childList: true, subtree: true });
+
     return () => {
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('resize', onResize);
+      sizeObserver?.disconnect();
+      mutations?.disconnect();
       if (frame) cancelAnimationFrame(frame);
     };
   }, []);
@@ -95,10 +129,10 @@ export const ExperienceLayer: React.FC = () => {
 
   return (
     <>
-      <div className="fixed inset-x-0 top-0 z-[9500] h-[2px] bg-white/5" aria-hidden="true">
+      <div className="fixed inset-x-0 top-0 z-[9500] h-[2px] bg-[var(--c-border)]" aria-hidden="true">
         <span
           ref={barRef}
-          className="block h-full origin-left rtl:origin-right bg-gradient-to-r rtl:bg-gradient-to-l from-sky-500 via-cyan-300 to-emerald-300 shadow-[0_0_12px_#22d3ee]"
+          className="block h-full origin-left bg-[var(--c-accent)]"
           style={{ transform: 'scaleX(0)' }}
         />
       </div>
@@ -111,7 +145,7 @@ export const ExperienceLayer: React.FC = () => {
               behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
             })
           }
-          className="fixed bottom-4 start-4 z-[8500] grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-[#06101d]/85 text-slate-300 shadow-xl backdrop-blur-xl hover:border-cyan-300/50 hover:text-white"
+          className="fixed bottom-4 start-4 z-[8500] grid h-9 w-9 place-items-center rounded-full border border-[var(--c-border)] bg-[var(--c-card-solid)] text-muted shadow-sm transition-colors hover:border-[var(--c-accent)] hover:text-title"
           aria-label={isRtl ? 'العودة إلى الأعلى' : 'Back to top'}
         >
           <ArrowUp className="h-4 w-4" />
