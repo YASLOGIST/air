@@ -79,7 +79,7 @@ const ZOOM_SMOOTH = 3.4;
    frames the planet with enough margin above the northern limb for corridors
    to arc clear of it without being cropped by the canvas. */
 const REST_RADIUS = 4.62;
-const MIN_RADIUS = 3.6;
+const MIN_RADIUS = 4.05;
 const MAX_RADIUS = 6.2;
 /* Idle redraw budget. The globe drifts slowly, so 30 fps is indistinguishable
    from 60 while halving the GPU work that competes with page scrolling. Drag,
@@ -121,8 +121,8 @@ const PALETTES: Record<GlobeTheme, GlobePalette> = {
     limb: 0x7fb0d0,
     graticule: 0x7fa8c4,
     graticuleOpacity: 0.38,
-    arc: 0x1f6f9e,
-    arcActive: 0x035d8a,
+    arc: 0x2a7ba6,
+    arcActive: 0x0369a1,
     traffic: 0x0b4a6f,
     additive: false,
   },
@@ -253,6 +253,11 @@ const ARC_VERTEX = /* glsl */ `
    going. One packet per route at a staggered, deterministic phase — the old
    version ran two counter-rotating sparks at irregular rates, which is what
    made the network look random. */
+/* A route, drawn the way a flight-planning chart draws one: a crisp constant
+   line for the corridor, a short bright segment running ahead of the aircraft
+   to show direction, and closed ends so it terminates at an airport rather
+   than fading out in mid-air. The previous long exponential tail read as a
+   comet smearing across the planet rather than a scheduled movement. */
 const ARC_FRAGMENT = /* glsl */ `
   precision mediump float;
   varying float vT;
@@ -271,33 +276,33 @@ const ARC_FRAGMENT = /* glsl */ `
   void main() {
     float noneSelected = step(uActiveArc, -0.5);
     float isActive = (1.0 - min(abs(vArc - uActiveArc), 1.0)) * uFocus;
-    /* Every route stays plainly legible; the selected one is simply the
-       loudest, rather than the only one you can see. */
     float focus = max(noneSelected * 0.18, isActive);
 
-    /* Distance behind the packet's head, along the route. 0 at the head,
-       growing toward the origin, wrapping at the departure point. */
+    /* Distance behind the aircraft's head, wrapped to the route length. */
     float head = fract(uTime * vPacketSpeed + vPacketPhase);
     float behind = head - vT;
     behind = behind < 0.0 ? behind + 1.0 : behind;
 
-    float tail = exp(-behind * 4.6);
-    float core = exp(-behind * 55.0);
+    /* A fixed-length leading segment rather than an exponential falloff: the
+       bright run is about a tenth of the route whatever its length. */
+    float lead = smoothstep(0.085, 0.0, behind) * 0.75;
 
-    /* Both ends sit a touch brighter, so a route reads as a connection between
-       two airports rather than a stroke with no subject. */
-    float cap = 1.0 - smoothstep(0.0, 0.05, vT) * smoothstep(1.0, 0.95, vT);
+    /* Ends settle at a definite point. */
+    float cap = smoothstep(0.0, 0.012, vT) * smoothstep(1.0, 0.988, vT);
 
-    float edge = smoothstep(1.0, 0.25, abs(vSide));
-    vec3 color = mix(uColor, uActiveColor, clamp(focus * 1.5 + core * 0.5, 0.0, 1.0));
-    float alpha = 0.60 + 0.30 * focus + 0.26 * cap + tail * (0.60 + 0.40 * focus);
+    /* Tight edge falloff keeps the line reading as a drawn stroke rather than
+       a soft beam. */
+    float edge = smoothstep(1.0, 0.55, abs(vSide));
+
+    vec3 color = mix(uColor, uActiveColor, clamp(focus * 1.5 + lead, 0.0, 1.0));
+    float alpha = (0.72 + 0.28 * focus) * cap + lead * (0.65 + 0.35 * focus);
     alpha *= edge;
 
     /* Far-side routes survive as a faint underlay, so the network reads as a
        transparent globe rather than a solid ball with secrets. */
     alpha *= mix(1.0, mix(0.14, 0.28, uGlow), vHidden);
     /* Ink is heavier than light. */
-    alpha *= mix(0.74, 1.0, uGlow);
+    alpha *= mix(0.78, 1.0, uGlow);
 
     gl_FragColor = vec4(color, alpha);
     #include <colorspace_fragment>
@@ -352,6 +357,10 @@ const TRAFFIC_VERTEX = /* glsl */ `
    reduced to the three masses the eye actually reads — swept wings, a tapered
    fuselage and a tailplane — with a soft halo that separates it from busy
    coastline underneath. */
+/* An airliner drawn in about twenty pixels. The shape is assembled from
+   analytically swept masses rather than smoothstep blobs, because at this size
+   the eye needs the two things that say "aircraft": a long fuselage and wings
+   that sweep back from the root. */
 const TRAFFIC_FRAGMENT = /* glsl */ `
   precision mediump float;
   varying float vEnroute;
@@ -368,51 +377,78 @@ const TRAFFIC_FRAGMENT = /* glsl */ `
     float ca = cos(-angle), sa = sin(-angle);
     p = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
 
-    float fuselage = smoothstep(0.115, 0.045, abs(p.y))
-      * smoothstep(0.72, 0.58, p.x) * smoothstep(-0.62, -0.48, p.x);
-    float wing = smoothstep(0.075, 0.015, abs(p.y - (p.x - 0.06) * 0.16))
-      * smoothstep(0.62, 0.34, abs(p.x + 0.06))
-      * smoothstep(0.30, 0.20, abs(p.x + 0.06));
-    float tail = smoothstep(0.055, 0.010, abs(p.y))
-      * smoothstep(0.22, 0.12, abs(p.x + 0.48));
-    float body = clamp(fuselage + wing * 0.95 + tail * 0.8, 0.0, 1.0);
+    /* Fuselage: a long body, tapering behind the wing. */
+    float bodyHalfWidth = mix(0.085, 0.035, smoothstep(0.05, 0.80, p.x));
+    float fuselage = smoothstep(bodyHalfWidth, bodyHalfWidth * 0.45, abs(p.y))
+      * smoothstep(0.80, 0.70, p.x)
+      * smoothstep(-0.66, -0.56, p.x);
 
-    float halo = smoothstep(0.62, 0.10, length(p)) * 0.16 * vEnroute;
-    float alpha = (body + halo) * mix(0.86, 1.0, uGlow);
-    if (alpha < 0.02) discard;
+    /* Wings: swept back, so the leading edge lags the root as span increases. */
+    float span = abs(p.y);
+    float wingRootX = 0.02;
+    float wingTrailX = wingRootX - span * 1.05;
+    float wing = smoothstep(0.075, 0.020, abs(p.x - wingTrailX))
+      * smoothstep(0.52, 0.44, span)
+      * smoothstep(0.06, 0.12, span);
+
+    /* Tailplane: same idea, much shorter span, well aft. */
+    float tailSpan = abs(p.y);
+    float tail = smoothstep(0.045, 0.010, abs(p.x + 0.50 + tailSpan * 0.30))
+      * smoothstep(0.26, 0.19, tailSpan)
+      * smoothstep(0.03, 0.08, tailSpan);
+
+    float shape = clamp(fuselage + wing + tail, 0.0, 1.0);
+    float alpha = shape * mix(0.88, 1.0, uGlow);
+    if (alpha < 0.03) discard;
     gl_FragColor = vec4(uColor, alpha);
     #include <colorspace_fragment>
   }
 `;
 
+/* Airport markers, drawn as a surveyor would draw a fix: a precise hairline
+   ring around a solid centre with a single slow ping travelling outward. The
+   old version scaled with view depth and drew a fat 38 px donut, which
+   dominated the card and merged neighbouring airports into one blob. */
 const HUB_VERTEX = /* glsl */ `
   attribute float aEminence;
   attribute float aPhase;
   attribute vec3 aColor;
   varying vec3 vColor;
-  varying float vPulse;
+  varying float vPing;
   uniform float uTime;
-  uniform float uPointScale;
+  uniform float uHubSize;
+
   void main() {
-    vPulse = 0.7 + 0.3 * sin(uTime * 1.8 + aPhase * 6.2831);
+    /* One ping per four-second cycle, offset per airport so they never fire
+       together. */
+    vPing = fract(uTime * 0.22 + aPhase);
     vColor = aColor;
-    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = aEminence * (0.85 + 0.3 * vPulse) * uPointScale / max(0.6, -mvPos.z);
-    gl_Position = projectionMatrix * mvPos;
+    /* Constant on screen: a fix marker is a symbol, not an object with
+       perspective. Only CAI (aEminence > 1) reads larger. */
+    gl_PointSize = uHubSize * aEminence;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
 const HUB_FRAGMENT = /* glsl */ `
   precision mediump float;
   varying vec3 vColor;
-  varying float vPulse;
+  varying float vPing;
+
   void main() {
     float r = length(gl_PointCoord - 0.5) * 2.0;
-    float core = smoothstep(0.20, 0.02, r);
-    float ring = smoothstep(0.66, 0.52, r) * smoothstep(0.30, 0.46, r) * vPulse;
-    float halo = smoothstep(1.0, 0.0, r) * 0.18;
-    float alpha = core + ring * 0.8 + halo;
-    if (alpha < 0.01) discard;
+    if (r > 1.0) discard;
+
+    /* Solidity in the middle, a 1-pixel-weight ring at a fixed radius, and a
+       ping that expands to the edge and fades as it goes. */
+    float center = smoothstep(0.20, 0.08, r);
+    float ring = smoothstep(0.055, 0.0, abs(r - 0.62)) * 0.9;
+
+    float pingRadius = 0.24 + vPing * 0.76;
+    float ping = smoothstep(0.075, 0.0, abs(r - pingRadius)) * (1.0 - vPing) * 0.55;
+
+    float alpha = center + ring + ping;
+    if (alpha < 0.02) discard;
     gl_FragColor = vec4(vColor, alpha);
     #include <colorspace_fragment>
   }
@@ -432,6 +468,8 @@ export class CorridorGlobeScene {
   private readonly textures: THREE.Texture[] = [];
 
   private readonly pointScale = { value: 1 };
+  /** Beacon diameter in device pixels: a symbol size, constant on screen. */
+  private readonly hubSize = { value: 24 };
   /** Aircraft sprite size in device pixels: constant, so every aircraft is the
    *  same size regardless of where it sits on the sphere. */
   private readonly planeSize = { value: 24 };
@@ -623,7 +661,7 @@ export class CorridorGlobeScene {
     hubs.forEach((hub, i) => {
       const [x, y, z] = latLonToVec3(hub.lat, hub.lon, GLOBE_RADIUS * 1.004);
       positions.set([x, y, z], i * 3);
-      eminence[i] = 15 * hub.eminence;
+      eminence[i] = hub.eminence;
       phase[i] = (i * 0.37) % 1;
       /* Hues are authored by the wrapper; applyPalette() derives the ink that
          actually reads against the current ground. */
@@ -638,7 +676,7 @@ export class CorridorGlobeScene {
     this.hubMaterial = new THREE.ShaderMaterial({
       vertexShader: HUB_VERTEX,
       fragmentShader: HUB_FRAGMENT,
-      uniforms: { uTime: { value: 0 }, uPointScale: this.pointScale },
+      uniforms: { uTime: { value: 0 }, uHubSize: this.hubSize },
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
@@ -670,7 +708,7 @@ export class CorridorGlobeScene {
 
     /* Ribbon half-width in world units. Wide enough to read as a beam at rest
        zoom, narrow enough that it never swallows the coastline. */
-    const HALF_WIDTH = 0.0046;
+    const HALF_WIDTH = 0.0058;
 
     corridors.forEach((corridor, arcIndex) => {
       this.arcIds.push(corridor.id);
@@ -1035,8 +1073,10 @@ export class CorridorGlobeScene {
     /* Scale the sprite to the card, then clamp to a readable band: below about
        12 CSS px an airliner silhouette is a smudge, above ~22 px it dominates
        the routes it is meant to annotate. */
-    const cssSize = THREE.MathUtils.clamp(Math.min(width, height) * 0.03, 13, 22);
-    this.planeSize.value = cssSize * dpr;
+    const planeCss = THREE.MathUtils.clamp(Math.min(width, height) * 0.026, 11, 18);
+    this.planeSize.value = planeCss * dpr;
+    const hubCss = THREE.MathUtils.clamp(Math.min(width, height) * 0.019, 9, 15);
+    this.hubSize.value = hubCss * dpr;
     this.renderOnce();
   }
 
