@@ -262,7 +262,7 @@ export const CargoVillageFlow: React.FC = () => {
               </div>
               <div className="flex justify-between items-center text-muted">
                 <span>{isRtl ? 'الربط البري المستهدف:' : 'Land Link Target:'}</span>
-                <span className="text-[var(--c-accent)] font-semibold" dir="ltr">land.yaslogist.com</span>
+                <span className="text-[var(--c-accent)] font-semibold" dir="ltr">land.yaslogist.me</span>
               </div>
 
               <div className="pt-2 border-t border-[var(--glass-brd)] text-[11px] text-muted leading-relaxed font-sans">

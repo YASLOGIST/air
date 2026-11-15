@@ -16,14 +16,14 @@
 [![Zero Defect Gate](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYASLOGIST%2Fair%2Fmain%2Fassets%2Fzero-defect-gate.json&style=for-the-badge)](assets/zero-defect-gate.json)
 [![Quality Latency](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYASLOGIST%2Fair%2Fmain%2Fassets%2Fquality-latency.json&style=for-the-badge)](assets/quality-latency.json)
 [![Kinetic Refresh](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYASLOGIST%2Fair%2Fmain%2Fassets%2Fkinetic-refresh.json&style=for-the-badge)](assets/kinetic-refresh.json)
-[![Live Site](https://img.shields.io/website?url=https%3A%2F%2Fair.yaslogist.com&label=air.yaslogist.com&style=for-the-badge&logo=vercel&logoColor=white&labelColor=0D1117&up_color=00E5FF&down_color=ff476f)](https://air.yaslogist.com)
+[![Live Site](https://img.shields.io/website?url=https%3A%2F%2Fair.yaslogist.me&label=air.yaslogist.me&style=for-the-badge&logo=vercel&logoColor=white&labelColor=0D1117&up_color=00E5FF&down_color=ff476f)](https://air.yaslogist.me)
 
 [![React](https://img.shields.io/github/package-json/dependency-version/YASLOGIST/air/react?filename=package.json&label=React&style=for-the-badge&logo=react&logoColor=white&labelColor=0D1117&color=00E5FF)](package.json)
 [![TypeScript](https://img.shields.io/github/package-json/dependency-version/YASLOGIST/air/dev/typescript?filename=package.json&label=TypeScript&style=for-the-badge&logo=typescript&logoColor=white&labelColor=0D1117&color=3178C6)](package.json)
 [![Vite](https://img.shields.io/github/package-json/dependency-version/YASLOGIST/air/dev/vite?filename=package.json&label=Vite&style=for-the-badge&logo=vite&logoColor=white&labelColor=0D1117&color=B73BFE)](package.json)
 [![Tailwind CSS](https://img.shields.io/github/package-json/dependency-version/YASLOGIST/air/dev/tailwindcss?filename=package.json&label=Tailwind%20CSS&style=for-the-badge&logo=tailwindcss&logoColor=white&labelColor=0D1117&color=06B6D4)](package.json)
 
-**[Live Preview](https://air.yaslogist.com)** · **[Quality Workflow](.github/workflows/quality.yml)** · **[Kinetic Workflow](.github/workflows/kinetic-readme.yml)** · **[Reconstruction Log](docs/RECONSTRUCTION.md)** · **[Issues](../../issues)**
+**[Live Preview](https://air.yaslogist.me)** · **[Quality Workflow](.github/workflows/quality.yml)** · **[Kinetic Workflow](.github/workflows/kinetic-readme.yml)** · **[Reconstruction Log](docs/RECONSTRUCTION.md)** · **[Issues](../../issues)**
 
 </div>
 
@@ -381,7 +381,7 @@ npm run audit
   <tr>
     <td><code>edge availability</code></td>
     <td><code>img.shields.io/website</code></td>
-    <td><code>https://air.yaslogist.com</code></td>
+    <td><code>https://air.yaslogist.me</code></td>
     <td>non-2xx/3xx response</td>
   </tr>
 </table>
@@ -450,7 +450,7 @@ Code follows the repository license policy. Project-supplied imagery in <code>pu
       <br/><br/>
       <sub><code>
         <a href="https://www.yaslogist.com">yaslogist.com</a> ·
-        <a href="https://air.yaslogist.com">air.yaslogist.com</a> ·
+        <a href="https://air.yaslogist.me">air.yaslogist.me</a> ·
         Electric Cyan <code>#00E5FF</code>
       </code></sub>
     </td>
@@ -461,6 +461,6 @@ Code follows the repository license policy. Project-supplied imagery in <code>pu
 
 ---
 
-<sub><code>built for air.yaslogist.com · part of the YASLOGIST multimodal suite · hero + kinetics rendered procedurally from repository source data</code></sub>
+<sub><code>built for air.yaslogist.me · part of the YASLOGIST multimodal suite · hero + kinetics rendered procedurally from repository source data</code></sub>
 
 </div>

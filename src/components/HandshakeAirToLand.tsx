@@ -106,14 +106,14 @@ export const HandshakeAirToLand: React.FC = () => {
             </div>
           </div>
 
-          {/* Right 4 Cols: Prominent Call-to-Action to land.yaslogist.com */}
+          {/* Right 4 Cols: Prominent Call-to-Action to land.yaslogist.me */}
           <div className="lg:col-span-4 flex flex-col justify-center p-6 rounded-2xl glass-subcard border border-[var(--c-border)] text-center space-y-4">
             <div className="space-y-1">
               <span className="text-[11px] font-mono text-[var(--c-accent)] uppercase tracking-wider block font-semibold">
                 {isRtl ? 'المنصة الشقيقة المتصلة' : 'Connected Sister Portal'}
               </span>
               <span className="text-lg font-semibold font-mono text-title block" dir="ltr">
-                land.yaslogist.com
+                land.yaslogist.me
               </span>
             </div>
 
