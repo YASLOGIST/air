@@ -274,7 +274,7 @@ export const DICTIONARY: Record<Language, Dict> = {
   en: {
     brand: {
       name: 'YASLOGIST AIR',
-      subdomain: 'air.yaslogist.com',
+      subdomain: 'air.yaslogist.me',
       tagline: 'High-Velocity Cargo & Cold-Chain Telemetry',
       badge: 'Time-Critical Aviation Logistics',
       modelBadge: 'SIMULATION DEMO',
@@ -567,7 +567,7 @@ export const DICTIONARY: Record<Language, Dict> = {
   ar: {
     brand: {
       name: 'ياسلوجست للشحن الجوي',
-      subdomain: 'air.yaslogist.com',
+      subdomain: 'air.yaslogist.me',
       tagline: 'شحن فائق السرعة وتيليميتري سلاسل التبريد',
       badge: 'اللوجستيات الجوية للشحنات الحرجة',
       modelBadge: 'محاكاة تشغيلية',

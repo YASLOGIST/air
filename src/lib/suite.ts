@@ -15,8 +15,8 @@ const envUrl = (key: keyof ImportMetaEnv, fallback: string): string => {
 };
 
 export const SUITE_URLS = {
-  hub: envUrl('VITE_HUB_URL', 'https://yaslogist.com'),
-  land: envUrl('VITE_LAND_URL', 'https://land.yaslogist.com'),
-  ocean: envUrl('VITE_OCEAN_URL', 'https://ocean.yaslogist.com'),
-  air: envUrl('VITE_AIR_URL', 'https://air.yaslogist.com'),
+  hub: envUrl('VITE_HUB_URL', 'https://www.yaslogist.com'),
+  land: envUrl('VITE_LAND_URL', 'https://land.yaslogist.me'),
+  ocean: envUrl('VITE_OCEAN_URL', 'https://ocean.yaslogist.me'),
+  air: envUrl('VITE_AIR_URL', 'https://air.yaslogist.me'),
 } as const;

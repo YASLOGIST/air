@@ -1,4 +1,4 @@
-# YASLOGIST AIR — air.yaslogist.com
+# YASLOGIST AIR — air.yaslogist.me
 # Single-page, client-rendered surface: everything indexable lives at /.
 #
 # /assets/ is deliberately NOT disallowed. Googlebot renders the page before
@@ -8,3 +8,5 @@
 
 User-agent: *
 Allow: /
+
+Sitemap: https://air.yaslogist.me/sitemap.xml
