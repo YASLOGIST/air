@@ -7,8 +7,8 @@ const base = 'https://air.yaslogist.me';
 describe('public Air discoverability and honest identity', () => {
   it('uses only the live Air origin in canonical and share metadata', () => {
     const html = read('index.html');
-    expect(html).toContain('<link rel="canonical" href="' + base + '"');
-    expect(html).toContain('<meta property="og:url" content="' + base + '"');
+    expect(html).toContain('<link rel="canonical" href="' + base + '/"');
+    expect(html).toContain('<meta property="og:url" content="' + base + '/"');
     expect(html).toContain('content="' + base + '/assets/og-image-animated.gif"');
     expect(html).toContain('content="' + base + '/assets/og-image-static.jpg"');
     expect(html).not.toContain('air.yaslogist.com');
