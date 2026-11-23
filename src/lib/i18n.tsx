@@ -274,7 +274,7 @@ export const DICTIONARY: Record<Language, Dict> = {
   en: {
     brand: {
       name: 'YASLOGIST AIR',
-      subdomain: 'air.yaslogist.com',
+      subdomain: 'air.yaslogist.me',
       tagline: 'High-Velocity Cargo & Cold-Chain Telemetry',
       badge: 'Time-Critical Aviation Logistics',
       modelBadge: 'SIMULATION DEMO',
@@ -440,7 +440,7 @@ export const DICTIONARY: Record<Language, Dict> = {
         gateOut: {
           title: 'Direct Handshake to Land Fleet',
           subtitle: 'Gate-Out to Reefer Transport',
-          desc: 'Immediate container loading onto dedicated refrigerated trucks connected to land.yaslogist.com for final distribution across Egypt.',
+          desc: 'Immediate container loading onto dedicated refrigerated trucks connected to land.yaslogist.me for final distribution across Egypt.',
           metric: 'Immediate dispatch to highway',
           compliance: 'Air-to-Land Seamless SLA',
         },
@@ -490,7 +490,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       statusAwb: 'e-AWB & Nafeza ACID: Verified & Customs Released',
       statusCold: 'Cold-Chain Integrity: +4.2°C held, no excursion logged on this run',
       statusNext: 'Next Milestone: Direct Delivery to 10th of Ramadan Pharma Hub',
-      ctaLand: 'Track Consignment on Land Network (land.yaslogist.com)',
+      ctaLand: 'Track Consignment on Land Network (land.yaslogist.me)',
       ctaSubtext: 'Continuous multimodal visibility across highway and distribution network.',
     },
     legal: {
@@ -567,7 +567,7 @@ export const DICTIONARY: Record<Language, Dict> = {
   ar: {
     brand: {
       name: 'ياسلوجست للشحن الجوي',
-      subdomain: 'air.yaslogist.com',
+      subdomain: 'air.yaslogist.me',
       tagline: 'شحن فائق السرعة وتيليميتري سلاسل التبريد',
       badge: 'اللوجستيات الجوية للشحنات الحرجة',
       modelBadge: 'محاكاة تشغيلية',
@@ -733,7 +733,7 @@ export const DICTIONARY: Record<Language, Dict> = {
         gateOut: {
           title: 'التسليم المباشر لأسطول النقل البري المبرد',
           subtitle: 'الانطلاق إلى الوجهة النهائية',
-          desc: 'تحميل الحاويات مباشرة على شاحنات مبردة متصلة بمنصة land.yaslogist.com للانطلاق الفوري إلى المصانع والمستودعات.',
+          desc: 'تحميل الحاويات مباشرة على شاحنات مبردة متصلة بمنصة land.yaslogist.me للانطلاق الفوري إلى المصانع والمستودعات.',
           metric: 'انطلاق فوري لشبكة الطرق السريعة',
           compliance: 'تكامل لوجستي سلس بين الجو والبر',
         },
@@ -783,7 +783,7 @@ export const DICTIONARY: Record<Language, Dict> = {
       statusAwb: 'بوليصة e-AWB ورقم نافذة ACID: مستوفاة ومطابقة جمركياً بالكامل',
       statusCold: 'سلامة سلسلة التبريد: +4.2°م مستقرة، دون تسجيل أي انحراف حراري في هذه الرحلة',
       statusNext: 'المحطة القادمة: التسليم المباشر للمنطقة الصناعية بالعاشر من رمضان',
-      ctaLand: 'تتبع الشحنة على شبكة النقل البري عبر land.yaslogist.com',
+      ctaLand: 'تتبع الشحنة على شبكة النقل البري عبر land.yaslogist.me',
       ctaSubtext: 'رؤية لوجستية متعددة الوسائط متصلة بين المطارات والطرق السريعة.',
     },
     legal: {
